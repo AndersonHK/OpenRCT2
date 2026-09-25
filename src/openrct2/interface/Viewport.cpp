@@ -1069,17 +1069,23 @@ namespace OpenRCT2
         const auto generation = mainPresentation ? presentation.GetGeneration()
             : auxiliaryGeneration                ? std::move(auxiliaryGeneration)
                                                  : ViewportCaptureAuxiliaryGeneration();
-        const bool terrainOnly = generation && generation->entities && generation->entities->IsTerrainOnly();
-        const bool terrainOnlyMain = mainPresentation && terrainOnly && viewport == ViewportGetMain();
-        const bool terrainOnlySecondary = mainPresentation && terrainOnly && !terrainOnlyMain;
-        if (terrainOnlySecondary)
+        // Full native entity snapshots also own the command stream's single
+        // world slot. Routing by IsTerrainOnly stopped isolating UI viewports
+        // as soon as retained peeps were added: their world draw was skipped
+        // after the main viewport claimed that slot, leaving a cleared window.
+        // Match CommandDrawingContext::DrawWorldScene's ownership predicate.
+        const bool nativeWorld = generation && generation->entities && generation->entities->IsNativeOnly() && generation->map
+            && generation->map->IsRawTerrainOnly();
+        const bool nativeWorldMain = mainPresentation && nativeWorld && viewport == ViewportGetMain();
+        const bool nativeWorldSecondary = mainPresentation && nativeWorld && !nativeWorldMain;
+        if (nativeWorldSecondary)
         {
             DrawSecondaryViewport(rt, *viewport, generation);
             return;
         }
         // Window drawing may split the main viewport around opaque UI. Record one full main-world
         // background, clipped only to its viewport and the engine target; later UI remains above it.
-        const auto* source = terrainOnlyMain ? rt.DrawingEngine->getRT() : &rt;
+        const auto* source = nativeWorldMain ? rt.DrawingEngine->getRT() : &rt;
         if (source == nullptr)
             throw std::runtime_error("GPU main viewport has no engine render target");
         const auto& sceneRT = *source;
@@ -1101,13 +1107,13 @@ namespace OpenRCT2
         worldRT.zoom_level = viewport->zoom;
         if (worldRT.width <= 0 || worldRT.height <= 0)
             return;
-        if (!terrainOnlyMain && !(viewport->flags & VIEWPORT_FLAG_TRANSPARENT_BACKGROUND))
+        if (!nativeWorldMain && !(viewport->flags & VIEWPORT_FLAG_TRANSPARENT_BACKGROUND))
             GfxClear(worldRT, PaletteIndex::pi10);
 
         auto* context = rt.DrawingEngine->GetDrawingContext();
         if (context == nullptr)
             throw std::runtime_error("Viewport requires the Vulkan world context");
-        if (generation != nullptr && !terrainOnlySecondary)
+        if (generation != nullptr && !nativeWorldSecondary)
         {
             const OrthographicCamera camera{
                 .viewX = worldRT.x,
@@ -1124,7 +1130,7 @@ namespace OpenRCT2
                 .entityInterpolation = EntityTweener::get().GetRenderAlpha(),
                 .entityInterpolationSourceTick = getGameState().currentTicks,
                 .viewFlags = viewport->flags,
-                .selection = terrainOnlyMain ? _frameSelection : nullptr,
+                .selection = nativeWorldMain ? _frameSelection : nullptr,
                 .selectedVehicleViewport = selectedVehicleViewport,
             };
             const auto world = context->DrawWorldScene(worldRT, generation, camera);

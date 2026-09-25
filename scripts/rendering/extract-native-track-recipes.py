@@ -24,6 +24,7 @@ class Unsupported(ValueError):
 
 STATE_BITS = {'chain':1, 'inverted':2, 'brakeClosed':4, 'cable':8, 'csgLoaded':16, 'greenLight':32, 'hasPlatforms':64}
 PHOTO_PART = 0xfffffffc
+PHOTO_PLATFORM_FLOOR = 32  # Source helper owns a floor beneath its independent rail parent.
 TUNNEL_PART = 0xfffffffd
 STATION_PART = 0xfffffffe
 COVER_CALLS = ('TrackPaintUtilDrawStationCovers', 'TrackPaintUtilDrawStationCovers2')
@@ -980,7 +981,7 @@ class Translator:
                 return None
             if name in ('TrackPaintUtilOnridePhotoPlatformPaintBase','TrackPaintUtilOnridePhotoPlatformPaint'):
                 height=evaluate(args[1 if name.endswith('Base') else 2],env)
-                parts.append((22432,0,0,height,0,0,height,32,32,1,2,-1))
+                parts.append((22432,0,0,height,0,0,height,32,32,1,2|PHOTO_PLATFORM_FLOOR,-1))
                 return None
             if name in ('TrackPaintUtilOnridePhotoPaint','TrackPaintUtilOnridePhotoSmallPaint','TrackPaintUtilOnridePhotoPaint2'):
                 direction=evaluate(args[1],env)

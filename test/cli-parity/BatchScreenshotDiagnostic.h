@@ -3,10 +3,13 @@
 #ifdef OPENRCT2_VULKAN_ONLY
     #include "CaptureImageDiagnostic.h"
 
+    #include <cstdlib>
     #include <fstream>
     #include <functional>
     #include <openrct2/drawing/PresentationGeneration.h>
     #include <openrct2/interface/ScreenshotTiling.h>
+    #include <openrct2/object/ObjectManager.h>
+    #include <openrct2/park/ParkFile.h>
     #include <set>
 
 namespace BatchScreenshotDiagnostic
@@ -19,6 +22,65 @@ namespace BatchScreenshotDiagnostic
         CoordsXYZ world;
         Viewport camera;
     };
+
+    inline bool WantsUpstreamExport()
+    {
+        const auto* value = std::getenv("OPENRCT2_CLI_EXPORT_UPSTREAM_PARK");
+        if (value == nullptr)
+            return false;
+        // Frozen oracle b80a4a84: ParkFile.h current61, minimum57. This is a
+        // deliberately bounded diagnostic conversion, not a general save UI.
+        if (std::string_view(value) != "61")
+            throw std::invalid_argument("Upstream diagnostic export supports only explicit target61");
+        return true;
+    }
+
+    inline json_t ExportUpstreamCopy(
+        IContext& context, const std::filesystem::path& source, const std::filesystem::path& output)
+    {
+        const auto directory = output / "upstream-export";
+        // A new, fixed artifact directory prevents replacing either a previous
+        // conversion or the source save. User save paths are only ever read.
+        if (!std::filesystem::create_directory(directory))
+            throw std::runtime_error("Diagnostic export refuses an existing upstream-export directory");
+        const auto path = directory / "park-v61.park";
+        ParkFileExporter exporter;
+        exporter.TargetVersion = 61;
+        exporter.ExportObjectsList = context.GetObjectManager().GetPackableObjects();
+        const auto tick = getGameState().currentTicks;
+        // Only the optional save preview is omitted. Conversion must not add an
+        // unobserved GPU capture after the explicitly requested camera frames.
+        const bool previousNoGraphics = gOpenRCT2NoGraphics;
+        gOpenRCT2NoGraphics = true;
+        try
+        {
+            exporter.Export(getGameState(), path.string(), kParkFileSaveCompressionLevel);
+        }
+        catch (...)
+        {
+            gOpenRCT2NoGraphics = previousNoGraphics;
+            throw;
+        }
+        gOpenRCT2NoGraphics = previousNoGraphics;
+        if (getGameState().currentTicks != tick || !std::filesystem::is_regular_file(path)
+            || std::filesystem::file_size(path) == 0)
+            throw std::runtime_error("Diagnostic export did not produce a static nonempty park copy");
+        json_t receipt{
+            { "source", std::filesystem::absolute(source).string() },
+            { "output", path.string() },
+            { "targetVersion", 61 },
+            { "oracleRevision", "b80a4a84e92be8e07904b38d1032d0bb88280bb4" },
+            { "sourceTick", tick },
+            { "packedObjectCount", exporter.ExportObjectsList.size() },
+            { "previewPolicy", "minimap only; optional GPU screenshot omitted" },
+            { "comparisonPolicy", "Reload this exact converted copy in both renderers; original-save parity is not implied" },
+            { "conversionScope", "Fork-only simulation fields are omitted; packable custom objects are embedded" }
+        };
+        std::ofstream metadata(directory / "conversion.json");
+        metadata.exceptions(std::ios::badbit | std::ios::failbit);
+        metadata << receipt.dump(2) << '\n';
+        return receipt;
+    }
 
     inline int32_t Integer(const json_t& value)
     {
@@ -93,6 +155,7 @@ namespace BatchScreenshotDiagnostic
         if (argc != 4 || std::string_view(argv[1]) != "screenshot" || !factory || !factory->IsEnabled())
             throw std::invalid_argument("Batch screenshot requires: screenshot park batch.json");
         const auto destination = std::filesystem::absolute(output);
+        const bool exportUpstream = WantsUpstreamExport();
         auto requests = Read(std::filesystem::absolute(argv[3]), destination);
         gOpenRCT2Headless = true;
         gOpenRCT2NoGraphics = false;
@@ -143,11 +206,15 @@ namespace BatchScreenshotDiagnostic
             frames.push_back(std::move(frame));
             observeFrame(destination);
         }
+        // Downgrade writing may normalise unsupported simulation fields. Keep
+        // the original-save captures above independent of that conversion.
+        const json_t exported = exportUpstream ? ExportUpstreamCopy(*context, argv[2], destination) : json_t(nullptr);
         return { { "sourceTick", tick },
                  { "finalTick", getGameState().currentTicks },
                  { "publicationCount", 1 },
                  { "frames", frames },
                  { "requestFile", std::filesystem::absolute(argv[3]).string() },
+                 { "upstreamExport", exported },
                  { "simulationPolicy", "static; one immutable publication shared by all cameras; no update calls" } };
     }
 } // namespace BatchScreenshotDiagnostic

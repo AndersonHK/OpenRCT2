@@ -54,10 +54,12 @@ namespace OpenRCT2::Drawing
                     const auto parent = static_cast<int32_t>(words[p + 11]);
                     const auto colourRole = words[p + 10] & 7u;
                     const bool frontComponent = (words[p + 10] & 8u) != 0;
+                    const bool floorComponent = (words[p + 10] & 32u) != 0;
                     if ((words[p] >= 0x7ffffu && !IsNativeTrackAnimatedImage(words[p]) && words[p] != 0xfffffffeu
                          && words[p] != 0xfffffffdu && words[p] != 0xfffffffcu)
-                        || (words[p + 10] & ~15u) != 0 || colourRole > 5
+                        || (words[p + 10] & ~47u) != 0 || colourRole > 5
                         || (frontComponent && (colourRole >= 4 || words[p] >= 0xfffffffcu))
+                        || (floorComponent && (frontComponent || colourRole != 2 || words[p] >= 0xfffffffcu || parent != -1))
                         || (parent != -1 && (parent < 0 || static_cast<uint32_t>(parent) >= i)))
                         throw std::runtime_error("Native track definition component is invalid");
                     if (colourRole >= 4 && (words[p] != 0 || parent < 0))

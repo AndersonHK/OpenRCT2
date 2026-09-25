@@ -22,7 +22,6 @@
 #include "AssetPackManager.h"
 #include "Context.h"
 #include "Diagnostic.h"
-#include "TitleLoadingDiagnostic.h"
 #include "FileClassifier.h"
 #include "Game.h"
 #include "GameState.h"
@@ -32,6 +31,7 @@
 #include "ParkImporter.h"
 #include "PlatformEnvironment.h"
 #include "ReplayManager.h"
+#include "TitleLoadingDiagnostic.h"
 #include "Version.h"
 #include "actions/GameActionRunner.h"
 #include "audio/Audio.h"
@@ -258,6 +258,8 @@ namespace OpenRCT2
         bool _benchmarkCameraStress{};
         uint64_t _benchmarkCameraInitialTick{};
         uint64_t _benchmarkCameraStep{};
+        std::optional<uint16_t> _benchmarkSecondaryRide;
+        json_t _benchmarkSecondarySetup;
         IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
@@ -2117,6 +2119,11 @@ namespace OpenRCT2
                     // The displayed immutable generation may lag the final simulation tick.
                     // Report that age honestly; no second render or publication reset is hidden.
                     receipt["publicationSourceTick"] = generation ? json_t(generation->sourceTick) : json_t(nullptr);
+                    if (_benchmarkSecondaryRide)
+                    {
+                        receipt["secondaryViewport"] = ObserveBenchmarkSecondaryViewport();
+                        receipt["secondaryViewport"]["setup"] = _benchmarkSecondarySetup;
+                    }
                     Console::WriteLine("Final benchmark screenshot v1: %s", receipt.dump().c_str());
                 }
                 catch (const std::exception& e)
@@ -2191,6 +2198,35 @@ namespace OpenRCT2
                 static_cast<int8_t>(window->viewport->zoom), location.x, location.y);
         }
 
+        json_t ObserveBenchmarkSecondaryViewport() const
+        {
+            for (const auto& window : gWindowList)
+            {
+                if (!_benchmarkSecondaryRide || window->classification != WindowClass::ride
+                    || window->number != *_benchmarkSecondaryRide || window->viewport == nullptr)
+                    continue;
+                const auto* vehicle = getGameState().entities.getEntity<Vehicle>(window->viewportTargetSprite);
+                if (vehicle == nullptr)
+                    throw std::runtime_error("Secondary benchmark window lost its live vehicle target");
+                auto& viewport = *window->viewport;
+                const auto expected = centre2dCoordinates(vehicle->getLocation(), &viewport);
+                return json_t{
+                    { "ride", vehicle->ride.ToUnderlying() },
+                    { "entity", vehicle->id.ToUnderlying() },
+                    { "worldXYZ", { vehicle->x, vehicle->y, vehicle->z } },
+                    { "tick", getGameState().currentTicks },
+                    { "screenRect", { viewport.pos.x, viewport.pos.y, viewport.width, viewport.height } },
+                    { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
+                    { "expectedFollowPosition", expected ? json_t{ expected->x, expected->y } : json_t(nullptr) },
+                    { "followsLiveVehicle", expected && *expected == viewport.viewPos },
+                    { "zoom", static_cast<int8_t>(viewport.zoom) },
+                    { "rotation", viewport.rotation },
+                    { "flags", viewport.flags },
+                };
+            }
+            throw std::runtime_error("Secondary benchmark ride window is missing");
+        }
+
         void UpdateIntegratedBenchmark()
         {
             if (!gIntegratedBenchmark.enabled || _benchmarkPhase == IntegratedBenchmarkPhase::complete)
@@ -2210,13 +2246,16 @@ namespace OpenRCT2
                         return;
                     }
                     const auto* secondaryPreview = std::getenv("OPENRCT2_BENCHMARK_SECONDARY_VEHICLE");
-                    if (secondaryPreview != nullptr && std::string_view(secondaryPreview) == "1")
+                    if (gIntegratedBenchmark.secondaryVehicle
+                        || (secondaryPreview != nullptr && std::string_view(secondaryPreview) == "1"))
                     {
                         const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
                         Vehicle* selected = nullptr;
                         for (auto* vehicle : EntityList<Vehicle>())
                         {
-                            if (vehicle->x != kLocationNull && !vehicle->ride.IsNull())
+                            if (vehicle->x != kLocationNull && !vehicle->ride.IsNull() && vehicle->GetRide() != nullptr
+                                && (gIntegratedBenchmark.secondaryRide < 0
+                                    || vehicle->ride.ToUnderlying() == gIntegratedBenchmark.secondaryRide))
                             {
                                 selected = vehicle;
                                 break;
@@ -2236,11 +2275,11 @@ namespace OpenRCT2
                             FailIntegratedBenchmark("Secondary viewport benchmark setup failed or changed entity state.");
                             return;
                         }
-                        Console::WriteLine(
-                            "Secondary viewport benchmark v1: ride=%u entity=%u tick=%u checksum=%s width=%d height=%d "
-                            "flags=%u",
-                            selected->ride.ToUnderlying(), selected->id.ToUnderlying(), getGameState().currentTicks,
-                            checksum.c_str(), window->viewport->width, window->viewport->height, window->viewport->flags);
+                        _benchmarkSecondaryRide = selected->ride.ToUnderlying();
+                        _benchmarkSecondarySetup = ObserveBenchmarkSecondaryViewport();
+                        _benchmarkSecondarySetup["entityChecksum"] = checksum;
+                        _benchmarkSecondarySetup["requestedRide"] = gIntegratedBenchmark.secondaryRide;
+                        Console::WriteLine("Secondary viewport benchmark v2: %s", _benchmarkSecondarySetup.dump().c_str());
                     }
                     const auto* undergroundView = std::getenv("OPENRCT2_BENCHMARK_UNDERGROUND_VIEW");
                     if (undergroundView != nullptr && std::string_view(undergroundView) == "1")

@@ -13,6 +13,14 @@
 // subtracting a world unit would bury ground-level supports beneath terrain.
 // Other track elements never enter this constraint.
 const int WORLD_TRACK_RAIL_LAYER=2;
+const int WORLD_TRACK_FLOOR_ROLE=32;
+// Photo-platform and rail are independent source parents at the same raster
+// contact. The platform is a floor, not another rail; keep it beneath its rail
+// without moving either component in worldXY/worldZ or changing vehicle depth.
+TRACK_DEPTH_FN int worldTrackComponentLayer(int colourRole)
+{
+    return (colourRole&WORLD_TRACK_FLOOR_ROLE)!=0?1:WORLD_TRACK_RAIL_LAYER;
+}
 TRACK_DEPTH_FN int worldTrackUnderRailDepth(int authoredDepth,int ownRailDepth)
 {
     return authoredDepth<ownRailDepth?authoredDepth:ownRailDepth;

@@ -67,6 +67,8 @@ namespace OpenRCT2
     static bool _benchmarkVisible = false;
     static bool _benchmarkUploadTelemetry = false;
     static bool _benchmarkFinalScreenshot = false;
+    static bool _benchmarkSecondaryVehicle = false;
+    static int32_t _benchmarkSecondaryRide = -1;
     static bool _benchmarkUncappedSimulation = false;
     static int32_t _benchmarkWarmupSeconds = 5;
     static int32_t _benchmarkDurationSeconds = 30;
@@ -98,6 +100,8 @@ namespace OpenRCT2
         { CMDLINE_TYPE_STRING,  &_rct2DataPath,     kNAC, "rct2-data-path",     "path to the RollerCoaster Tycoon 2 data directory (containing data/g1.dat)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkUi,      kNAC, "benchmark-ui",        "run a hidden integrated UI benchmark and exit"                 },
         { CMDLINE_TYPE_SWITCH, &_benchmarkFinalScreenshot, kNAC, "benchmark-final-screenshot", "save one final main-canvas screenshot after benchmark timing stops" },
+        { CMDLINE_TYPE_SWITCH, &_benchmarkSecondaryVehicle, kNAC, "benchmark-secondary-vehicle", "open a real selected-train window before benchmark warmup and capture it after timing" },
+        { CMDLINE_TYPE_INTEGER, &_benchmarkSecondaryRide, kNAC, "benchmark-secondary-ride", "restrict the selected-train diagnostic to a ride ID; -1 chooses the first eligible train" },
         { CMDLINE_TYPE_SWITCH, &_benchmarkUncappedSimulation, kNAC, "benchmark-uncapped-simulation", "benchmark simulation headroom without the ordinary 360 TPS target" },
         { CMDLINE_TYPE_SWITCH, &_benchmarkUploadTelemetry, kNAC, "benchmark-upload-telemetry", "aggregate Vulkan API upload payload accounting (attribution only)" },
         { CMDLINE_TYPE_SWITCH,  &_benchmarkVisible, kNAC, "benchmark-visible",   "show the integrated benchmark window for compositor testing"   },
@@ -284,6 +288,12 @@ namespace OpenRCT2
             Console::Error::WriteLine("--benchmark-final-screenshot requires --benchmark-ui.");
             return ExitCode::fail;
         }
+        if ((_benchmarkSecondaryVehicle && !_benchmarkUi) || (_benchmarkSecondaryRide != -1 && !_benchmarkSecondaryVehicle)
+            || _benchmarkSecondaryRide < -1 || _benchmarkSecondaryRide >= UINT16_MAX)
+        {
+            Console::Error::WriteLine("Secondary vehicle capture requires --benchmark-ui and a valid optional ride ID.");
+            return ExitCode::fail;
+        }
         if (_benchmarkUploadTelemetry && !_benchmarkUi)
         {
             Console::Error::WriteLine("--benchmark-upload-telemetry requires --benchmark-ui.");
@@ -339,7 +349,9 @@ namespace OpenRCT2
             gIntegratedBenchmark.enabled = true;
             gIntegratedBenchmark.visible = _benchmarkVisible;
             gIntegratedBenchmark.uploadTelemetry = _benchmarkUploadTelemetry;
-            gIntegratedBenchmark.finalScreenshot = _benchmarkFinalScreenshot;
+            gIntegratedBenchmark.finalScreenshot = _benchmarkFinalScreenshot || _benchmarkSecondaryVehicle;
+            gIntegratedBenchmark.secondaryVehicle = _benchmarkSecondaryVehicle;
+            gIntegratedBenchmark.secondaryRide = _benchmarkSecondaryRide;
             gIntegratedBenchmark.uncappedSimulation = _benchmarkUncappedSimulation;
             gIntegratedBenchmark.warmupSeconds = _benchmarkWarmupSeconds;
             gIntegratedBenchmark.measurementSeconds = _benchmarkDurationSeconds;

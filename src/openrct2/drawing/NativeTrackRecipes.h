@@ -34,6 +34,7 @@ namespace OpenRCT2::Drawing
     // sequenceCount=0 means unsupported.
     // Part (12 words): image,offsetXYZ,boundsXYZ,sizeXYZ,colourRole,parentIndex.
     // colourRole low3 bits select palette; bit3 marks source-named frontTrack/frontHandrail contact.
+    // Bit5 marks the source-owned photo platform floor, below its independent rail parent at equal contact.
     // Colour roles: 0=main/additional, 1=support/additional, 2=black, 3=main/support.
     // Image0xfffffffe marks procedural station geometry; size.y selects the
     // regular/inverted/narrow/pier recipe. It is never an original sprite ID.

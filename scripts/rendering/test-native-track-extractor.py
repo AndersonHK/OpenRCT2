@@ -139,7 +139,7 @@ class NativeTrackExtractorTest(unittest.TestCase):
 
     def test_photo_base_and_wooden_colour_roles(self):
         self.assertEqual(translate_fixture('TrackPaintUtilOnridePhotoPlatformPaintBase(session,height);')[0],
-                         (22432,0,0,40,0,0,40,32,32,1,2,-1))
+                         (22432,0,0,40,0,0,40,32,32,1,2|EXTRACTOR.PHOTO_PLATFORM_FLOOR,-1))
         for expression,role in (('WoodenRCGetTrackColour<false>(session)',1),
                                 ('WoodenRCGetRailsColour(session)',0),('GetTrackColour(session)',3)):
             body='PaintAddImageAsParent(session, '+expression+'.WithIndex(100), {0,0,height}, {32,20,2});'

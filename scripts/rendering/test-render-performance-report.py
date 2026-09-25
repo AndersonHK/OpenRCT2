@@ -295,5 +295,40 @@ class SimulationAttributionEvidenceTest(unittest.TestCase):
             self.parse(payload)
 
 
+class SecondaryViewportEvidenceTest(unittest.TestCase):
+    def payload(self, directory, blank=False):
+        path = Path(directory) / 'final.png'
+        image = Image.new('RGB', (32, 32))
+        if not blank:
+            for y in range(8, 24):
+                for x in range(8, 24):
+                    image.putpixel((x, y), (x * 7, y * 7, 32))
+        image.save(path)
+        record = dict(ride=22, entity=15, tick=3001, screenRect=[8, 8, 16, 16],
+                      viewPosition=[21, 31], expectedFollowPosition=[21, 31],
+                      followsLiveVehicle=True, setup=dict(ride=22, entity=15))
+        return dict(path=str(path), receipt=dict(simulationTick=3001, secondaryViewport=record))
+
+    def test_actual_viewport_crop_is_saved_separately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = report.qualify_secondary_viewport(self.payload(directory), 22)
+            with Image.open(result['crop']) as image:
+                self.assertEqual(image.size, (16, 16))
+            self.assertEqual(result['colours'], 256)
+
+    def test_black_live_window_fails_even_with_correct_follow_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'blank'):
+                report.qualify_secondary_viewport(self.payload(directory, blank=True), 22)
+
+    def test_wrong_target_or_unfollowed_camera_cannot_qualify(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for key, value in (('entity', 16), ('viewPosition', [22, 31]), ('followsLiveVehicle', False)):
+                payload = self.payload(directory)
+                payload['receipt']['secondaryViewport'][key] = value
+                with self.subTest(key=key), self.assertRaises(ValueError):
+                    report.qualify_secondary_viewport(payload, 22)
+
+
 if __name__ == '__main__':
     unittest.main()

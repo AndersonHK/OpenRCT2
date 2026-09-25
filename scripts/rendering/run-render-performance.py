@@ -440,6 +440,38 @@ def declared_diagnostic_screenshots(text, profile, width, height, camera_stress=
     return declared
 
 
+def qualify_secondary_viewport(final_screenshot, requested_ride=None):
+    """Validate an actual selected-train window in the final ordinary UI frame."""
+    from PIL import Image
+    record = final_screenshot['receipt'].get('secondaryViewport')
+    if not isinstance(record, dict) or record.get('followsLiveVehicle') is not True:
+        raise ValueError('Selected-train viewport is absent or does not follow its live vehicle')
+    setup = record.get('setup', {})
+    if (record.get('ride') != setup.get('ride') or record.get('entity') != setup.get('entity')
+            or record.get('tick') != final_screenshot['receipt']['simulationTick']
+            or record.get('viewPosition') != record.get('expectedFollowPosition')
+            or (requested_ride is not None and record.get('ride') != requested_ride)):
+        raise ValueError('Selected-train viewport target or camera metadata is inconsistent')
+    rect = record.get('screenRect')
+    if not isinstance(rect, list) or len(rect) != 4 or any(type(v) is not int for v in rect):
+        raise ValueError('Invalid secondary viewport rectangle')
+    x, y, width, height = rect
+    with Image.open(final_screenshot['path']) as image:
+        if min(x, y) < 0 or min(width, height) <= 0 or x + width > image.width or y + height > image.height:
+            raise ValueError('Secondary viewport is outside the captured main canvas')
+        crop = image.crop((x, y, x + width, y + height))
+        histogram = crop.convert('RGB').getcolors(width * height)
+        colours = len(histogram)
+        nonuniform = width * height - max(count for count, _ in histogram)
+        if colours < 8 or nonuniform < width * height // 20:
+            raise ValueError('Selected-train viewport is blank or lacks surrounding rendered world')
+        path = Path(final_screenshot['path']).with_name('secondary-vehicle-viewport.png')
+        crop.save(path)
+    return {'metadata': record, 'crop': str(path), 'sha256': sha256(path),
+            'colours': colours, 'nonuniformPixels': nonuniform,
+            'scope': 'Actual ordinary ride window and live follow camera; nonblank check requires manual train/world visual inspection'}
+
+
 def qualify_final_screenshot(text, profile, output, result, width, height, camera_stress=False):
     from PIL import Image
     clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
@@ -710,6 +742,8 @@ def main():
     parser.add_argument("--attribution-profile", choices=("csv", "json"), help="Separate instrumented attribution lane, never clean acceptance")
     parser.add_argument("--compare-run", type=Path)
     parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
+    parser.add_argument("--secondary-vehicle", action="store_true", help="Open a real selected-train window before warmup and require its final screenshot; adds ordinary auxiliary viewport work")
+    parser.add_argument("--secondary-ride", type=int, help="Ride ID for --secondary-vehicle; otherwise select the first eligible train")
     parser.add_argument("--uncapped-simulation", action="store_true", help="Current-only simulation headroom experiment; ordinary gameplay keeps its 360 TPS target")
     parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
     parser.add_argument("--simulation-wait-profile", action="store_true", help="Separate named simulation/ParallelFor wall-cycle attribution; never clean acceptance")
@@ -717,6 +751,12 @@ def main():
     parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
     parser.add_argument("--camera-stress", action="store_true", help="Normal-speed pan/zoom tour with periodic screenshots and synchronization validation; NOT a performance measurement")
     args = parser.parse_args()
+    if args.secondary_ride is not None and (not args.secondary_vehicle or not 0 <= args.secondary_ride < 65535):
+        parser.error("--secondary-ride requires --secondary-vehicle and a valid ride ID")
+    if args.secondary_vehicle:
+        if args.mode != "current-vulkan" or args.ticks < 3000 or args.warmup_ticks <= 0:
+            parser.error("Secondary vehicle regression requires current Vulkan, positive warmup, and at least 3000 measured ticks")
+        args.final_screenshot = True
     if args.camera_stress and (args.mode != "current-vulkan" or args.uncapped_simulation or args.compare_run or args.minimum_present_fps):
         parser.error("Camera stress requires current Vulkan and cannot qualify throughput or compare performance")
     output = args.output.resolve()
@@ -811,6 +851,10 @@ def main():
                    "--rct1-data-path", str(games["rct1"]), "--rct2-data-path", str(games["rct2"])]
         if args.final_screenshot:
             command.append("--benchmark-final-screenshot")
+        if args.secondary_vehicle:
+            command.append("--benchmark-secondary-vehicle")
+            if args.secondary_ride is not None:
+                command += ["--benchmark-secondary-ride", str(args.secondary_ride)]
         if args.uncapped_simulation:
             command.append("--benchmark-uncapped-simulation")
         if args.upload_telemetry:
@@ -842,6 +886,8 @@ def main():
                                "configInputSha256": sha256(output / "config-input.ini"), "configSeedSha256": seed_hash,
                                "acceptedAssetManifestSha256": reference["manifestSha256"], "licensedAssetsSha256": json_hash(licensed),
                                "simulationSpeed": "ordinary Turbo", "camera": "saved park view; no input events injected"}
+        if args.secondary_vehicle:
+            summary['workload']['secondaryVehicle'] = {'requestedRide': args.secondary_ride, 'selection': 'ordinary vehicle window intent before warmup'}
         if args.upload_telemetry:
             summary["workload"]["uploadTelemetry"] = 1
         if args.uncapped_simulation:
@@ -913,6 +959,9 @@ def main():
             summary["failures"].append("Runtime diagnostic requires investigation")
             summary["runtimeDiagnostics"] = suspicious
         summary["result"] = parse_log(text)
+        if args.secondary_vehicle:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            summary['secondaryVehicleSetup'] = json.loads(one(clean_log, r'Secondary viewport benchmark v2:\s+(\{.*\})', 'secondary vehicle setup'))
         underground_requested = relevant.get('OPENRCT2_BENCHMARK_UNDERGROUND_VIEW') == '1'
         underground_logged = 'Underground viewport benchmark v1:' in text
         if underground_requested != underground_logged:
@@ -953,6 +1002,10 @@ def main():
                 summary["qualification"] = "Partial GPU-only rendering throughput; omitted world categories prevent full-render performance acceptance"
             if underground_requested and not summary['finalScreenshot']['receipt']['camera']['flags'] & 1:
                 raise ValueError('Final capture lost requested underground view')
+            if args.secondary_vehicle:
+                summary['secondaryVehicle'] = qualify_secondary_viewport(summary['finalScreenshot'], args.secondary_ride)
+                if summary['secondaryVehicle']['metadata']['setup'] != summary['secondaryVehicleSetup']:
+                    raise ValueError('Secondary viewport final setup differs from its initial log')
         elif "Final benchmark screenshot v1:" in text:
             summary["failures"].append("Unexpected final screenshot in a no-capture process")
         if args.require_display_evidence:
@@ -991,6 +1044,9 @@ def main():
         summary["measurementLimitations"] = ["Hidden smoke cannot certify displayed pacing" if not args.visible else "Visible run still needs independent displayed-presentation trace",
                                              "No image readbacks during measurement; optional final image is after metrics freeze" if args.final_screenshot else "No image readbacks or diagnostic capture requests; ordinary main loop",
                                              "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
+        if args.secondary_vehicle:
+            summary["measurementLimitations"][1] = "Ordinary selected-train auxiliary viewport readbacks are included during measurement; final main-canvas evidence is captured after metrics freeze"
+            summary["qualification"] += "; selected-train auxiliary workload, not main-viewport-only performance acceptance"
         if args.uncapped_simulation:
             summary["qualification"] += "; uncapped benchmark headroom, not ordinary 360 TPS gameplay pacing"
         if args.simulation_wait_profile:

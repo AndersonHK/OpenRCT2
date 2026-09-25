@@ -406,8 +406,14 @@ TEST(WorldTrackRulesTest, EveryAuthoredRowStaysWithinItsImmutableCatalog)
                 if (animated)
                     EXPECT_FALSE(std::binary_search(images.begin(), images.end(), words[p]));
             }
-            EXPECT_EQ(words[p + 10] & ~15u, 0u);
+            EXPECT_EQ(words[p + 10] & ~47u, 0u);
             EXPECT_LE(words[p + 10] & 7u, 5u);
+            if ((words[p + 10] & 32u) != 0)
+            {
+                EXPECT_EQ(words[p + 10] & 15u, 2u); // Black floor, never a foreground edge or filter.
+                EXPECT_LT(words[p], 0xfffffffcu);
+                EXPECT_EQ(words[p + 11], 0xffffffffu); // Source platform is an independent parent.
+            }
             if ((words[p + 10] & 7u) >= 4)
             {
                 EXPECT_EQ(words[p], 0u);
@@ -761,6 +767,49 @@ TEST(WorldTrackRulesTest, AuthoredPhotoRecipesKeepLiveSelectionAndOwnEveryCamera
     for (uint32_t image = 25615; image <= 25626; ++image)
         EXPECT_TRUE(images.contains(image));
     EXPECT_FALSE(images.contains(0xfffffffcu));
+}
+
+TEST(WorldTrackRulesTest, PhotoPlatformStaysBelowItsRailAndOccupantWithoutMovingContacts)
+{
+    using namespace ComponentDepthRules;
+    // Exact Corkscrew Park ride16 photo tile: the source emits platform22432,
+    // then rail16224/16225 at the same rasterZ. Its +3 bounding height was
+    // previously discarded, leaving both independent parents at layer2.
+    constexpr int tileX = 135 * 32, tileY = 58 * 32, baseZ = 112;
+    const auto encoded = [](int contact, int layer) {
+        return indexedDepthBits(worldComponentPriorityOffset(contact), uint32_t(layer));
+    };
+    for (uint32_t rotation = 0; rotation < 4; ++rotation)
+    {
+        SCOPED_TRACE(rotation);
+        const auto direction = (3u + rotation) & 3u;
+        const auto raw = RawRecipe(
+            static_cast<uint32_t>(TrackStyle::corkscrewRollerCoaster),
+            static_cast<uint32_t>(OpenRCT2::TrackElemType::onRidePhoto), 0, direction, 0);
+        ASSERT_GE(raw.size(), 24u);
+        EXPECT_EQ(raw[0], 22432u);
+        EXPECT_EQ(raw[12], 16224u + (direction & 1u));
+        EXPECT_EQ(raw[10] & 7u, 2u); // Black recolour remains independent of the floor role.
+        EXPECT_EQ(raw[22], 0u);      // Ordinary rail semantics remain unchanged.
+        for (size_t field = 1; field <= 3; ++field)
+        {
+            EXPECT_EQ(raw[field], 0u);
+            EXPECT_EQ(raw[12 + field], 0u);
+        }
+        EXPECT_EQ(raw[18], 3u); // Preserve the source bound; do not turn it into a global rail bias.
+        const int floorLayer = TrackDepthRules::worldTrackComponentLayer(int(raw[10]));
+        const int railLayer = TrackDepthRules::worldTrackComponentLayer(int(raw[22]));
+        EXPECT_EQ(floorLayer, 1);
+        EXPECT_EQ(railLayer, 2);
+        const int facingX = tileX + ((rotation == 1 || rotation == 2) ? 32 : 0);
+        const int facingY = tileY + ((rotation == 2 || rotation == 3) ? 32 : 0);
+        const int contact = worldComponentDepth(facingX, facingY, baseZ, int(rotation));
+        // An ordinary car above the tile centre retains its actual worldXYZ
+        // contact. The fix must not move the photo rail ahead of its occupant.
+        const int occupant = worldComponentDepth(tileX + 16, tileY + 16, baseZ + 16, int(rotation));
+        EXPECT_GT(encoded(contact, floorLayer), encoded(contact, railLayer));
+        EXPECT_GT(encoded(contact, railLayer), encoded(occupant, 0));
+    }
 }
 
 TEST(WorldTrackRulesTest, RestoredOrdinaryCurvesAndStationsKeepTheirFullSequenceTails)

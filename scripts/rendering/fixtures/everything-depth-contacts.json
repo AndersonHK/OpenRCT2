@@ -1,0 +1,218 @@
+[
+  {
+    "name": "corkscrew-r0",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      5904,
+      7424,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "corkscrew-r1",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      5904,
+      7424,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 1
+  },
+  {
+    "name": "corkscrew-r2",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      5904,
+      7424,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 2
+  },
+  {
+    "name": "corkscrew-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      5904,
+      7424,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "pirate-slope-r0",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3376,
+      7536,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "pirate-slope-r1",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3376,
+      7536,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 1
+  },
+  {
+    "name": "pirate-slope-r2",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3376,
+      7536,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 2
+  },
+  {
+    "name": "pirate-slope-r3",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3376,
+      7536,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "rowing-slope-r0",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3056,
+      7504,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "rowing-slope-r2",
+    "width": 768,
+    "height": 768,
+    "worldXYZ": [
+      3056,
+      7504,
+      328
+    ],
+    "zoom": 0,
+    "rotation": 2
+  },
+  {
+    "name": "station-glass-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      3024,
+      3744,
+      336
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "occupied-corkscrew-r0",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      3744,
+      7040,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "looping-r0",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      3856,
+      7744,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "miniature-railway-r0",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      2592,
+      2960,
+      336
+    ],
+    "zoom": 0,
+    "rotation": 0
+  },
+  {
+    "name": "occupied-corkscrew-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      3744,
+      7040,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "looping-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      3856,
+      7744,
+      352
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "miniature-railway-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      2592,
+      2960,
+      336
+    ],
+    "zoom": 0,
+    "rotation": 3
+  },
+  {
+    "name": "inverted-r3",
+    "width": 1024,
+    "height": 768,
+    "worldXYZ": [
+      4304,
+      6352,
+      336
+    ],
+    "zoom": 0,
+    "rotation": 3
+  }
+]

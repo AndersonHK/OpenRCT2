@@ -1,6 +1,23 @@
 # Transport, component contacts and loading checkpoint
 
-Deployed build186 follows commit `68b3880700` / build176. Final qualification is recorded below; implementation alone is not full parity.
+## Follow-up checkpoint193
+
+This checkpoint restores live selected-train viewports for complete native scenes and gives source-owned photo platforms a floor layer beneath their own rails. It does not change world anchors. The attempted slope and blanket track-contact changes were withdrawn after visual regressions. See the [current regression checklist](vulkan-depth-contact-regressions.md) and [ordering-constraint proposal](vulkan-depth-constraint-fitting.md).
+
+- [x] Build193 succeeds with zero warnings/errors;88 focused CPU tests,79 extractor tests and32 benchmark-report tests pass.
+- [x] Inspect exact Corkscrew Park photo contacts in four rotations. Every changed pixel in the combined candidate/path-rollback comparison now matches upstream; remaining half-loop/fence overlaps remain open.
+- [x] Inspect18 Everything Park paired views. Six path and four small Corkscrew controls match deployed186 exactly;656 changed glass-station pixels all improve against upstream.
+- [x] Validate the actual ride16 train window in Corkscrew Park over3,000 ticks at4K and inspect its nonblank follow-view crop. Deploy193:29 verified files,3 changed, backed up; shared test save preserved. Receipt: `obj/vulkan-parity/deploy-checkpoint193-01/receipt.json`.
+- [x] Run a hidden, silent4K12,000-tick benchmark and inspect its final image.193 produces351.056TPS,143.875 accepted presents/sec,0.643122ms CPU drawing and4.67468ms GPU, versus186's349.326TPS/144.009/0.637148ms/4.717201ms. All4,918 submissions complete and receive accepted presents, zero discarded packets, unchanged final entity checksum.
+- [ ] Sustain360TPS through the final heavy interval. The four3,000-tick windows are359.89/359.92/357.54/328.91TPS.
+- [ ] Resolve all pacing outliers. Accepted-present p99 is9.0ms and maximum9.5706ms, but the first application interval is34.4603ms with25.607ms in drawBegin. That measurement-boundary event is retained, not silently excluded; accepted presents are not display scanout.
+- [ ] Finish native component identities and bounded offline fitting before reintroducing slope/helix offsets. The initial extraction tool has768 repeatable mask-order observations across16 historical fixture cases; no fitted current GPU parameters are claimed.
+
+Performance receipt: `obj/vulkan-parity/performance-entities193-12000-01/summary.json`. Actual selected-ride-window and deployment qualification are recorded in the current regression checklist.
+
+## Prior checkpoint186
+
+Deployed build186 followed commit `68b3880700` / build176. Its qualification is retained below; implementation alone is not full parity.
 
 ## Changes
 

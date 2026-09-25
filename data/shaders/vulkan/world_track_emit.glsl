@@ -137,7 +137,7 @@ void visitTrack(uint index,uvec2 tile,uint destination,bool writeRecords,inout u
             WorldTrackDrawPart p=worldTrackDrawParts.parts[i];
             if(int(i)!=parent && p.geometry.parent!=parent) continue;
             worldSetPaintBounds(tile,p.geometry.bounds+ivec3(0,0,object.baseZ),p.geometry.size,int(i)==parent?0u:1u);
-            worldComponentRootLayer=uint(WORLD_TRACK_RAIL_LAYER);
+            worldComponentRootLayer=uint(worldTrackComponentLayer(int(p.geometry.colourRole)));
             if((p.geometry.colourRole&8u)!=0u)
                 worldSetComponentDepthAnchor(tile,ivec3(
                     worldForegroundContact(p.geometry.bounds.x,p.geometry.size.x),
