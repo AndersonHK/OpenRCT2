@@ -11,6 +11,7 @@
 
 #include "../Cheats.h"
 #include "../Context.h"
+#include "../Date.h"
 #include "../Diagnostic.h"
 #include "../GameState.h"
 #include "../OpenRCT2.h"
@@ -21,6 +22,7 @@
 #include "../actions/scenery/WallRemoveAction.h"
 #include "../core/EnumUtils.hpp"
 #include "../core/Guard.hpp"
+#include "../drawing/ImageId.hpp"
 #include "../entity/Duck.h"
 #include "../entity/EntityTweener.h"
 #include "../entity/JumpingFountain.h"
@@ -28,10 +30,27 @@
 #include "../entity/Staff.h"
 #include "../interface/Cursors.h"
 #include "../interface/Viewport.h"
+#include "../object/BannerObject.h"
+#include "../object/BannerSceneryEntry.h"
+#include "../object/EntranceEntry.h"
+#include "../object/EntranceObject.h"
+#include "../object/FootpathObject.h"
+#include "../object/FootpathRailingsObject.h"
+#include "../object/FootpathSurfaceObject.h"
 #include "../object/LargeSceneryEntry.h"
+#include "../object/LargeSceneryObject.h"
+#include "../object/ObjectManager.h"
+#include "../object/PathAdditionObject.h"
+#include "../object/RideObject.h"
 #include "../object/SmallSceneryEntry.h"
+#include "../object/SmallSceneryObject.h"
+#include "../object/StationObject.h"
+#include "../object/TerrainEdgeObject.h"
 #include "../object/TerrainSurfaceObject.h"
+#include "../object/WallObject.h"
+#include "../object/WallSceneryEntry.h"
 #include "../profiling/Profiling.h"
+#include "../ride/RideData.h"
 #include "../ride/RideManager.hpp"
 #include "../ride/RideRatings.h"
 #include "../ride/Vehicle.h"
@@ -54,6 +73,7 @@
 #include "tile_element/SmallSceneryElement.h"
 #include "tile_element/SurfaceElement.h"
 #include "tile_element/TrackElement.h"
+#include "tile_element/WallElement.h"
 
 #include <bitset>
 #include <cassert>
@@ -170,70 +190,732 @@ namespace OpenRCT2
         return getGameState().tileElements;
     }
 
-    MapPresentationChangeBatch ConsumeMapPresentationChanges()
+    static std::shared_ptr<const PathPresentationMaterials> CapturePathMaterials()
+    {
+        static std::shared_ptr<const PathPresentationMaterials> captured;
+        const auto revision = GetPathObjectRevision();
+        if (gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
+            throw std::logic_error("Path catalog requested during object mutation");
+        if (captured != nullptr && captured->revision == revision)
+            return captured;
+        auto next = std::make_shared<PathPresentationMaterials>();
+        next->revision = revision;
+        auto& manager = GetContext()->GetObjectManager();
+        const auto surface = [](const Object& object, const PathSurfaceDescriptor& source) {
+            return PathPresentationSurfaceMaterial{ object.GetBaseImageId(), object.GetNumImages(), source.image, source.flags,
+                                                    true };
+        };
+        const auto railings = [](const Object& object, const PathRailingsDescriptor& source) {
+            return PathPresentationRailingsMaterial{ object.GetBaseImageId(),
+                                                     object.GetNumImages(),
+                                                     source.bridgeImage,
+                                                     source.railingsImage,
+                                                     static_cast<uint8_t>(source.supportType),
+                                                     static_cast<uint8_t>(source.supportColour),
+                                                     source.flags,
+                                                     source.scrollingMode,
+                                                     true };
+        };
+        for (uint16_t slot = 0; slot < 255; ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<FootpathSurfaceObject>(slot))
+                next->surfaces[slot] = surface(*object, object->GetDescriptor());
+            if (auto* object = manager.GetLoadedObject<FootpathRailingsObject>(slot))
+                next->railings[slot] = railings(*object, object->GetDescriptor());
+            if (auto* object = manager.GetLoadedObject<FootpathObject>(slot))
+            {
+                next->legacySurfaces[slot] = surface(*object, object->GetPathSurfaceDescriptor());
+                next->legacyQueueSurfaces[slot] = surface(*object, object->GetQueueSurfaceDescriptor());
+                next->legacyRailings[slot] = railings(*object, object->GetPathRailingsDescriptor());
+            }
+            if (auto* object = manager.GetLoadedObject<PathAdditionObject>(slot))
+            {
+                const auto& source = *static_cast<const PathAdditionEntry*>(object->GetLegacyData());
+                next->additions[slot] = { object->GetBaseImageId(),
+                                          object->GetNumImages(),
+                                          source.image,
+                                          source.flags,
+                                          static_cast<uint8_t>(source.draw_type),
+                                          true };
+            }
+        }
+        captured = next;
+        return captured;
+    }
+
+    static std::shared_ptr<const WorldObjectPresentationMaterials> CaptureWorldObjectMaterials()
+    {
+        static std::shared_ptr<const WorldObjectPresentationMaterials> captured;
+        const auto revision = GetWorldObjectRevision();
+        if (gPathObjectMutationDepth.load(std::memory_order_acquire) != 0)
+            throw std::logic_error("World object catalog requested during object mutation");
+        if (captured != nullptr && captured->revision == revision)
+            return captured;
+        auto next = std::make_shared<WorldObjectPresentationMaterials>();
+        next->revision = revision;
+        auto& manager = GetContext()->GetObjectManager();
+        for (uint16_t slot = 0; slot < next->smallScenery.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<SmallSceneryObject>(slot))
+            {
+                const auto& source = *static_cast<const SmallSceneryEntry*>(object->GetLegacyData());
+                auto& out = next->smallScenery[slot];
+                out.imageBase = object->GetBaseImageId();
+                out.imageCount = object->GetNumImages();
+                out.image = source.image;
+                out.flags = source.flags.holder;
+                out.height = source.height;
+                out.animationDelay = source.animation_delay;
+                out.animationMask = source.animation_mask;
+                out.numFrames = source.num_frames;
+                out.present = true;
+                if (source.FrameOffsetCount != 0 && source.frame_offsets != nullptr)
+                    out.frameOffsets.assign(source.frame_offsets, source.frame_offsets + source.FrameOffsetCount);
+            }
+        }
+        for (uint16_t slot = 0; slot < next->largeScenery.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<LargeSceneryObject>(slot))
+            {
+                const auto& source = *static_cast<const LargeSceneryEntry*>(object->GetLegacyData());
+                auto& out = next->largeScenery[slot];
+                out.imageBase = object->GetBaseImageId();
+                out.imageCount = object->GetNumImages();
+                out.image = source.image;
+                out.flags = source.flags.holder;
+                out.scrollingMode = source.scrolling_mode;
+                out.present = true;
+                out.tiles.reserve(source.tiles.size());
+                for (const auto& tile : source.tiles)
+                    out.tiles.push_back({ tile.offset.x, tile.offset.y, tile.offset.z, tile.zClearance, tile.corners,
+                                          tile.walls, tile.hasSupports, tile.allowSupportsAbove });
+                if (source.flags.has(LargeSceneryFlag::is3DText) && source.text != nullptr)
+                {
+                    auto font = std::make_shared<LargeSceneryPresentationFont>();
+                    font->image = source.text_image;
+                    font->numImages = source.text->num_images;
+                    font->maxWidth = source.text->maxWidth;
+                    font->flags = source.text->flags.holder;
+                    font->offsets = { source.text->offset[0].x, source.text->offset[0].y, source.text->offset[1].x,
+                                      source.text->offset[1].y };
+                    for (size_t i = 0; i < font->glyphs.size(); i++)
+                    {
+                        const auto& glyph = source.text->glyphs[i];
+                        font->glyphs[i] = uint32_t(glyph.image_offset) | (uint32_t(glyph.width) << 8)
+                            | (uint32_t(glyph.height) << 16);
+                    }
+                    out.font = std::move(font);
+                }
+            }
+        }
+        for (uint16_t slot = 0; slot < next->walls.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<WallObject>(slot))
+            {
+                const auto& source = *static_cast<const WallSceneryEntry*>(object->GetLegacyData());
+                next->walls[slot] = {
+                    object->GetBaseImageId(), object->GetNumImages(), source.image,          source.flags.holder,
+                    source.flags2.holder,     source.height,          source.scrolling_mode, true
+                };
+            }
+        }
+        for (uint16_t slot = 0; slot < next->banners.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<BannerObject>(slot))
+            {
+                const auto& source = *static_cast<const BannerSceneryEntry*>(object->GetLegacyData());
+                next->banners[slot] = {
+                    object->GetBaseImageId(), object->GetNumImages(), source.image, source.flags, source.scrolling_mode, true
+                };
+            }
+        }
+        for (uint16_t slot = 0; slot < next->stations.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<StationObject>(slot))
+            {
+                auto& out = next->stations[slot];
+                out.imageBase = object->GetBaseImageId();
+                out.imageCount = object->GetNumImages();
+                out.image = object->baseImageIndex;
+                out.flags = object->Flags.holder;
+                out.entranceBack = object->entranceBackIndex;
+                out.entranceFront = object->entranceFrontIndex;
+                out.exitBack = object->exitBackIndex;
+                out.exitFront = object->exitFrontIndex;
+                out.entranceBackGlass = object->entranceBackGlassIndex;
+                out.entranceFrontGlass = object->entranceFrontGlassIndex;
+                out.exitBackGlass = object->exitBackGlassIndex;
+                out.exitFrontGlass = object->exitFrontGlassIndex;
+                out.shelter = object->shelterIndex;
+                out.shelterGlass = object->shelterGlassIndex;
+                out.height = object->Height;
+                out.scrollingMode = object->ScrollingMode;
+                out.present = true;
+            }
+        }
+        for (uint16_t slot = 0; slot < next->parkEntrances.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<EntranceObject>(slot))
+            {
+                const auto& source = *static_cast<const EntranceEntry*>(object->GetLegacyData());
+                next->parkEntrances[slot] = { object->GetBaseImageId(), object->GetNumImages(), source.image_id,
+                                              source.scrolling_mode,    source.text_height,     true };
+            }
+        }
+        for (uint16_t slot = 0; slot < next->rideObjects.size(); ++slot)
+        {
+            if (auto* object = manager.GetLoadedObject<RideObject>(slot))
+                next->rideObjects[slot] = { object->GetBaseImageId(), object->GetNumImages(),
+                                            object->GetEntry().Cars[0].baseImageId, true };
+        }
+        captured = next;
+        return captured;
+    }
+
+    static bool WorldRideFactsMatch(const WorldRidePresentationRecord& held, const Ride& ride)
+    {
+        if (held.present != !ride.id.IsNull())
+            return false;
+        if (!held.present)
+            return true;
+        if (held.rideType != ride.type || held.objectSlot != ride.subtype || held.stationStyle != ride.entranceStyle
+            || held.vehicleColourSettings != static_cast<uint8_t>(ride.vehicleColourSettings)
+            || held.numStations != ride.numStations || held.numTrains != ride.numTrains)
+            return false;
+        // Styles are immutable functions of rideType. Compare live graphical facts without
+        // clearing/repopulating scratch records or copying their colour/station arrays.
+        for (size_t i = 0; i < held.trackColours.size(); ++i)
+        {
+            const auto& a = held.trackColours[i];
+            const auto& b = ride.trackColours[i];
+            if (a.main != static_cast<uint8_t>(b.main) || a.additional != static_cast<uint8_t>(b.additional)
+                || a.supports != static_cast<uint8_t>(b.supports))
+                return false;
+        }
+        for (size_t i = 0; i < held.vehicleColours.size(); ++i)
+        {
+            const auto& a = held.vehicleColours[i];
+            const auto& b = ride.vehicleColours[i];
+            if (a.body != static_cast<uint8_t>(b.Body) || a.trim != static_cast<uint8_t>(b.Trim)
+                || a.tertiary != static_cast<uint8_t>(b.Tertiary))
+                return false;
+        }
+        return true;
+    }
+
+    static std::shared_ptr<const WorldRidePresentationMaterials> CaptureWorldRideMaterials(uint64_t epoch)
     {
         PROFILED_FUNCTION();
+        static std::shared_ptr<const WorldRidePresentationMaterials> captured;
+        static uint64_t capturedEpoch{}, capturedObjects{}, capturedStations{}, nextRevision{};
+        const auto& state = getGameState();
+        const auto objects = GetWorldObjectRevision();
+        const auto stationRevision = GetRideStationGraphicalRevision();
+        if (captured != nullptr && capturedEpoch == epoch && capturedObjects == objects && capturedStations == stationRevision
+            && captured->rides.size() == state.ridesEndOfUsedRange)
+        {
+            size_t i = 0;
+            while (i < captured->rides.size() && WorldRideFactsMatch(captured->rides[i], state.rides[i]))
+                ++i;
+            if (i == captured->rides.size())
+                return captured;
+        }
+        // Bounded ride facts comparison: no map walk or per-tile colour/image resolution.
+        // Preserve the held table when no graphical fact changed.
+        static std::vector<WorldRidePresentationRecord> facts;
+        facts.resize(state.ridesEndOfUsedRange);
+        for (size_t i = 0; i < facts.size(); ++i)
+        {
+            auto& out = facts[i];
+            // Reuse station storage on ordinary boundaries; only the published generation owns a new copy.
+            auto stationStorage = std::move(out.stations);
+            out = {};
+            out.stations = std::move(stationStorage);
+            out.stations.clear();
+            const auto& ride = state.rides[i];
+            if (ride.id.IsNull())
+                continue;
+            out.present = true;
+            out.rideType = ride.type;
+            out.objectSlot = ride.subtype;
+            out.stationStyle = ride.entranceStyle;
+            out.vehicleColourSettings = static_cast<uint8_t>(ride.vehicleColourSettings);
+            out.numStations = ride.numStations;
+            out.numTrains = ride.numTrains;
+            for (size_t colour = 0; colour < out.vehicleColours.size(); ++colour)
+                out.vehicleColours[colour] = { static_cast<uint8_t>(ride.vehicleColours[colour].Body),
+                                               static_cast<uint8_t>(ride.vehicleColours[colour].Trim),
+                                               static_cast<uint8_t>(ride.vehicleColours[colour].Tertiary) };
+            const auto stations = ride.getStations();
+            size_t usedStations = stations.size();
+            while (usedStations != 0 && stations[usedStations - 1].getStartXY().isNull()
+                   && stations[usedStations - 1].getEntrance().isNull() && stations[usedStations - 1].getExit().isNull())
+                --usedStations;
+            out.stations.resize(usedStations);
+            for (size_t station = 0; station < usedStations; ++station)
+            {
+                const auto& source = stations[station];
+                auto& target = out.stations[station];
+                target.startValid = !source.getStartXY().isNull();
+                target.entranceValid = !source.getEntrance().isNull();
+                target.exitValid = !source.getExit().isNull();
+                if (target.startValid)
+                {
+                    target.startX = source.getStartXY().x;
+                    target.startY = source.getStartXY().y;
+                    target.startZ = source.getBaseZ();
+                }
+                if (target.entranceValid)
+                {
+                    target.entranceX = source.getEntrance().x;
+                    target.entranceY = source.getEntrance().y;
+                    target.entranceZ = source.getEntrance().z;
+                }
+                if (target.exitValid)
+                {
+                    target.exitX = source.getExit().x;
+                    target.exitY = source.getExit().y;
+                    target.exitZ = source.getExit().z;
+                }
+            }
+            const auto& type = GetRideTypeDescriptor(ride.type);
+            out.regularStyle = static_cast<uint16_t>(getTrackDrawerEntry(type).trackStyle);
+            out.invertedStyle = static_cast<uint16_t>(getTrackDrawerEntry(type, true).trackStyle);
+            out.coveredStyle = static_cast<uint16_t>(getTrackDrawerEntry(type, false, true).trackStyle);
+            out.coveredInvertedStyle = static_cast<uint16_t>(getTrackDrawerEntry(type, true, true).trackStyle);
+            for (size_t colour = 0; colour < out.trackColours.size(); ++colour)
+                out.trackColours[colour] = { static_cast<uint8_t>(ride.trackColours[colour].main),
+                                             static_cast<uint8_t>(ride.trackColours[colour].additional),
+                                             static_cast<uint8_t>(ride.trackColours[colour].supports) };
+        }
+        if (captured != nullptr && capturedObjects == objects && captured->rides == facts)
+        {
+            // Lifecycle switches still capture all facts above; equal immutable
+            // material data can retain its allocation independently of map state.
+            capturedEpoch = epoch;
+            capturedStations = stationRevision;
+            return captured;
+        }
+        auto next = std::make_shared<WorldRidePresentationMaterials>();
+        if (nextRevision == UINT64_MAX)
+            throw std::overflow_error("Ride graphical revision exhausted");
+        next->revision = ++nextRevision;
+        next->rides = facts;
+        captured = next;
+        capturedEpoch = epoch;
+        capturedObjects = objects;
+        capturedStations = stationRevision;
+        return captured;
+    }
+
+    static std::shared_ptr<const WorldRidePoseSnapshot> CaptureWorldRidePoses(uint64_t epoch, uint32_t sourceTick)
+    {
+        PROFILED_FUNCTION();
+        auto& state = getGameState();
+        static std::shared_ptr<const std::vector<WorldRidePoseRecord>> captured;
+        static std::vector<WorldRidePoseRecord> scratch;
+        static uint64_t nextRevision{}, capturedEpoch{}, capturedEntityEpoch{};
+        const auto entityEpoch = state.entities.GetEntityVisualEpoch();
+        scratch.resize(state.ridesEndOfUsedRange);
+        for (size_t i = 0; i < scratch.size(); ++i)
+        {
+            auto& words = scratch[i].words;
+            words = {};
+            const auto& ride = state.rides[i];
+            if (ride.id.IsNull())
+                continue;
+            // Queue signs need authoritative status even for rides without a flat mechanism.
+            // Bit 0 retains its existing meaning: a supported mechanism pose is present.
+            words[0] = (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u) | (ride.status == RideStatus::open ? 16u : 0u);
+            const auto style = getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle;
+            if (style == TrackStyle::chairlift)
+            {
+                words[1] = uint32_t(ride.type) | (uint32_t(ride.subtype) << 16);
+                words[3] = ride.chairliftBullwheelRotation;
+                continue;
+            }
+            switch (style)
+            {
+                case TrackStyle::hauntedHouse:
+                case TrackStyle::spiralSlide:
+                case TrackStyle::merryGoRound:
+                case TrackStyle::ferrisWheel:
+                case TrackStyle::spaceRings:
+                case TrackStyle::twist:
+                case TrackStyle::enterprise:
+                case TrackStyle::swingingShip:
+                case TrackStyle::swingingInverterShip:
+                case TrackStyle::magicCarpet:
+                case TrackStyle::topSpin:
+                case TrackStyle::motionSimulator:
+                    break;
+                default:
+                    continue;
+            }
+            words[0] |= 1u | (ride.flags.has(RideFlag::onTrack) ? 2u : 0u)
+                | (ride.flags.has(RideFlag::breakdownPending) ? 4u : 0u) | (ride.flags.has(RideFlag::brokenDown) ? 8u : 0u);
+            words[1] = uint32_t(ride.type) | (uint32_t(ride.subtype) << 16);
+            if (style == TrackStyle::merryGoRound)
+                words[2] = uint32_t(ride.breakdownReasonPending) | (uint32_t(ride.breakdownSoundModifier) << 8);
+            if (style == TrackStyle::spiralSlide)
+                words[3] = uint32_t(ride.slideInUse) | (uint32_t(ride.spiralSlideProgress) << 8)
+                    | (uint32_t(ride.slidePeepTShirtColour) << 16);
+            for (size_t slot = 0; slot < 4; ++slot)
+            {
+                const auto offset = 4 + slot * 4;
+                words[offset] = UINT32_MAX;
+                if (slot != 0 && style != TrackStyle::spaceRings)
+                    continue;
+                const auto* vehicle = state.entities.tryGetEntity<Vehicle>(ride.vehicles[slot]);
+                if (vehicle == nullptr)
+                    continue;
+                const auto handle = state.entities.GetEntityVisualHandle(vehicle->id);
+                words[offset] = vehicle->id.ToUnderlying();
+                words[offset + 1] = handle.generation;
+                words[offset + 2] = uint32_t(vehicle->flatRideAnimationFrame)
+                    | (uint32_t(vehicle->flatRideSecondaryAnimationFrame) << 8) | (uint32_t(vehicle->orientation) << 16)
+                    | (uint32_t(vehicle->restraints_position) << 24);
+                // Only the carousel's control-failure vibration consumes this timer.
+                // Ordinary mechanism time advances must not force an otherwise unchanged pose upload.
+                if (style == TrackStyle::merryGoRound && ride.flags.has(RideFlag::onTrack)
+                    && ride.flags.hasAny(RideFlag::breakdownPending, RideFlag::brokenDown)
+                    && ride.breakdownReasonPending == Breakdown::controlFailure && ride.breakdownSoundModifier >= 128)
+                    words[offset + 3] = static_cast<uint16_t>(vehicle->current_time);
+            }
+        }
+        if (captured == nullptr || capturedEpoch != epoch || capturedEntityEpoch != entityEpoch || *captured != scratch)
+        {
+            if (nextRevision == UINT64_MAX)
+                throw std::overflow_error("Ride pose revision exhausted");
+            auto next = std::make_shared<const std::vector<WorldRidePoseRecord>>(scratch);
+            captured = std::move(next);
+            capturedEpoch = epoch;
+            capturedEntityEpoch = entityEpoch;
+            ++nextRevision;
+        }
+        return std::make_shared<const WorldRidePoseSnapshot>(
+            WorldRidePoseSnapshot{ epoch, entityEpoch, nextRevision, sourceTick, captured });
+    }
+
+    static WorldObjectPresentationRecord CaptureWorldObjectRecord(const TileElement& element, uint32_t ordinal)
+    {
+        using namespace WorldObjectPresentationFlags;
+        WorldObjectPresentationRecord out;
+        out.baseZ = element.getBaseZ();
+        out.clearanceZ = element.getClearanceZ();
+        out.elementOrdinal = ordinal;
+        out.direction = element.getDirection();
+        out.flags = (element.isGhost() ? ghost : 0) | (element.isInvisible() ? invisible : 0);
+        switch (element.getType())
+        {
+            case TileElementType::smallScenery:
+            {
+                const auto& source = *element.asSmallScenery();
+                out.kind = WorldObjectKind::smallScenery;
+                out.objectSlot = source.getEntryIndex();
+                out.quadrant = source.getSceneryQuadrant();
+                out.age = source.getAge();
+                out.primaryColour = static_cast<uint8_t>(source.getPrimaryColour());
+                out.secondaryColour = static_cast<uint8_t>(source.getSecondaryColour());
+                out.tertiaryColour = static_cast<uint8_t>(source.getTertiaryColour());
+                out.flags |= source.needsSupports() ? needsSupports : 0;
+                break;
+            }
+            case TileElementType::largeScenery:
+            {
+                const auto& source = *element.asLargeScenery();
+                out.kind = WorldObjectKind::largeScenery;
+                out.objectSlot = source.getEntryIndex();
+                out.sequence = source.getSequenceIndex();
+                out.bannerId = source.getBannerIndex().ToUnderlying();
+                out.primaryColour = static_cast<uint8_t>(source.getPrimaryColour());
+                out.secondaryColour = static_cast<uint8_t>(source.getSecondaryColour());
+                out.tertiaryColour = static_cast<uint8_t>(source.getTertiaryColour());
+                break;
+            }
+            case TileElementType::wall:
+            {
+                const auto& source = *element.asWall();
+                out.kind = WorldObjectKind::wall;
+                out.objectSlot = source.getEntryIndex();
+                out.slope = source.getSlope();
+                out.bannerId = source.getBannerIndex().ToUnderlying();
+                out.animationFrame = source.getAnimationFrame();
+                out.primaryColour = static_cast<uint8_t>(source.getPrimaryColour());
+                out.secondaryColour = static_cast<uint8_t>(source.getSecondaryColour());
+                out.tertiaryColour = static_cast<uint8_t>(source.getTertiaryColour());
+                out.flags |= (source.isAnimating() ? wallAnimating : 0) | (source.animationIsBackwards() ? wallBackwards : 0)
+                    | (source.isAcrossTrack() ? wallAcrossTrack : 0);
+                break;
+            }
+            case TileElementType::banner:
+            {
+                const auto& source = *element.asBanner();
+                out.kind = WorldObjectKind::banner;
+                out.bannerId = source.getIndex().ToUnderlying();
+                out.position = source.getPosition();
+                out.allowedEdges = source.getAllowedEdges();
+                if (const auto* banner = source.getBanner(); banner != nullptr && !banner->isNull())
+                {
+                    out.objectSlot = banner->getType();
+                    out.primaryColour = static_cast<uint8_t>(banner->colour);
+                }
+                break;
+            }
+            case TileElementType::entrance:
+            {
+                const auto& source = *element.asEntrance();
+                out.kind = WorldObjectKind::entrance;
+                out.entranceType = static_cast<uint8_t>(source.getEntranceType());
+                out.objectSlot = source.getEntryIndex();
+                out.rideId = source.getRideIndex().ToUnderlying();
+                out.stationIndex = source.getStationIndex().ToUnderlying();
+                out.sequence = static_cast<uint16_t>(source.getSequenceIndex());
+                out.pathSurfaceSlot = source.hasLegacyPathEntry() ? source.getLegacyPathEntryIndex()
+                                                                  : source.getSurfaceEntryIndex();
+                out.flags |= source.hasLegacyPathEntry() ? legacyPath : 0;
+                break;
+            }
+            case TileElementType::track:
+            {
+                const auto& source = *element.asTrack();
+                out.kind = WorldObjectKind::track;
+                out.trackType = static_cast<uint16_t>(source.getTrackType());
+                out.rideType = source.getRideType();
+                out.rideId = source.getRideIndex().ToUnderlying();
+                out.sequence = source.getSequenceIndex();
+                out.colourScheme = source.getColourScheme();
+                out.stationIndex = source.getStationIndex().ToUnderlying();
+                out.brakeBoosterSpeed = source.getBrakeBoosterSpeed();
+                out.seatRotation = source.getSeatRotation();
+                out.mazeEntry = source.getMazeEntry();
+                out.photoTimeout = source.getPhotoTimeout();
+                out.doorA = source.getDoorAState();
+                out.doorB = source.getDoorBState();
+                out.flags |= (source.hasChain() ? chain : 0) | (source.hasCableLift() ? cable : 0)
+                    | (source.isInverted() ? inverted : 0) | (source.isBrakeClosed() ? brakeClosed : 0)
+                    | (source.hasGreenLight() ? greenLight : 0) | (source.isHighlighted() ? highlight : 0);
+                break;
+            }
+            default:
+                throw std::logic_error("Unsupported world object capture");
+        }
+        return out;
+    }
+
+    static PathPresentationRecord CapturePathRecord(const PathElement& path, uint32_t ordinal)
+    {
+        using namespace PathPresentationFlags;
+        PathPresentationRecord record;
+        record.baseZ = path.getBaseZ();
+        record.clearanceZ = path.getClearanceZ();
+        record.elementOrdinal = ordinal;
+        record.flags = (path.isSloped() ? sloped : 0) | (path.isQueue() ? queue : 0) | (path.isWide() ? wide : 0)
+            | (path.hasQueueBanner() ? queueBanner : 0) | (path.isGhost() ? ghost : 0)
+            | (path.additionIsGhost() ? additionGhost : 0) | (path.isBroken() ? broken : 0)
+            | (path.hasLegacyPathEntry() ? legacy : 0) | (path.hasJunctionRailings() ? junctionRailings : 0)
+            | (path.isInvisible() ? invisible : 0) | (path.isBlockedByVehicle() ? blockedByVehicle : 0);
+        record.surfaceSlot = path.hasLegacyPathEntry() ? path.getLegacyPathEntryIndex() : path.getSurfaceEntryIndex();
+        record.railingsSlot = path.hasLegacyPathEntry() ? path.getLegacyPathEntryIndex() : path.getRailingsEntryIndex();
+        record.additionSlot = path.hasAddition() ? path.getAdditionEntryIndex() : UINT16_MAX;
+        // Preserve the legacy overlapping union observations; material rules decide which field is meaningful.
+        record.rideId = path.getRideIndex().ToUnderlying();
+        record.additionStatus = path.getAdditionStatus();
+        record.edgesAndCorners = path.getEdgesAndCorners();
+        record.slopeDirection = path.getSlopeDirection();
+        record.queueBannerDirection = path.getQueueBannerDirection();
+        return record;
+    }
+
+    static std::shared_ptr<const TerrainPresentationMaterials> CaptureTerrainMaterials()
+    {
+        static std::shared_ptr<const TerrainPresentationMaterials> captured;
+        const auto revision = GetTerrainObjectRevision();
+        if (captured != nullptr && captured->revision == revision)
+            return captured;
+        auto next = std::make_shared<TerrainPresentationMaterials>();
+        next->revision = revision;
+        for (uint16_t slot = 0; slot < 255; slot++)
+        {
+            if (const auto* object = TerrainSurfaceObject::GetById(slot); object != nullptr)
+            {
+                auto& material = next->surfaces[slot];
+                material.imageBase = object->EntryBaseImageId;
+                const auto offset = object->EntryBaseImageId - object->IconImageId;
+                const auto total = object->GetNumImages();
+                material.imageCount = offset < total ? total - offset : 0;
+                material.supported = material.imageCount != 0 && object->Colour == Drawing::kColourNull;
+                const auto selector = [&](uint32_t length, uint32_t rotation, uint32_t variation, bool grid, bool underground) {
+                    const auto image = object->GetImageId(
+                        CoordsXY{ static_cast<int32_t>((variation & 1) * 32), static_cast<int32_t>((variation >> 1) * 32) },
+                        length == 8 ? TerrainSurfaceObject::kNoValue : static_cast<uint8_t>(length),
+                        static_cast<uint8_t>(rotation), 0, grid, underground);
+                    const auto relative = image.GetIndex() - material.imageBase;
+                    material.supported = material.supported && !image.HasPrimary() && !image.HasSecondary() && !image.IsRemap()
+                        && !image.IsBlended() && relative % 19 == 0
+                        && static_cast<uint64_t>(relative) + 19 <= material.imageCount;
+                    return relative / 19;
+                };
+                for (uint32_t length = 0; length < 9; length++)
+                    for (uint32_t rotation = 0; rotation < 4; rotation++)
+                        for (uint32_t variation = 0; variation < 4; variation++)
+                        {
+                            // Enumerate immutable selectors, never a world tile or per-frame sprite decision.
+                            const auto index = (length * 4 + rotation) * 4 + variation;
+                            material.selectors[index] = selector(length, rotation, variation, false, false);
+                            material.gridSelectors[index] = selector(length, rotation, variation, true, false);
+                        }
+                for (uint32_t rotation = 0; rotation < 4; rotation++)
+                    for (uint32_t variation = 0; variation < 4; variation++)
+                        material.undergroundSelectors[rotation * 4 + variation] = selector(1, rotation, variation, false, true);
+            }
+            if (const auto* object = TerrainEdgeObject::GetById(slot); object != nullptr)
+            {
+                auto& material = next->edges[slot];
+                material.imageBase = object->BaseImageId;
+                const auto offset = object->BaseImageId - object->IconImageId;
+                const auto total = object->GetNumImages();
+                material.imageCount = offset < total ? total - offset : 0;
+                material.supported = material.imageCount >= 37;
+                material.hasDoors = object->HasDoors && !object->UsesFallbackImages();
+            }
+        }
+        captured = std::move(next);
+        return captured;
+    }
+
+    static MapPresentationChangeBatch CaptureMapPresentationChanges(
+        const bool requireCompleteSnapshot, const MapPublicationProfile profile, const bool consume,
+        const uint64_t auxiliaryEpoch = 0)
+    {
+        PROFILED_FUNCTION();
+        if (consume && requireCompleteSnapshot && !_presentationResetPending)
+        {
+            if (++_presentationEpoch == 0)
+                _presentationEpoch = 1;
+            _presentationResetPending = true;
+        }
         const auto& gameState = getGameState();
         const uint32_t surfaceWidth = gameState.mapSize.x;
         const uint32_t surfaceHeight = gameState.mapSize.y;
         MapPresentationChangeBatch batch{
-            .epoch = _presentationEpoch,
-            .reset = _presentationResetPending,
+            .epoch = consume ? _presentationEpoch : auxiliaryEpoch,
+            .reset = !consume || _presentationResetPending,
             .surfaceWidth = surfaceWidth,
             .surfaceHeight = surfaceHeight,
+            .sourceTick = gameState.currentTicks,
+            .profile = profile,
         };
+        batch.terrainMaterials = CaptureTerrainMaterials();
+        batch.pathMaterials = CapturePathMaterials();
+        batch.objectMaterials = CaptureWorldObjectMaterials();
+        batch.rideMaterials = CaptureWorldRideMaterials(batch.epoch);
+        batch.ridePoses = CaptureWorldRidePoses(batch.epoch, batch.sourceTick);
+        batch.bannerTexts = CaptureWorldBannerTexts(batch.rideMaterials);
+        batch.clockHour = gRealTimeOfDay.hour;
+        batch.clockMinute = gRealTimeOfDay.minute;
         const auto copyTile = [&batch](const uint32_t index, const uint32_t surfaceIndex) {
             const TileCoordsXY tilePos{ static_cast<int32_t>(index % kMaximumMapSizeTechnical),
                                         static_cast<int32_t>(index / kMaximumMapSizeTechnical) };
             auto* source = _tileIndex.GetFirstElementAt(tilePos);
-            if (source == nullptr)
-                return;
             auto& change = batch.changes.emplace_back();
             change.index = index;
             change.surfaceIndex = surfaceIndex;
+            if (source == nullptr)
+                return; // Publish absence as well as presence when a tile disappears.
+            const TileElement* surface = nullptr;
+            const auto* firstElement = source;
+            bool hasTrack = false;
+            const bool singleElement = source->isLastForTile();
+            uint32_t ordinal = 0;
             do
             {
-                change.elements.push_back(*source);
-            } while (!(source++)->isLastForTile());
-            change.surface.requiresCategoryInterleaving = change.elements.size() != 1;
+                auto& maxClearanceZ = change.surface.terrain.maxClearanceZ;
+                maxClearanceZ = std::max(maxClearanceZ, source->getClearanceZ());
+                if (source->getType() == TileElementType::surface)
+                    maxClearanceZ = std::max(maxClearanceZ, source->asSurface()->getWaterHeight());
+                if (source->getType() == TileElementType::path)
+                    change.paths.push_back(CapturePathRecord(*source->asPath(), ordinal));
+                hasTrack |= source->getType() == TileElementType::track;
+                switch (source->getType())
+                {
+                    case TileElementType::smallScenery:
+                    case TileElementType::largeScenery:
+                    case TileElementType::wall:
+                    case TileElementType::banner:
+                    case TileElementType::entrance:
+                    case TileElementType::track:
+                        change.objects.push_back(CaptureWorldObjectRecord(*source, ordinal));
+                        break;
+                    default:
+                        break;
+                }
+                ++ordinal;
+                if (surface == nullptr && source->getType() == TileElementType::surface)
+                    surface = source;
+                if (batch.profile == MapPublicationProfile::legacyTiles)
+                    change.elements.push_back(*source);
 
-            const auto surface = std::ranges::find_if(change.elements, [](const TileElement& element) {
-                return element.getType() == TileElementType::surface;
-            });
-            if (surface == change.elements.end() || surface->isInvisible())
+            } while (!(source++)->isLastForTile());
+            if (hasTrack)
+            {
+                // Raw topology facts for tower caps, including hidden/ghost elements and categories not rendered yet.
+                // Original Observation Tower/Freefall inspect the immediate successor; Roto Drop examines every successor.
+                // The height domain is uint8, so one reverse pass needs no allocation and no quadratic suffix scans.
+                std::bitset<256> laterBaseHeights;
+                size_t objectIndex = change.objects.size();
+                for (const auto* cursor = source; cursor != firstElement;)
+                {
+                    --cursor;
+                    --ordinal;
+                    if (objectIndex != 0 && change.objects[objectIndex - 1].elementOrdinal == ordinal)
+                    {
+                        auto& record = change.objects[--objectIndex];
+                        if (record.kind == WorldObjectKind::track)
+                        {
+                            if (cursor + 1 != source && cursor->clearanceHeight == (cursor + 1)->baseHeight)
+                                record.flags |= WorldObjectPresentationFlags::nextElementAtClearance;
+                            if (laterBaseHeights[cursor->clearanceHeight])
+                                record.flags |= WorldObjectPresentationFlags::anyLaterElementAtClearance;
+                        }
+                    }
+                    laterBaseHeights.set(cursor->baseHeight);
+                }
+            }
+            change.surface.requiresCategoryInterleaving = !singleElement;
+            if (surface == nullptr || surface->isInvisible() || surface->isGhost())
                 return;
 
             const auto& surfaceElement = *surface->asSurface();
-            const auto* surfaceObject = surfaceElement.getSurfaceObject();
-            if (surfaceObject == nullptr)
-                return;
-
-            // This is deliberately resolved while the live object registry and map mutation owner are coherent. Background
-            // presentation jobs and the render worker only receive the resulting ImageIds.
-            static constexpr std::array<uint8_t, 32> kSurfaceShapeImageOffsets = {
-                0, 2, 1, 3, 8, 10, 9, 11, 4, 6, 5, 7, 12, 14, 13, 15,
-                0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 16, 0, 18, 15, 0,
-            };
+            auto& terrain = change.surface.terrain;
+            terrain.baseZ = surfaceElement.getBaseZ();
+            terrain.elementOrdinal = static_cast<uint32_t>(surface - firstElement);
+            terrain.surfaceSlot = surfaceElement.getSurfaceObjectIndex();
+            terrain.edgeSlot = surfaceElement.getEdgeObjectIndex();
+            terrain.slope = surfaceElement.getSlope();
+            terrain.grass = surfaceElement.getGrassLength() & 7;
+            terrain.waterHeight = surfaceElement.getWaterHeight();
+            terrain.present = 1;
+            const bool border = tilePos.x == 0 || tilePos.y == 0 || static_cast<uint32_t>(tilePos.x + 1) == batch.surfaceWidth
+                || static_cast<uint32_t>(tilePos.y + 1) == batch.surfaceHeight;
+            terrain.kind = border ? 2 : 1;
+            if (singleElement)
+            {
+                if (border && terrain.baseZ == 16 && terrain.slope == 0 && terrain.grass < 7)
+                    terrain.bounded = 1;
+                else if (
+                    !border && (terrain.baseZ == 16 || terrain.baseZ == 32 || terrain.baseZ == 48 || terrain.baseZ == 64)
+                    && terrain.slope < 15 && terrain.grass < 7 && surfaceElement.getWaterHeight() == 0
+                    && surfaceElement.getParkFences() == 0 && !surfaceElement.hasTrackThatNeedsWater())
+                    terrain.bounded = 1;
+            }
             change.surface.baseZ = static_cast<uint16_t>(surfaceElement.getBaseZ());
             change.surface.valid = 1;
             change.surface.requiresCategoryInterleaving = change.surface.requiresCategoryInterleaving
                 || surfaceElement.getSlope() != 0 || surfaceElement.getWaterHeight() != 0
                 || surfaceElement.getParkFences() != 0;
-            const auto position = tilePos.toCoordsXY();
-            for (uint8_t rotation = 0; rotation < SurfacePresentationRecord::kRotationCount; rotation++)
-            {
-                const uint8_t slope = surfaceElement.getSlope();
-                uint16_t rotatedCorners = static_cast<uint16_t>((slope & kTileSlopeRaisedCornersMask) << rotation);
-                rotatedCorners = ((rotatedCorners >> 4) | rotatedCorners) & 0x0f;
-                const uint8_t relativeSlope = (slope & kTileSlopeDiagonalFlag) | static_cast<uint8_t>(rotatedCorners);
-                const uint8_t imageOffset = kSurfaceShapeImageOffsets[relativeSlope];
-                change.surface.detailedImages[rotation] = surfaceObject->GetImageId(
-                    position, surfaceElement.getGrassLength() & 0x7, rotation, imageOffset, false, false);
-                change.surface.distantImages[rotation] = surfaceObject->GetImageId(
-                    position, TerrainSurfaceObject::kNoValue, rotation, imageOffset, false, false);
-            }
         };
-        if (_presentationResetPending)
+        if (batch.reset)
         {
             batch.changes.reserve(static_cast<size_t>(surfaceWidth) * surfaceHeight);
             for (uint32_t y = 0; y < surfaceHeight; y++)
@@ -243,7 +925,8 @@ namespace OpenRCT2
                     copyTile(x + y * kMaximumMapSizeTechnical, x + y * surfaceWidth);
                 }
             }
-            _presentationResetPending = false;
+            if (consume)
+                _presentationResetPending = false;
         }
         else
         {
@@ -256,9 +939,31 @@ namespace OpenRCT2
                     copyTile(index, x + y * surfaceWidth);
             }
         }
-        _presentationDirtyWorklist.clear();
-        _presentationDirtyTiles.reset();
+        if (consume)
+        {
+            _presentationDirtyWorklist.clear();
+            _presentationDirtyTiles.reset();
+        }
         return batch;
+    }
+
+    MapPresentationChangeBatch ConsumeMapPresentationChanges(
+        const bool requireCompleteSnapshot, const MapPublicationProfile profile)
+    {
+        return CaptureMapPresentationChanges(requireCompleteSnapshot, profile, true);
+    }
+
+    std::shared_ptr<const MapPresentationSnapshot> CaptureAuxiliaryMapPresentationSnapshot()
+    {
+        // Auxiliary captures must not steal pending edits or change the main publication's identity.
+        // Give independently rebuilt chunk revisions a disjoint identity in the auxiliary namespace.
+        static uint64_t nextEpoch = uint64_t{ 1 } << 63;
+        if (nextEpoch == std::numeric_limits<uint64_t>::max())
+            throw std::overflow_error("Auxiliary map snapshot identity exhausted");
+        auto batch = CaptureMapPresentationChanges(true, MapPublicationProfile::rawTerrain, false, nextEpoch++);
+        auto result = std::make_shared<MapPresentationSnapshot>();
+        result->Apply(batch);
+        return result;
     }
 
     uint64_t GetMapPresentationEpoch() noexcept
@@ -269,23 +974,37 @@ namespace OpenRCT2
     void MapPresentationSnapshot::Apply(const MapPresentationChangeBatch& batch)
     {
         PROFILED_FUNCTION();
-        const bool reset = batch.reset || _epoch != batch.epoch;
+        const bool reset = batch.reset || _epoch != batch.epoch || _profile != batch.profile;
         if (reset)
         {
-            _chunks.fill(nullptr);
+            _chunks.reset();
+        }
+        std::shared_ptr<Chunks> chunks;
+        if (batch.profile == MapPublicationProfile::legacyTiles && !batch.changes.empty())
+        {
+            chunks = _chunks == nullptr ? std::make_shared<Chunks>(kChunkCount) : std::make_shared<Chunks>(*_chunks);
+            _chunks = chunks;
         }
 
         const bool surfaceLayoutChanged = reset || _surfaceWidth != batch.surfaceWidth || _surfaceHeight != batch.surfaceHeight;
+        std::shared_ptr<SurfaceChunks> surfaceChunks;
         if (surfaceLayoutChanged)
         {
             _surfaceWidth = batch.surfaceWidth;
             _surfaceHeight = batch.surfaceHeight;
             const size_t recordCount = static_cast<size_t>(_surfaceWidth) * _surfaceHeight;
-            _surfaceChunks.assign((recordCount + kChunkWidth - 1) / kChunkWidth, nullptr);
+            surfaceChunks = std::make_shared<SurfaceChunks>((recordCount + kChunkWidth - 1) / kChunkWidth, nullptr);
+            _surfaceChunks = surfaceChunks;
             _nextSurfaceRevision = 0;
             _surfaceBaselineZ = 0;
             _surfaceBaselineSet = false;
             _surfaceBlockingRecordCount = 0;
+            _terrainBlockingRecordCount = static_cast<uint32_t>(recordCount);
+        }
+        else if (!batch.changes.empty())
+        {
+            surfaceChunks = std::make_shared<SurfaceChunks>(GetSurfaceChunks());
+            _surfaceChunks = surfaceChunks;
         }
 
         size_t activeChunkIndex = std::numeric_limits<size_t>::max();
@@ -294,15 +1013,18 @@ namespace OpenRCT2
         std::shared_ptr<SurfaceChunk> activeSurfaceChunk;
         for (const auto& change : batch.changes)
         {
-            const size_t chunkIndex = change.index / kChunkWidth;
-            if (chunkIndex != activeChunkIndex)
+            if (chunks != nullptr)
             {
-                activeChunkIndex = chunkIndex;
-                activeChunk = _chunks[chunkIndex] == nullptr ? std::make_shared<Chunk>()
-                                                             : std::make_shared<Chunk>(*_chunks[chunkIndex]);
-                _chunks[chunkIndex] = activeChunk;
+                const size_t chunkIndex = change.index / kChunkWidth;
+                if (chunkIndex != activeChunkIndex)
+                {
+                    activeChunkIndex = chunkIndex;
+                    activeChunk = (*chunks)[chunkIndex] == nullptr ? std::make_shared<Chunk>()
+                                                                   : std::make_shared<Chunk>(*(*chunks)[chunkIndex]);
+                    (*chunks)[chunkIndex] = activeChunk;
+                }
+                (*activeChunk)[change.index % kChunkWidth] = change.elements;
             }
-            (*activeChunk)[change.index % kChunkWidth] = change.elements;
 
             if (change.surfaceIndex == std::numeric_limits<uint32_t>::max()
                 || change.surfaceIndex >= static_cast<size_t>(_surfaceWidth) * _surfaceHeight)
@@ -311,11 +1033,11 @@ namespace OpenRCT2
             if (surfaceChunkIndex != activeSurfaceChunkIndex)
             {
                 activeSurfaceChunkIndex = surfaceChunkIndex;
-                activeSurfaceChunk = _surfaceChunks[surfaceChunkIndex] == nullptr
+                activeSurfaceChunk = (*surfaceChunks)[surfaceChunkIndex] == nullptr
                     ? std::make_shared<SurfaceChunk>()
-                    : std::make_shared<SurfaceChunk>(*_surfaceChunks[surfaceChunkIndex]);
+                    : std::make_shared<SurfaceChunk>(*(*surfaceChunks)[surfaceChunkIndex]);
                 activeSurfaceChunk->revision = ++_nextSurfaceRevision;
-                _surfaceChunks[surfaceChunkIndex] = activeSurfaceChunk;
+                (*surfaceChunks)[surfaceChunkIndex] = activeSurfaceChunk;
             }
             auto& surfaceRecord = activeSurfaceChunk->records[change.surfaceIndex % kChunkWidth];
             const auto blocksIndependentBase = [this](const SurfacePresentationRecord& record) {
@@ -335,15 +1057,229 @@ namespace OpenRCT2
             }
             if (blocksIndependentBase(change.surface))
                 _surfaceBlockingRecordCount++;
+            if (surfaceRecord.terrain.kind != 0 && surfaceRecord.terrain.bounded)
+                _terrainBlockingRecordCount++;
+            if (change.surface.terrain.kind != 0 && change.surface.terrain.bounded)
+                _terrainBlockingRecordCount--;
             surfaceRecord = change.surface;
         }
+        // Rebuild only path chunks whose tile lists changed. Empty replacements retire all old ranges;
+        // held snapshots keep the old chunk and material values alive across deletion/reuse.
+        std::shared_ptr<PathChunks> pathChunks;
+        if (surfaceLayoutChanged)
+        {
+            pathChunks = std::make_shared<PathChunks>((GetSurfaceRecordCount() + kChunkWidth - 1) / kChunkWidth);
+            _pathChunks = pathChunks;
+            _nextPathRevision = 0;
+        }
+        std::array<const std::vector<PathPresentationRecord>*, kChunkWidth> replacements{};
+        size_t pathChunkIndex = std::numeric_limits<size_t>::max();
+        const auto flushPaths = [&]() {
+            if (pathChunkIndex == std::numeric_limits<size_t>::max())
+                return;
+            const auto& old = GetPathChunks()[pathChunkIndex];
+            bool changed = false;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                const auto* replacement = replacements[tile];
+                if (replacement == nullptr)
+                    continue;
+                const auto range = old == nullptr ? PathPresentationTileRange{} : old->tiles[tile];
+                if (range.count != replacement->size()
+                    || (range.count != 0
+                        && !std::equal(replacement->begin(), replacement->end(), old->records.begin() + range.first)))
+                    changed = true;
+            }
+            if (!changed)
+                return;
+            auto next = std::make_shared<PathChunk>();
+            size_t count = 0;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+                count += replacements[tile] != nullptr ? replacements[tile]->size()
+                    : old == nullptr                   ? 0
+                                                       : old->tiles[tile].count;
+            if (count > UINT32_MAX)
+                throw std::overflow_error("Path chunk record address space exhausted");
+            next->records.reserve(count);
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                auto& range = next->tiles[tile];
+                range.first = static_cast<uint32_t>(next->records.size());
+                if (const auto* replacement = replacements[tile])
+                    next->records.insert(next->records.end(), replacement->begin(), replacement->end());
+                else if (old != nullptr)
+                {
+                    const auto prior = old->tiles[tile];
+                    next->records.insert(
+                        next->records.end(), old->records.begin() + prior.first,
+                        old->records.begin() + prior.first + prior.count);
+                }
+                range.count = static_cast<uint32_t>(next->records.size()) - range.first;
+            }
+            next->revision = ++_nextPathRevision;
+            if (pathChunks == nullptr)
+            {
+                pathChunks = std::make_shared<PathChunks>(GetPathChunks());
+                _pathChunks = pathChunks;
+            }
+            (*pathChunks)[pathChunkIndex] = std::move(next);
+        };
+        for (const auto& change : batch.changes)
+        {
+            if (change.surfaceIndex >= GetSurfaceRecordCount())
+                continue;
+            const auto index = change.surfaceIndex / kChunkWidth;
+            if (index != pathChunkIndex)
+            {
+                flushPaths();
+                replacements.fill(nullptr);
+                pathChunkIndex = index;
+            }
+            replacements[change.surfaceIndex % kChunkWidth] = &change.paths;
+        }
+        flushPaths();
+        // Rebuild only object chunks whose tile lists changed. Empty objectReplacements retire all old ranges;
+        // held snapshots keep the old chunk and material values alive across deletion/reuse.
+        std::shared_ptr<ObjectChunks> objectChunks;
+        std::shared_ptr<ObjectOccurrenceCounts> objectOccurrences;
+        std::shared_ptr<WorldObjectPresentationUsage> objectUsage;
+        if (surfaceLayoutChanged)
+        {
+            objectChunks = std::make_shared<ObjectChunks>((GetSurfaceRecordCount() + kChunkWidth - 1) / kChunkWidth);
+            _objectChunks = objectChunks;
+            _nextObjectRevision = 0;
+            objectOccurrences = std::make_shared<ObjectOccurrenceCounts>();
+            objectUsage = std::make_shared<WorldObjectPresentationUsage>();
+        }
+        const auto changeObjectOccurrence = [&](const WorldObjectPresentationRecord& record, bool add) {
+            const auto [kind, slot] = WorldObjectPresentationUsage::Reference(record);
+            if (kind >= WorldObjectPresentationUsage::kKinds || slot >= WorldObjectPresentationUsage::kSlots)
+                return; // Absent/malformed references have no asset dependency.
+            if (objectOccurrences == nullptr)
+                objectOccurrences = std::make_shared<ObjectOccurrenceCounts>(*_objectOccurrences);
+            if (objectUsage == nullptr)
+                objectUsage = std::make_shared<WorldObjectPresentationUsage>(*_objectUsage);
+            auto& count = (*objectOccurrences)[kind][slot];
+            if (add)
+            {
+                if (count == UINT32_MAX)
+                    throw std::overflow_error("World object occurrence count exhausted");
+                ++count;
+            }
+            else
+            {
+                if (count == 0)
+                    throw std::logic_error("World object occurrence count underflow");
+                --count;
+            }
+            objectUsage->slots[kind].set(slot, count != 0);
+        };
+        std::array<const std::vector<WorldObjectPresentationRecord>*, kChunkWidth> objectReplacements{};
+        size_t objectChunkIndex = std::numeric_limits<size_t>::max();
+        const auto flushObjects = [&]() {
+            if (objectChunkIndex == std::numeric_limits<size_t>::max())
+                return;
+            const auto& old = GetObjectChunks()[objectChunkIndex];
+            bool changed = false;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                const auto* replacement = objectReplacements[tile];
+                if (replacement == nullptr)
+                    continue;
+                const auto range = old == nullptr ? WorldObjectPresentationTileRange{} : old->tiles[tile];
+                // Motion/colour/ghost changes using the same object need neither count copies nor asset rebuilds.
+                const bool sameReferences = range.count == replacement->size()
+                    && (range.count == 0
+                        || std::equal(
+                            replacement->begin(), replacement->end(), old->records.begin() + range.first,
+                            [](const auto& a, const auto& b) {
+                                return WorldObjectPresentationUsage::Reference(a) == WorldObjectPresentationUsage::Reference(b);
+                            }));
+                if (!sameReferences)
+                {
+                    for (uint32_t i = 0; i < range.count; ++i)
+                        changeObjectOccurrence(old->records[range.first + i], false);
+                    for (const auto& record : *replacement)
+                        changeObjectOccurrence(record, true);
+                }
+                if (range.count != replacement->size()
+                    || (range.count != 0
+                        && !std::equal(replacement->begin(), replacement->end(), old->records.begin() + range.first)))
+                    changed = true;
+            }
+            if (!changed)
+                return;
+            auto next = std::make_shared<ObjectChunk>();
+            size_t count = 0;
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+                count += objectReplacements[tile] != nullptr ? objectReplacements[tile]->size()
+                    : old == nullptr                         ? 0
+                                                             : old->tiles[tile].count;
+            if (count > UINT32_MAX)
+                throw std::overflow_error("Object chunk record address space exhausted");
+            next->records.reserve(count);
+            for (size_t tile = 0; tile < kChunkWidth; ++tile)
+            {
+                auto& range = next->tiles[tile];
+                range.first = static_cast<uint32_t>(next->records.size());
+                if (const auto* replacement = objectReplacements[tile])
+                    next->records.insert(next->records.end(), replacement->begin(), replacement->end());
+                else if (old != nullptr)
+                {
+                    const auto prior = old->tiles[tile];
+                    next->records.insert(
+                        next->records.end(), old->records.begin() + prior.first,
+                        old->records.begin() + prior.first + prior.count);
+                }
+                range.count = static_cast<uint32_t>(next->records.size()) - range.first;
+            }
+            next->revision = ++_nextObjectRevision;
+            if (objectChunks == nullptr)
+            {
+                objectChunks = std::make_shared<ObjectChunks>(GetObjectChunks());
+                _objectChunks = objectChunks;
+            }
+            (*objectChunks)[objectChunkIndex] = std::move(next);
+        };
+        for (const auto& change : batch.changes)
+        {
+            if (change.surfaceIndex >= GetSurfaceRecordCount())
+                continue;
+            const auto index = change.surfaceIndex / kChunkWidth;
+            if (index != objectChunkIndex)
+            {
+                flushObjects();
+                objectReplacements.fill(nullptr);
+                objectChunkIndex = index;
+            }
+            objectReplacements[change.surfaceIndex % kChunkWidth] = &change.objects;
+        }
+        flushObjects();
+        if (objectOccurrences != nullptr)
+            _objectOccurrences = std::move(objectOccurrences);
+        // Preserve the residency identity through count-only changes and temporary decrement/reincrement transitions.
+        if (objectUsage != nullptr && (_objectUsage == nullptr || *objectUsage != *_objectUsage))
+            _objectUsage = std::move(objectUsage);
+        _pathMaterials = batch.pathMaterials;
+        _objectMaterials = batch.objectMaterials;
+        _rideMaterials = batch.rideMaterials;
+        _ridePoses = batch.ridePoses;
+        _bannerTexts = batch.bannerTexts;
+        _clockHour = batch.clockHour;
+        _clockMinute = batch.clockMinute;
+        _terrainMaterials = batch.terrainMaterials;
         _epoch = batch.epoch;
+        _sourceTick = batch.sourceTick;
+        _profile = batch.profile;
     }
 
     TileElement* MapPresentationSnapshot::GetFirstElementAt(const TileCoordsXY& tilePos) const
     {
+        if (_chunks == nullptr || tilePos.x < 0 || tilePos.y < 0 || tilePos.x >= kMaximumMapSizeTechnical
+            || tilePos.y >= kMaximumMapSizeTechnical)
+            return nullptr;
         const auto index = static_cast<size_t>(tilePos.x + tilePos.y * kMaximumMapSizeTechnical);
-        const auto& chunk = _chunks[index / kChunkWidth];
+        const auto& chunk = (*_chunks)[index / kChunkWidth];
         if (chunk == nullptr)
             return nullptr;
         const auto& tile = (*chunk)[index % kChunkWidth];
@@ -1273,8 +2209,7 @@ namespace OpenRCT2
         return type == TileElementType::path || type == TileElementType::entrance || type == TileElementType::banner;
     }
 
-    static void PublishTileMutation(
-        const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
+    static void PublishTileMutation(const TileCoordsXY& tile, const TileElement& element, const TileMutationMode mode)
     {
         InvalidateTileElementReferences(tile);
         if (mode == TileMutationMode::deferred)
@@ -1285,8 +2220,7 @@ namespace OpenRCT2
             MapTopology::InvalidateTileAndNeighbours(tile);
     }
 
-    TileEraseResult EraseTileElement(
-        const TileCoordsXY& tile, TileElement* element, const TileMutationMode mode)
+    TileEraseResult EraseTileElement(const TileCoordsXY& tile, TileElement* element, const TileMutationMode mode)
     {
         if (!IsTileLocationValid(tile))
             return { TileMutationStatus::invalidTile };
@@ -1429,8 +2363,7 @@ namespace OpenRCT2
      *
      *  rct2: 0x0068B1F6
      */
-    TileInsertResult InsertTileElement(
-        const TileCoordsXY& tileLoc, TileElement element, const TileMutationMode mode)
+    TileInsertResult InsertTileElement(const TileCoordsXY& tileLoc, TileElement element, const TileMutationMode mode)
     {
         if (!IsTileLocationValid(tileLoc) || _tileIndex.GetFirstElementAt(tileLoc) == nullptr)
             return { TileMutationStatus::invalidTile };
@@ -1489,9 +2422,8 @@ namespace OpenRCT2
             return TileMutationStatus::invalidTile;
         if (elements.empty())
             return TileMutationStatus::wouldViolateSurfaceInvariant;
-        if (std::ranges::none_of(elements, [](const TileElement& element) {
-                return element.getType() == TileElementType::surface;
-            }))
+        if (std::ranges::none_of(
+                elements, [](const TileElement& element) { return element.getType() == TileElementType::surface; }))
         {
             return TileMutationStatus::wouldViolateSurfaceInvariant;
         }
@@ -2088,7 +3020,7 @@ namespace OpenRCT2
         MapInvalidateTileForRendering(tilePos);
     }
 
-    static void MarkPresentationTileDirty(const CoordsXY& position)
+    void MarkMapTilePresentationDirty(const CoordsXY& position)
     {
         const TileCoordsXY tileCoords{ position };
         if (tileCoords.x >= 0 && tileCoords.y >= 0 && tileCoords.x < kMaximumMapSizeTechnical
@@ -2105,7 +3037,7 @@ namespace OpenRCT2
 
     void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ -1 });
     }
 
@@ -2115,7 +3047,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom1(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 1 });
     }
 
@@ -2125,7 +3057,7 @@ namespace OpenRCT2
      */
     void MapInvalidateTileZoom0(const CoordsXYRangedZ& tilePos)
     {
-        MarkPresentationTileDirty(tilePos);
+        MarkMapTilePresentationDirty(tilePos);
         MapInvalidateTileUnderZoom(tilePos.x, tilePos.y, tilePos.baseZ, tilePos.clearanceZ, ZoomLevel{ 0 });
     }
 
@@ -2684,9 +3616,15 @@ namespace OpenRCT2
             auto stations = ride.getStations();
             for (auto& station : stations)
             {
-                shiftIfNotNull(station.start, amountToMove);
-                shiftIfNotNull(station.entrance, amount);
-                shiftIfNotNull(station.exit, amount);
+                auto start = station.getStartXY();
+                auto entrance = station.getEntrance();
+                auto exit = station.getExit();
+                shiftIfNotNull(start, amountToMove);
+                shiftIfNotNull(entrance, amount);
+                shiftIfNotNull(exit, amount);
+                station.setStart(start);
+                station.setEntrance(entrance);
+                station.setExit(exit);
             }
 
             shiftIfNotNull(ride.overallView, amountToMove);

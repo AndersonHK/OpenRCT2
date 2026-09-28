@@ -18,7 +18,6 @@
 #include "../../world/Banner.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/MapTopology.h"
 #include "../../world/TileElementsView.h"
 #include "../../world/tile_element/BannerElement.h"
@@ -138,10 +137,10 @@ namespace OpenRCT2::GameActions
             LOG_ERROR("No free banners available");
             return Result(Status::invalidParameters, STR_CANT_POSITION_THIS_HERE, STR_TOO_MANY_BANNERS_IN_GAME);
         }
-        banner->flags = {};
-        banner->text = {};
-        banner->textColour = Drawing::TextColour::white;
-        banner->type = _bannerType; // Banner must be deleted after this point in an early return
+        banner->setFlags({});
+        banner->setText({});
+        banner->setTextColour(Drawing::TextColour::white);
+        banner->setType(_bannerType); // Banner must be deleted after this point in an early return
         banner->colour = _primaryColour;
         banner->position = TileCoordsXY(_loc);
 
@@ -155,7 +154,6 @@ namespace OpenRCT2::GameActions
                 bannerElement.setGhost(GetFlags().has(CommandFlag::ghost));
             });
         Guard::Assert(bannerElement != nullptr);
-        MapAnimations::MarkTileForInvalidation(TileCoordsXY(_loc));
 
         res.cost = bannerEntry->price;
         return res;

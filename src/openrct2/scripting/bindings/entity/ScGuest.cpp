@@ -208,7 +208,7 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::tshirtColour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->tShirtColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getTShirtColour()) : 0);
     }
     JSValue ScGuest::tshirtColour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
@@ -217,7 +217,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->tShirtColour = static_cast<Drawing::Colour>(value);
+            peep->setTShirtColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -226,7 +226,7 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::trousersColour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->trousersColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getTrousersColour()) : 0);
     }
     JSValue ScGuest::trousersColour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
@@ -235,7 +235,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->trousersColour = static_cast<Drawing::Colour>(value);
+            peep->setTrousersColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -244,7 +244,7 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::balloonColour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->balloonColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getBalloonColour()) : 0);
     }
     JSValue ScGuest::balloonColour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
@@ -253,7 +253,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->balloonColour = static_cast<Drawing::Colour>(value);
+            peep->setBalloonColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -262,7 +262,7 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::hatColour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->hatColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getHatColour()) : 0);
     }
     JSValue ScGuest::hatColour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
@@ -271,7 +271,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->hatColour = static_cast<Drawing::Colour>(value);
+            peep->setHatColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;
@@ -280,7 +280,7 @@ namespace OpenRCT2::Scripting
     JSValue ScGuest::umbrellaColour_get(JSContext* ctx, JSValue thisVal)
     {
         auto peep = GetGuest(thisVal);
-        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->umbrellaColour) : 0);
+        return JS_NewUint32(ctx, peep != nullptr ? EnumValue(peep->getUmbrellaColour()) : 0);
     }
     JSValue ScGuest::umbrellaColour_set(JSContext* ctx, JSValue thisVal, JSValue jsValue)
     {
@@ -289,7 +289,7 @@ namespace OpenRCT2::Scripting
         auto peep = GetGuest(thisVal);
         if (peep != nullptr)
         {
-            peep->umbrellaColour = static_cast<Drawing::Colour>(value);
+            peep->setUmbrellaColour(static_cast<Drawing::Colour>(value));
             peep->invalidate();
         }
         return JS_UNDEFINED;

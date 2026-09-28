@@ -773,28 +773,28 @@ namespace OpenRCT2::RCT2
 
                 if (src->stationStarts[i].IsNull())
                 {
-                    destStation.start.setNull();
+                    destStation.clearStart();
                 }
                 else
                 {
                     auto tileStartLoc = TileCoordsXY(src->stationStarts[i].x, src->stationStarts[i].y);
-                    destStation.start = tileStartLoc.toCoordsXY();
+                    destStation.setStart(tileStartLoc.toCoordsXY());
                 }
-                destStation.height = src->stationHeights[i];
+                destStation.setHeight(src->stationHeights[i]);
                 destStation.length = src->stationLength[i];
                 destStation.depart = src->stationDepart[i];
                 destStation.trainAtStation = src->trainAtStation[i];
                 // Direction is fixed later.
 
                 if (src->entrances[i].IsNull())
-                    destStation.entrance.setNull();
+                    destStation.clearEntrance();
                 else
-                    destStation.entrance = { src->entrances[i].x, src->entrances[i].y, src->stationHeights[i], 0 };
+                    destStation.setEntrance({ src->entrances[i].x, src->entrances[i].y, src->stationHeights[i], 0 });
 
                 if (src->exits[i].IsNull())
-                    destStation.exit.setNull();
+                    destStation.clearExit();
                 else
-                    destStation.exit = { src->exits[i].x, src->exits[i].y, src->stationHeights[i], 0 };
+                    destStation.setExit({ src->exits[i].x, src->exits[i].y, src->stationHeights[i], 0 });
 
                 destStation.lastPeepInQueue = EntityId::FromUnderlying(src->lastPeepInQueue[i]);
 
@@ -811,10 +811,10 @@ namespace OpenRCT2::RCT2
                 StationIndex stationIndex = StationIndex::FromUnderlying(i);
                 auto& destStation = dst->getStation(stationIndex);
 
-                destStation.start.setNull();
+                destStation.clearStart();
                 destStation.trainAtStation = RideStation::kNoTrain;
-                destStation.entrance.setNull();
-                destStation.exit.setNull();
+                destStation.clearEntrance();
+                destStation.clearExit();
                 destStation.lastPeepInQueue = EntityId::GetNull();
             }
 
@@ -1155,24 +1155,24 @@ namespace OpenRCT2::RCT2
 
             *dst = {};
             dst->id = id;
-            dst->type = RCTEntryIndexToOpenRCT2EntryIndex(src->Type);
-            dst->flags = src->flags;
+            dst->setType(RCTEntryIndexToOpenRCT2EntryIndex(src->Type));
+            dst->setFlags(src->flags);
 
             if (!src->flags.has(BannerFlag::linkedToRide) && IsUserStringID(src->StringID))
             {
-                dst->text = GetUserString(src->StringID);
+                dst->setText(GetUserString(src->StringID));
             }
 
             if (src->flags.has(BannerFlag::linkedToRide))
             {
-                dst->rideIndex = RCT12RideIdToOpenRCT2RideId(src->RideIndex);
+                dst->setRideIndex(RCT12RideIdToOpenRCT2RideId(src->RideIndex));
             }
             else
             {
                 dst->colour = static_cast<Drawing::Colour>(src->Colour);
             }
 
-            dst->textColour = src->textColour;
+            dst->setTextColour(src->textColour);
             dst->position.x = src->x;
             dst->position.y = src->y;
         }
@@ -1685,8 +1685,7 @@ namespace OpenRCT2::RCT2
             dst->animationObjectIndex = kObjectEntryIndexNull;
             dst->animationGroup = static_cast<PeepAnimationGroup>(src->AnimationGroup);
 
-            dst->tShirtColour = src->TshirtColour;
-            dst->trousersColour = src->TrousersColour;
+            dst->setClothingColours(src->TshirtColour, src->TrousersColour);
             dst->destinationX = src->DestinationX;
             dst->destinationY = src->DestinationY;
             dst->destinationTolerance = src->DestinationTolerance;
@@ -2158,9 +2157,9 @@ namespace OpenRCT2::RCT2
         dst->angriness = src->Angriness;
         dst->timeLost = src->TimeLost;
         dst->daysInQueue = src->DaysInQueue;
-        dst->balloonColour = src->BalloonColour;
-        dst->umbrellaColour = src->UmbrellaColour;
-        dst->hatColour = src->HatColour;
+        dst->setBalloonColour(src->BalloonColour);
+        dst->setUmbrellaColour(src->UmbrellaColour);
+        dst->setHatColour(src->HatColour);
         dst->favouriteRide = RCT12RideIdToOpenRCT2RideId(src->FavouriteRide);
         dst->favouriteRideRating = src->FavouriteRideRating;
     }

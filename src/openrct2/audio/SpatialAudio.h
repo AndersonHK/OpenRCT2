@@ -55,6 +55,12 @@ namespace OpenRCT2::Audio
         bool Discontinuous{};
     };
 
+    struct SpatialAudioAngles
+    {
+        float Azimuth{};
+        float Elevation{};
+    };
+
     struct SpatialAudioParams
     {
         bool Audible{};
@@ -84,17 +90,18 @@ namespace OpenRCT2::Audio
     std::optional<SpatialAudioListener> GetSpatialAudioListener();
     SpatialAudioListener CalculateIsometricListener(
         const CoordsXYZ& focus, uint8_t rotation, int32_t projectedViewWidth, int32_t projectedViewHeight);
+    // Crowd ambience needs direction only; avoid evaluating unused distance gain and filtering for every guest.
+    SpatialAudioAngles CalculateSpatialAudioAngles(const SpatialAudioListener& listener, const CoordsXYZ& source);
     SpatialAudioParams CalculateSpatialAudioParams(
         const SpatialAudioListener& listener, const CoordsXYZ& source, float occlusion = 1.0f,
         SpatialAudioRolloff rolloff = SpatialAudioRolloff::world);
     float CalculateDopplerFactor(
-        float sourceRadialVelocity, float listenerRadialVelocity,
-        float cameraStrength = kCameraDopplerStrength);
+        float sourceRadialVelocity, float listenerRadialVelocity, float cameraStrength = kCameraDopplerStrength);
     // Stateful smoothing assumes regular control-rate samples. Long gaps, camera discontinuities, and emitter-anchor changes
     // deliberately reset to unity rather than synthesising a pitch impulse.
     float UpdateDopplerMotion(
-        DopplerMotionState& state, const SpatialAudioListener& listener, const CoordsXYZ& sourcePosition,
-        float elapsedSeconds, bool sourceMoves, bool sourceDiscontinuity = false);
+        DopplerMotionState& state, const SpatialAudioListener& listener, const CoordsXYZ& sourcePosition, float elapsedSeconds,
+        bool sourceMoves, bool sourceDiscontinuity = false);
     float CalculateDistanceLowPassCutoff(
         float distance, float occlusion, SpatialAudioRolloff rolloff = SpatialAudioRolloff::world);
     float CalculateRainHeightGain(const SpatialAudioListener& listener);
@@ -102,6 +109,7 @@ namespace OpenRCT2::Audio
     // Produces equal-power gains in SDL's native channel order. Layouts without a usable centre or LFE leave those channels
     // silent rather than feeding full-range world audio into speaker roles that require device-side filtering.
     std::array<float, kMaxOutputChannels> CalculateSpeakerGains(float azimuth, uint8_t channelCount);
-    // Limiter attack is immediate to prevent clipping; release is frame-count/sample-rate based and therefore buffer-size neutral.
+    // Limiter attack is immediate to prevent clipping; release is frame-count/sample-rate based and therefore buffer-size
+    // neutral.
     float CalculateNextLimiterGain(float currentGain, float peak, size_t frames, uint32_t sampleRate);
 } // namespace OpenRCT2::Audio

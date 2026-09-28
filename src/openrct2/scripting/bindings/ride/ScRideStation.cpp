@@ -70,7 +70,7 @@ namespace OpenRCT2::Scripting
         auto station = GetRideStation(thisVal);
         if (station != nullptr)
         {
-            auto start = CoordsXYZ(station->start, station->getBaseZ());
+            auto start = CoordsXYZ(station->getStartXY(), station->getBaseZ());
             return ToJSValue(ctx, start);
         }
         return JS_NULL;
@@ -84,7 +84,7 @@ namespace OpenRCT2::Scripting
         if (station != nullptr)
         {
             auto start = JStoCoordsXYZ(ctx, value);
-            station->start = { start.x, start.y };
+            station->setStart({ start.x, start.y });
             station->setBaseZ(start.z);
             StationChanged(thisVal);
         }
@@ -116,7 +116,7 @@ namespace OpenRCT2::Scripting
         auto station = GetRideStation(thisVal);
         if (station != nullptr)
         {
-            return ToJSValue(ctx, station->entrance.toCoordsXYZD());
+            return ToJSValue(ctx, station->getEntrance().toCoordsXYZD());
         }
         return JS_NULL;
     }
@@ -128,7 +128,7 @@ namespace OpenRCT2::Scripting
         auto station = GetRideStation(thisVal);
         if (station != nullptr)
         {
-            station->entrance = JStoCoordsXYZD(ctx, value);
+            station->setEntrance(JStoCoordsXYZD(ctx, value));
             StationChanged(thisVal);
         }
         return JS_UNDEFINED;
@@ -139,7 +139,7 @@ namespace OpenRCT2::Scripting
         auto station = GetRideStation(thisVal);
         if (station != nullptr)
         {
-            return ToJSValue(ctx, station->exit.toCoordsXYZD());
+            return ToJSValue(ctx, station->getExit().toCoordsXYZD());
         }
         return JS_NULL;
     }
@@ -151,7 +151,7 @@ namespace OpenRCT2::Scripting
         auto station = GetRideStation(thisVal);
         if (station != nullptr)
         {
-            station->exit = JStoCoordsXYZD(ctx, value);
+            station->setExit(JStoCoordsXYZD(ctx, value));
             StationChanged(thisVal);
         }
         return JS_UNDEFINED;

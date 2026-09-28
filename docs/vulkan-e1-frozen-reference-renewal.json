@@ -1,0 +1,232 @@
+{
+  "status": "all indexed and physical image bytes unchanged",
+  "scope": "Metadata renewal adds explicit viewportFlags; comparison runner was not weakened. Same independent frozen software source.",
+  "families": [
+    {
+      "family": "baseline",
+      "oldSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-baseline-02\\summary.json",
+      "oldSummarySha256": "5fd21e70fcae24fca96f9fa2cfe657f06271c2620c48722043cbd6a74159cc03",
+      "newSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e1-frozen-baseline-01\\summary.json",
+      "newSummarySha256": "4abddc0847ee7ee87c6b818d2d8a1081a1712d6b9655779939c177165d1c389c",
+      "frames": [
+        {
+          "capture": "baseline-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "baseline-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        }
+      ]
+    },
+    {
+      "family": "overlap-incremental",
+      "oldSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-overlap-incremental-02\\summary.json",
+      "oldSummarySha256": "4452cabd29480f09d3f8fc20eae9baf743bafa7b3610da33404a929948c3dbb9",
+      "newSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e1-frozen-overlap-incremental-01\\summary.json",
+      "newSummarySha256": "3c35c4c67081e0d0071c381f135c318801ade7cde4583ac57ecac7ee5b0b3320",
+      "frames": [
+        {
+          "capture": "empty-ui-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "research-front-0",
+          "indexedSha256": "63cd69e82e81c4ac4e3713306fe91c2fe3f4949f2bb20499f541f08080cef4b9",
+          "rgbaSha256": "b4a9b0fba93f4ae78bd7ea4007ff810a0fbfd111dc4704c906591557cfd42de3"
+        },
+        {
+          "capture": "finances-front-0",
+          "indexedSha256": "dbc36b31747ebc3288787c125cc1258b77e82e59893b2e1cae44178140702ac2",
+          "rgbaSha256": "f97dd0eacbe7c927b1be69ed0d83ba1290e5a007860575d0e7dc0b808c6a3924"
+        },
+        {
+          "capture": "partially-clipped-0",
+          "indexedSha256": "d9659ec7e309f64873ba1e4a8e4c5f517a2ebf99234f8fd12079b8a89f3de6e8",
+          "rgbaSha256": "935e08b4ffa71cc2139d2766a6ebd48b29046a21816606755f13d4d2930114bd"
+        },
+        {
+          "capture": "research-only-0",
+          "indexedSha256": "f1385b1e04b372fc09ac455bfb1962095129ba1142ce3203d63d9ab382aa57c5",
+          "rgbaSha256": "868f979ef88b8dfee51fcc27af9599b1a33d7332ce9ee0682141fecf36f3aa03"
+        },
+        {
+          "capture": "restored-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "empty-ui-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "research-front-1",
+          "indexedSha256": "63cd69e82e81c4ac4e3713306fe91c2fe3f4949f2bb20499f541f08080cef4b9",
+          "rgbaSha256": "b4a9b0fba93f4ae78bd7ea4007ff810a0fbfd111dc4704c906591557cfd42de3"
+        },
+        {
+          "capture": "finances-front-1",
+          "indexedSha256": "dbc36b31747ebc3288787c125cc1258b77e82e59893b2e1cae44178140702ac2",
+          "rgbaSha256": "f97dd0eacbe7c927b1be69ed0d83ba1290e5a007860575d0e7dc0b808c6a3924"
+        },
+        {
+          "capture": "partially-clipped-1",
+          "indexedSha256": "d9659ec7e309f64873ba1e4a8e4c5f517a2ebf99234f8fd12079b8a89f3de6e8",
+          "rgbaSha256": "935e08b4ffa71cc2139d2766a6ebd48b29046a21816606755f13d4d2930114bd"
+        },
+        {
+          "capture": "research-only-1",
+          "indexedSha256": "f1385b1e04b372fc09ac455bfb1962095129ba1142ce3203d63d9ab382aa57c5",
+          "rgbaSha256": "868f979ef88b8dfee51fcc27af9599b1a33d7332ce9ee0682141fecf36f3aa03"
+        },
+        {
+          "capture": "restored-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        }
+      ]
+    },
+    {
+      "family": "scroll-incremental",
+      "oldSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-scroll-incremental-02\\summary.json",
+      "oldSummarySha256": "20108726c63245d975b525f218ff6a740899981bf38c1bcaa816195a86bf6071",
+      "newSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e1-frozen-scroll-incremental-01\\summary.json",
+      "newSummarySha256": "ba7dba8aae98657dffdc11d1a19b668740319e20305e854768ef8a997e35830f",
+      "frames": [
+        {
+          "capture": "empty-ui-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "scroll-top-0",
+          "indexedSha256": "0690f3e127db5c4139fa2317f4074885c4d846b2f2033d9decadc72b8b08f345",
+          "rgbaSha256": "d2f111a49852bcdb5cf5d561dde240ecd45f68010c484656c60b0e3d99d455ce"
+        },
+        {
+          "capture": "scroll-partial-row-0",
+          "indexedSha256": "87603c21e07a47eecd864f04781aa6e0e871cc00f8132be74b67403dde58d637",
+          "rgbaSha256": "419cc077a334e6810092c3fee6b80c37a3c19c63ae7fdf1169e2f46e03c04ca2"
+        },
+        {
+          "capture": "scroll-screen-clip-0",
+          "indexedSha256": "b680ed91c25d60ebb53944d5d0df5d4d9bab266a86ba5f1e478e16fa7ec2e18b",
+          "rgbaSha256": "792687ec1c1e8b5a117cb8f688a6d2f74b8baa0c4e3adfe0acbfaec770c9e0c2"
+        },
+        {
+          "capture": "scroll-resized-0",
+          "indexedSha256": "da6f63da5b73a767f5d37f4a1a0042af927756e995db01c68ef2bdd514b6307e",
+          "rgbaSha256": "1603a07151d7daaed039e06c778a61fa835235207e9ffc5de5a5e055a6454309"
+        },
+        {
+          "capture": "restored-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "empty-ui-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "scroll-top-1",
+          "indexedSha256": "0690f3e127db5c4139fa2317f4074885c4d846b2f2033d9decadc72b8b08f345",
+          "rgbaSha256": "d2f111a49852bcdb5cf5d561dde240ecd45f68010c484656c60b0e3d99d455ce"
+        },
+        {
+          "capture": "scroll-partial-row-1",
+          "indexedSha256": "87603c21e07a47eecd864f04781aa6e0e871cc00f8132be74b67403dde58d637",
+          "rgbaSha256": "419cc077a334e6810092c3fee6b80c37a3c19c63ae7fdf1169e2f46e03c04ca2"
+        },
+        {
+          "capture": "scroll-screen-clip-1",
+          "indexedSha256": "b680ed91c25d60ebb53944d5d0df5d4d9bab266a86ba5f1e478e16fa7ec2e18b",
+          "rgbaSha256": "792687ec1c1e8b5a117cb8f688a6d2f74b8baa0c4e3adfe0acbfaec770c9e0c2"
+        },
+        {
+          "capture": "scroll-resized-1",
+          "indexedSha256": "da6f63da5b73a767f5d37f4a1a0042af927756e995db01c68ef2bdd514b6307e",
+          "rgbaSha256": "1603a07151d7daaed039e06c778a61fa835235207e9ffc5de5a5e055a6454309"
+        },
+        {
+          "capture": "restored-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        }
+      ]
+    },
+    {
+      "family": "text-incremental",
+      "oldSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-text-incremental-02\\summary.json",
+      "oldSummarySha256": "7d6df06f09a632c862762d1352c4121d848b8fb67797929562d9e3935b69da49",
+      "newSummary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e1-frozen-text-incremental-01\\summary.json",
+      "newSummarySha256": "2ddb6a3a8692e30d32a8e1ead6689418cc603b5e2a940c3b9b448cc14e158a89",
+      "frames": [
+        {
+          "capture": "empty-ui-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "text-empty-0",
+          "indexedSha256": "5b5e278ed889d7b244cfc58795e1981c9df26d57ad460f8854effb149eb3e8f7",
+          "rgbaSha256": "bc2dee2d38add88b659e06a265c5b140b8264c848b5d52b002ed09cfe244c64f"
+        },
+        {
+          "capture": "wrapped-caret-start-0",
+          "indexedSha256": "f48b4a6faa6952d2dd25dd5e430f377411a710c056102b58985f635f274776df",
+          "rgbaSha256": "657bce0e1061e4a35787ad07b52da36e5858e4d5d34d2635a9e295180e4e700d"
+        },
+        {
+          "capture": "wrapped-caret-end-0",
+          "indexedSha256": "a77f395b3c45c2633d90037477c7c1178a3db75851834ad803893d463e371a63",
+          "rgbaSha256": "64399627692fd90b2a87a703f6a7fa7b58a959f3366366a70db323b6127ec0a1"
+        },
+        {
+          "capture": "submitted-0",
+          "indexedSha256": "f1385b1e04b372fc09ac455bfb1962095129ba1142ce3203d63d9ab382aa57c5",
+          "rgbaSha256": "868f979ef88b8dfee51fcc27af9599b1a33d7332ce9ee0682141fecf36f3aa03"
+        },
+        {
+          "capture": "restored-0",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "empty-ui-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        },
+        {
+          "capture": "text-empty-1",
+          "indexedSha256": "5b5e278ed889d7b244cfc58795e1981c9df26d57ad460f8854effb149eb3e8f7",
+          "rgbaSha256": "bc2dee2d38add88b659e06a265c5b140b8264c848b5d52b002ed09cfe244c64f"
+        },
+        {
+          "capture": "wrapped-caret-start-1",
+          "indexedSha256": "f48b4a6faa6952d2dd25dd5e430f377411a710c056102b58985f635f274776df",
+          "rgbaSha256": "657bce0e1061e4a35787ad07b52da36e5858e4d5d34d2635a9e295180e4e700d"
+        },
+        {
+          "capture": "wrapped-caret-end-1",
+          "indexedSha256": "a77f395b3c45c2633d90037477c7c1178a3db75851834ad803893d463e371a63",
+          "rgbaSha256": "64399627692fd90b2a87a703f6a7fa7b58a959f3366366a70db323b6127ec0a1"
+        },
+        {
+          "capture": "submitted-1",
+          "indexedSha256": "f1385b1e04b372fc09ac455bfb1962095129ba1142ce3203d63d9ab382aa57c5",
+          "rgbaSha256": "868f979ef88b8dfee51fcc27af9599b1a33d7332ce9ee0682141fecf36f3aa03"
+        },
+        {
+          "capture": "restored-1",
+          "indexedSha256": "70fd10e2544cd6468d01dc7007f5281a864d05d19bfe26fe3f23f54b5d7a21c5",
+          "rgbaSha256": "1ff805362efa6a06323da6801e1250e3790855d0225e132f48057280bcb163ae"
+        }
+      ]
+    }
+  ]
+}

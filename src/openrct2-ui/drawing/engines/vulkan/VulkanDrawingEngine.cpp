@@ -11,23 +11,41 @@
 
     #include "VulkanDrawingEngine.h"
 
-    #include "../gpu/GpuCommandDrawingContext.h"
-    #include "../gpu/GpuFrameMailbox.h"
-    #include "VulkanBackend.h"
     #include "VulkanPlatform.h"
+    #include "VulkanScreenPalette.h"
+
+    #include <openrct2-renderer/gpu/GpuCommandDrawingContext.h>
+    #include <openrct2-renderer/gpu/GpuFrameMailbox.h>
+    #include <openrct2-renderer/gpu/GpuGraphicsLookupTables.h>
+    #include <openrct2-renderer/gpu/GpuWeatherDrawer.h>
+    #include <openrct2-renderer/vulkan/VulkanBackend.h>
+
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+        #include "VulkanDiagnosticCapture.h"
+
+        #include <openrct2/drawing/PresentationGeneration.h>
+        #include <openrct2/entity/EntityPresentationSnapshot.h>
+    #endif
 
     #include <SDL.h>
     #include <algorithm>
     #include <array>
     #include <atomic>
+    #include <chrono>
+    #include <cmath>
+    #include <cstdlib>
     #include <cstring>
+    #include <ctime>
     #include <exception>
     #include <limits>
     #include <mutex>
     #include <openrct2-ui/interface/Window.h>
     #include <openrct2/Context.h>
+    #include <openrct2/OpenRCT2.h>
     #include <openrct2/PlatformEnvironment.h>
     #include <openrct2/config/Config.h>
+    #include <openrct2/core/Console.hpp>
+    #include <openrct2/core/FileStream.h>
     #include <openrct2/core/Path.hpp>
     #include <openrct2/drawing/BlendColourMap.h>
     #include <openrct2/drawing/Drawing.Sprite.h>
@@ -35,9 +53,12 @@
     #include <openrct2/drawing/G1Element.h>
     #include <openrct2/drawing/LightFX.h>
     #include <openrct2/drawing/RenderTarget.h>
+    #include <openrct2/drawing/SpriteAssetDecoder.h>
     #include <openrct2/drawing/WeatherDrawer.h>
     #include <openrct2/interface/Screenshot.h>
     #include <openrct2/interface/Viewport.h>
+    #include <openrct2/profiling/Profiling.h>
+    #include <openrct2/scenes/SceneManager.h>
     #include <openrct2/ui/UiContext.h>
     #include <span>
     #include <stdexcept>
@@ -46,6 +67,40 @@
 
 namespace OpenRCT2::Ui
 {
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+    namespace Vulkan::Diagnostic
+    {
+        static std::atomic_bool CaptureEnabled = false;
+        static std::atomic_bool RetainedBalloonPublicationEnabled = false;
+        static std::atomic_bool RetainedPeepPublicationEnabled = false;
+        static std::atomic_bool NativeBalloonFixtureEnabled = false;
+        static std::atomic_bool NativeTerrainFixtureEnabled = false;
+
+        void SetNativeTerrainFixtureForTesting(bool enabled)
+        {
+            NativeTerrainFixtureEnabled.store(enabled);
+        }
+
+        void SetNativeBalloonFixtureForTesting(bool enabled)
+        {
+            NativeBalloonFixtureEnabled.store(enabled);
+        }
+
+        void SetRetainedBalloonPublicationForTesting(bool enabled)
+        {
+            RetainedBalloonPublicationEnabled.store(enabled);
+        }
+        void SetRetainedPeepPublicationForTesting(bool enabled)
+        {
+            RetainedPeepPublicationEnabled.store(enabled);
+        }
+
+        void EnableCaptureForTesting()
+        {
+            CaptureEnabled.store(true);
+        }
+    } // namespace Vulkan::Diagnostic
+    #endif
     namespace
     {
         [[nodiscard]] Gpu::Extent QueryDrawableExtentOnUiThread(IUiContext& uiContext)
@@ -54,12 +109,31 @@ namespace OpenRCT2::Ui
             return { extent.width, extent.height };
         }
 
+        [[nodiscard]] Gpu::ScaleSettings CaptureScaleSettings(IUiContext& uiContext)
+        {
+            const auto scale = std::ceil(static_cast<double>(Config::Get().general.windowScale));
+            if (!std::isfinite(scale) || scale < 1 || scale > std::numeric_limits<uint32_t>::max())
+                throw std::invalid_argument("Invalid Vulkan window scale");
+            Gpu::ScaleMode mode = Gpu::ScaleMode::Nearest;
+            switch (uiContext.GetScaleQuality())
+            {
+                case ScaleQuality::linear:
+                    mode = Gpu::ScaleMode::Linear;
+                    break;
+                case ScaleQuality::smoothNearestNeighbour:
+                    mode = Gpu::ScaleMode::SmoothNearest;
+                    break;
+                default:
+                    break;
+            }
+            return { mode, static_cast<uint32_t>(scale) };
+        }
+
         [[nodiscard]] Gpu::BackendConfig BuildBackendConfig(
             IUiContext& uiContext, Gpu::Extent logicalExtent, Gpu::Extent drawableExtent, bool vsync,
             std::string shaderDirectory)
         {
             return {
-                .nativeWindow = uiContext.GetWindow(),
                 .logicalExtent = logicalExtent,
                 .drawableExtent = drawableExtent,
                 .presentMode = vsync ? Gpu::PresentMode::VSync : Gpu::PresentMode::Immediate,
@@ -67,6 +141,7 @@ namespace OpenRCT2::Ui
                 .outputColorMode = Config::Get().general.enableHdr10Output ? Gpu::OutputColorMode::Hdr10IfAvailable
                                                                            : Gpu::OutputColorMode::Sdr,
                 .shaderDirectory = std::move(shaderDirectory),
+                .scaleSettings = CaptureScaleSettings(uiContext),
             };
         }
 
@@ -81,75 +156,6 @@ namespace OpenRCT2::Ui
             return ScreenshotDumpPNG(target);
         }
 
-        [[nodiscard]] std::array<std::byte, 256 * 4> ConvertPalette(const Drawing::GamePalette& palette)
-        {
-            std::array<std::byte, 256 * 4> result{};
-            for (size_t i = 0; i < 256; i++)
-            {
-                const auto& colour = palette[i];
-                result[i * 4] = static_cast<std::byte>(colour.red);
-                result[i * 4 + 1] = static_cast<std::byte>(colour.green);
-                result[i * 4 + 2] = static_cast<std::byte>(colour.blue);
-                result[i * 4 + 3] = i == 0 ? std::byte{ 0 } : std::byte{ 0xff };
-            }
-            return result;
-        }
-    } // namespace
-
-    namespace
-    {
-        class VulkanWeatherDrawer final : public Drawing::IWeatherDrawer
-        {
-        private:
-            Gpu::CommandBatch<Gpu::WeatherCommand>* _commands = nullptr;
-
-        public:
-            void SetCommands(Gpu::CommandBatch<Gpu::WeatherCommand>& commands)
-            {
-                _commands = &commands;
-            }
-
-            void Draw(
-                Drawing::RenderTarget&, int32_t x, int32_t y, int32_t width, int32_t height, int32_t xStart, int32_t yStart,
-                const uint8_t* weatherPattern) override
-            {
-                if (_commands == nullptr || width <= 0 || height <= 0)
-                    return;
-                auto& command = _commands->allocate();
-                command.bounds = { x, y, x + width, y + height };
-                command.offset = { xStart, yStart };
-                command.pattern = weatherPattern[3] == 32 ? 1 : 0;
-            }
-        };
-
-        [[nodiscard]] std::array<std::byte, 256 * 256> BuildRemapPalette()
-        {
-            std::array<Drawing::PaletteIndex, 256 * 256> indices{};
-            auto target = Drawing::RenderTarget{};
-            target.bits = indices.data();
-            target.width = 256;
-            target.height = 256;
-            target.pitch = 0;
-            target.zoom_level = ZoomLevel{ 0 };
-            for (int32_t i = 0; i < 256; i++)
-                target.bits[i] = static_cast<Drawing::PaletteIndex>(i);
-
-            for (int32_t i = 0; i < kPaletteTotalOffsets; i++)
-            {
-                const auto palette = static_cast<Drawing::FilterPaletteID>(i);
-                const auto image = GetPaletteG1Index(palette);
-                if (!image.has_value())
-                    continue;
-                const auto* element = GfxGetG1Element(*image);
-                if (element == nullptr)
-                    continue;
-                const int32_t row = Gpu::TextureCache::PaletteToY(palette);
-                GfxDrawSpriteSoftware(target, ImageId(*image), { -element->xOffset, row - element->yOffset });
-            }
-            std::array<std::byte, 256 * 256> pixels{};
-            std::memcpy(pixels.data(), indices.data(), pixels.size());
-            return pixels;
-        }
     } // namespace
 
     /** The CPU render-target allocation carries legacy pointer offsets only; it is never uploaded as a framebuffer. */
@@ -158,15 +164,16 @@ namespace OpenRCT2::Ui
     private:
         IUiContext& _uiContext;
         std::unique_ptr<Gpu::Backend> _backend;
-        Gpu::TextureCache _textureCache;
+        std::shared_ptr<Gpu::TextureCache> _textureCache = std::make_shared<Gpu::TextureCache>();
         Drawing::RenderTarget _mainTarget{};
         Gpu::CommandDrawingContext _drawingContext;
-        VulkanWeatherDrawer _weatherDrawer;
+        Gpu::WeatherDrawer _weatherDrawer;
         Gpu::LatestFrameMailbox _frameMailbox;
         std::unique_ptr<Gpu::RecordedFramePacket> _recordingPacket;
         std::thread _renderWorker;
         std::mutex _workerErrorMutex;
         std::exception_ptr _workerError;
+        std::string _renderErrorPath;
         uint64_t _resizeVersion = 0;
         uint64_t _surfaceFormatVersion = 0;
         uint64_t _presentModeVersion = 0;
@@ -177,22 +184,38 @@ namespace OpenRCT2::Ui
         uint32_t _width = 0;
         uint32_t _height = 0;
         uint64_t _frameNumber = 0;
+        std::atomic<uint64_t> _publishedVisualPackets{ 0 };
+        std::atomic<uint64_t> _supersededVisualPackets{ 0 };
+        std::atomic<uint64_t> _unavailableVisualPackets{ 0 };
+        std::atomic<uint64_t> _discardedVisualPackets{ 0 };
         uint64_t _graphicsLookupTablesVersion = 0;
         std::vector<std::byte> _lightFalloffs;
         std::array<std::byte, 256 * 256> _remapPalette{};
         std::array<std::byte, 256 * 256> _blendPalette{};
         bool _hasBlendPalette = false;
         bool _initialised = false;
+        bool _preparingWorld = false;
+        std::optional<Gpu::Extent> _deferredResize;
         bool _graphicsLookupTablesReady = false;
         bool _hasPalette = false;
         bool _vsync = true;
+        bool _hdrOutputRequested = false;
+        float _hdrPaperWhiteNits = 203.0f;
+        std::chrono::steady_clock::time_point _nextHdrWhiteRefresh{};
         std::atomic_bool _gpuLightFxRasterization{ false };
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+        const bool _diagnosticCaptureEnabled = Vulkan::Diagnostic::CaptureEnabled.load();
+        std::shared_ptr<Vulkan::Diagnostic::CaptureRequest> _armedCapture;
+        std::mutex _diagnosticMutex;
+        std::weak_ptr<Vulkan::Diagnostic::CaptureRequest> _outstandingCapture;
+    #endif
 
     public:
-        explicit VulkanDrawingEngine(IUiContext& uiContext)
+        explicit VulkanDrawingEngine(IUiContext& uiContext, std::shared_ptr<Vulkan::DeviceContextOwner> owner)
             : _uiContext(uiContext)
-            , _backend(Vulkan::CreateBackend())
-            , _drawingContext(_mainTarget, _textureCache)
+            , _backend(Vulkan::CreateBackend(
+                  Vulkan::Platform::CreatePresentationHost(static_cast<SDL_Window*>(uiContext.GetWindow())), std::move(owner)))
+            , _drawingContext(_mainTarget, *_textureCache)
         {
             _mainTarget.DrawingEngine = this;
             _recordingPacket = CreateRecordingPacket();
@@ -201,28 +224,103 @@ namespace OpenRCT2::Ui
 
         ~VulkanDrawingEngine() override
         {
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            const auto error = std::make_exception_ptr(std::runtime_error("Vulkan diagnostic renderer shut down"));
+            if (_armedCapture != nullptr)
+                _armedCapture->Fail(error);
+            if (_recordingPacket != nullptr && _recordingPacket->diagnosticCapture != nullptr)
+                _recordingPacket->diagnosticCapture->Fail(error);
+    #endif
             StopRenderWorker();
         }
 
         void Initialise() override
         {
             auto& environment = GetContext()->GetPlatformEnvironment();
+            _renderErrorPath = Path::Combine(environment.GetDirectoryPath(DirBase::user), "render-error.log");
             const auto shaderRoot = environment.GetDirectoryPath(DirBase::openrct2, DirId::shaders);
             const auto shaderDirectory = Path::Combine(shaderRoot, "vulkan");
             const uint32_t width = static_cast<uint32_t>(std::max(1, _uiContext.GetWidth()));
             const uint32_t height = static_cast<uint32_t>(std::max(1, _uiContext.GetHeight()));
             _drawableExtent = QueryDrawableExtentOnUiThread(_uiContext);
-            _backend->Initialise(BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory));
+            auto config = BuildBackendConfig(_uiContext, { width, height }, _drawableExtent, _vsync, shaderDirectory);
+            config.pipelineCacheDirectory = Path::Combine(environment.GetDirectoryPath(DirBase::cache), "vulkan-pipelines");
+            auto* sceneManager = GetContext()->GetSceneManager();
+            // Only the initial application bootstrap has a following UI-ready
+            // preparation boundary. Window recreation uses the complete cache.
+            config.deferWorldPipelines = !gOpenRCT2Headless && sceneManager != nullptr
+                && sceneManager->getActiveScene() == nullptr;
+            _hdrOutputRequested = config.outputColorMode == Gpu::OutputColorMode::Hdr10IfAvailable;
+            RefreshHdrWhiteOnUiThread();
+            config.hdrPaperWhiteNits = _hdrPaperWhiteNits;
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            config.enableDiagnosticCapture = _diagnosticCaptureEnabled;
+    #endif
+            config.enableUploadTelemetry = gIntegratedBenchmark.enabled && gIntegratedBenchmark.uploadTelemetry;
+            const auto started = std::chrono::steady_clock::now();
+            _backend->Initialise(config);
+            Console::WriteLine(
+                "Vulkan startup: UI pipelines ready in %.3f seconds",
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
             _initialised = true;
-            _gpuLightFxRasterization.store(
-                _backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
+            _gpuLightFxRasterization.store(_backend->SupportsGpuLightFxRasterization(), std::memory_order_relaxed);
             if (_hasPalette)
                 _backend->SetPalette(_paletteRgba);
             _renderWorker = std::thread(&VulkanDrawingEngine::RenderWorkerMain, this);
         }
 
+        void PrepareWorldRendering(const std::function<void()>& drawLoadingFrame) override
+        {
+            _preparingWorld = true;
+            try
+            {
+                // Submit and retire the first themed UI frame before compilation:
+                // this also settles any resize performed during window creation.
+                drawLoadingFrame();
+                std::vector<Drawing::FrameTimings> ignored;
+                DrainFrameTimings(ignored);
+                if (const auto* capture = std::getenv("OPENRCT2_LOADING_UI_CAPTURE");
+                    capture != nullptr && std::string_view(capture) == "1")
+                {
+                    const auto path = Screenshot();
+                    if (path.empty())
+                        throw std::runtime_error("Loading UI diagnostic screenshot was not produced");
+                    Console::WriteLine("Vulkan startup: loading UI capture: %s", path.c_str());
+                }
+                _backend->PrepareWorldPipelines([&](const std::function<void()>& work) {
+                    Vulkan::Platform::PreparePipelines(work, drawLoadingFrame);
+                    DrainFrameTimings(ignored);
+                });
+            }
+            catch (...)
+            {
+                _preparingWorld = false;
+                throw;
+            }
+            _preparingWorld = false;
+            if (const auto resize = std::exchange(_deferredResize, std::nullopt))
+                Resize(resize->width, resize->height);
+        }
+
         void Resize(uint32_t width, uint32_t height) override
         {
+            // World construction references immutable canvas views and dimensions.
+            // Keep pumping native window events, then apply the latest size once
+            // the unpublished pipeline has joined and become frame-owned.
+            if (_preparingWorld)
+            {
+                _deferredResize = Gpu::Extent{ width, height };
+                return;
+            }
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            // An already published packet owns its old extent and is still
+            // captured before the worker applies any later resize packet.
+            const auto error = std::make_exception_ptr(std::runtime_error("Vulkan diagnostic capture cancelled by resize"));
+            if (_armedCapture != nullptr)
+                std::exchange(_armedCapture, nullptr)->Fail(error);
+            if (_recordingPacket != nullptr && _recordingPacket->diagnosticCapture != nullptr)
+                _recordingPacket->diagnosticCapture->Fail(error);
+    #endif
             if (width > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())
                 || height > static_cast<uint32_t>(std::numeric_limits<int32_t>::max()))
             {
@@ -261,11 +359,13 @@ namespace OpenRCT2::Ui
                 return;
             }
             _surfaceFormatVersion++;
+            // Monitor moves/HDR mode changes must not inherit another display's white.
+            _nextHdrWhiteRefresh = {};
         }
 
         void SetPalette(const Drawing::GamePalette& palette) override
         {
-            _paletteRgba = ConvertPalette(palette);
+            _paletteRgba = Vulkan::ConvertScreenPalette(palette);
             _hasPalette = true;
             if (_initialised)
                 _paletteVersion++;
@@ -295,14 +395,59 @@ namespace OpenRCT2::Ui
 
         void BeginDraw() override
         {
-            EnsureGraphicsLookupTablesReady();
-            BeginDrawQueued();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            try
+            {
+    #endif
+                EnsureGraphicsLookupTablesReady();
+                BeginDrawQueued();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                _recordingPacket->diagnosticCapture = std::exchange(_armedCapture, nullptr);
+            }
+            catch (...)
+            {
+                if (_armedCapture != nullptr)
+                    std::exchange(_armedCapture, nullptr)->Fail(std::current_exception());
+                throw;
+            }
+    #endif
         }
 
         void EndDraw() override
         {
             EndDrawQueued();
         }
+
+        void AbortDraw() override
+        {
+            if (!_drawingContext.IsActive())
+                return;
+            _drawingContext.End();
+            _textureCache->AbortFrame();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (_recordingPacket->diagnosticCapture != nullptr)
+                _recordingPacket->diagnosticCapture->Fail(
+                    std::make_exception_ptr(std::runtime_error("Vulkan frame recording aborted")));
+    #endif
+            _recordingPacket->commands.clear();
+        }
+
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+        std::shared_ptr<Vulkan::Diagnostic::CaptureRequest> ArmDiagnosticCapture(std::string name)
+        {
+            if (!_diagnosticCaptureEnabled || !_initialised)
+                throw std::logic_error("Vulkan diagnostic capture was not enabled before engine creation");
+            if (_drawingContext.IsActive())
+                throw std::logic_error("Arm Vulkan diagnostic capture before BeginDraw");
+            const std::scoped_lock lock(_diagnosticMutex);
+            RethrowWorkerError();
+            if (auto previous = _outstandingCapture.lock(); previous != nullptr && previous->IsPending())
+                throw std::logic_error("A Vulkan diagnostic capture is already pending");
+            _armedCapture = std::make_shared<Vulkan::Diagnostic::CaptureRequest>(std::move(name));
+            _outstandingCapture = _armedCapture;
+            return _armedCapture;
+        }
+    #endif
 
     private:
         void EnsureGraphicsLookupTablesReady()
@@ -316,7 +461,7 @@ namespace OpenRCT2::Ui
             // LightFx::Init. Capture into temporaries on the first real draw,
             // then publish readiness only after every source table succeeded.
             auto lightFalloffs = Drawing::LightFx::CaptureBakedFalloffs();
-            auto remapPalette = BuildRemapPalette();
+            auto remapPalette = Gpu::BuildRemapPalette();
             std::array<std::byte, 256 * 256> blendPalette{};
             bool hasBlendPalette = false;
             if (const auto* blend = Drawing::GetBlendColourMap(); blend != nullptr)
@@ -351,13 +496,15 @@ namespace OpenRCT2::Ui
 
         void CaptureLightFx(Gpu::FrameCommandStream& commands)
         {
-            if (!Drawing::LightFx::IsAvailable())
+            PROFILED_FUNCTION();
+
+            if (_preparingWorld || !Drawing::LightFx::IsAvailable())
             {
                 commands.lightFx.reset();
                 return;
             }
             const auto* viewport = WindowGetViewport(WindowGetMain());
-            if (viewport == nullptr)
+            if (viewport == nullptr || (viewport->flags & VIEWPORT_FLAG_RENDERING_INHIBITED))
             {
                 commands.lightFx.reset();
                 return;
@@ -407,10 +554,27 @@ namespace OpenRCT2::Ui
             return packet;
         }
 
+        void RefreshHdrWhiteOnUiThread()
+        {
+            if (!_hdrOutputRequested)
+                return;
+            const auto now = std::chrono::steady_clock::now();
+            if (now < _nextHdrWhiteRefresh)
+                return;
+            _hdrPaperWhiteNits = Gpu::NormaliseHdrPaperWhiteNits(
+                Vulkan::Platform::GetSdrWhiteNits(static_cast<SDL_Window*>(_uiContext.GetWindow())).value_or(203.0f));
+            // The Windows SDR-content slider has no SDL event. Poll at most once
+            // per second, never per pixel and never from the render worker.
+            _nextHdrWhiteRefresh = now + std::chrono::seconds(1);
+        }
+
         void BeginDrawQueued()
         {
+            PROFILED_FUNCTION();
+
             RethrowWorkerError();
             RefreshDrawableExtent();
+            RefreshHdrWhiteOnUiThread();
             if (_recordingPacket == nullptr)
             {
                 _recordingPacket = _frameMailbox.TakeRecycled();
@@ -423,23 +587,43 @@ namespace OpenRCT2::Ui
             _recordingPacket->residency = {};
             _recordingPacket->readback.reset();
             _recordingPacket->timingBoundary.reset();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (_recordingPacket->diagnosticCapture != nullptr)
+            {
+                _recordingPacket->diagnosticCapture->Fail(
+                    std::make_exception_ptr(std::runtime_error("Vulkan diagnostic draw restarted before publication")));
+                _recordingPacket->diagnosticCapture.reset();
+            }
+    #endif
             _recordingPacket->hasVisualFrame = false;
             _weatherDrawer.SetCommands(_recordingPacket->commands.weather);
-            _textureCache.BeginFrame();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            _drawingContext.SetNativeBalloonFixture(Vulkan::Diagnostic::NativeBalloonFixtureEnabled.load());
+            _drawingContext.SetNativeTerrainFixtureForTesting(Vulkan::Diagnostic::NativeTerrainFixtureEnabled.load());
+    #endif
+            _textureCache->BeginFrame();
             _drawingContext.Begin(_recordingPacket->commands);
         }
 
         void EndDrawQueued()
         {
+            PROFILED_FUNCTION();
+
             bool sealed = false;
             try
             {
                 _drawingContext.End();
                 CaptureLightFx(_recordingPacket->commands);
-                _recordingPacket->residency = _textureCache.SealFrame(_recordingPacket->commands);
+                _recordingPacket->residency = _textureCache->SealFrame(_recordingPacket->commands);
                 sealed = true;
                 _recordingPacket->hasVisualFrame = true;
                 _recordingPacket->frameNumber = _frameNumber++;
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                if (_recordingPacket->diagnosticCapture != nullptr)
+                    _recordingPacket->diagnosticCapture->BindFrame(
+                        _recordingPacket->frameNumber, _recordingPacket->residency.value,
+                        _drawingContext.GetTerrainPreparationForTesting());
+    #endif
                 _recordingPacket->presentation = {
                     .logicalExtent = { _width, _height },
                     .drawableExtent = _drawableExtent,
@@ -451,6 +635,8 @@ namespace OpenRCT2::Ui
                     .paletteVersion = _paletteVersion,
                     .graphicsLookupTablesVersion = _graphicsLookupTablesVersion,
                     .hasPalette = _hasPalette,
+                    .scaleSettings = CaptureScaleSettings(_uiContext),
+                    .hdrPaperWhiteNits = _hdrPaperWhiteNits,
                 };
 
                 auto result = _frameMailbox.Publish(std::move(_recordingPacket));
@@ -466,14 +652,19 @@ namespace OpenRCT2::Ui
                     RethrowWorkerError();
                     throw std::runtime_error("Vulkan render worker is not accepting frame packets");
                 }
+                _publishedVisualPackets.fetch_add(1, std::memory_order_relaxed);
             }
             catch (...)
             {
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                if (_recordingPacket != nullptr && _recordingPacket->diagnosticCapture != nullptr)
+                    _recordingPacket->diagnosticCapture->Fail(std::current_exception());
+    #endif
                 try
                 {
                     if (!sealed)
                     {
-                        _textureCache.AbortFrame();
+                        _textureCache->AbortFrame();
                     }
                     else if (_recordingPacket != nullptr && _recordingPacket->residency)
                     {
@@ -512,6 +703,8 @@ namespace OpenRCT2::Ui
                         }
 
                         const auto& presentation = packet->presentation;
+                        _backend->SetScaleSettings(presentation.scaleSettings);
+                        _backend->SetHdrPaperWhiteNits(presentation.hdrPaperWhiteNits);
                         if (presentation.resizeVersion != appliedResizeVersion)
                         {
                             if (presentation.logicalExtent.width != 0 && presentation.logicalExtent.height != 0)
@@ -573,17 +766,28 @@ namespace OpenRCT2::Ui
                             RecyclePacket(std::move(packet));
                             continue;
                         }
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                        if (packet->diagnosticCapture != nullptr && !_backend->RequestFrameCapture(*frame))
+                            throw std::runtime_error("Vulkan final SDR diagnostic capture is unsupported for this frame");
+    #endif
                         _backend->Submit(*frame, packet->commands);
                         _backend->Present(*frame);
                         frame.reset();
                         RetirePacket(*packet, Gpu::FrameRetirement::Presented);
                         CompleteTimingBoundary(*packet);
                         CompleteReadback(*packet);
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                        CompleteDiagnosticCapture(*packet);
+    #endif
                         RecyclePacket(std::move(packet));
                     }
                     catch (...)
                     {
                         const auto error = std::current_exception();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+                        if (packet->diagnosticCapture != nullptr)
+                            packet->diagnosticCapture->Fail(error);
+    #endif
                         if (packet->readback != nullptr)
                         {
                             packet->readback->Fail(error);
@@ -626,6 +830,24 @@ namespace OpenRCT2::Ui
 
         void RetirePacket(Gpu::RecordedFramePacket& packet, Gpu::FrameRetirement retirement)
         {
+            if (packet.hasVisualFrame)
+            {
+                if (retirement == Gpu::FrameRetirement::Superseded)
+                    _supersededVisualPackets.fetch_add(1, std::memory_order_relaxed);
+                else if (retirement == Gpu::FrameRetirement::Busy)
+                    _unavailableVisualPackets.fetch_add(1, std::memory_order_relaxed);
+                else if (retirement != Gpu::FrameRetirement::Presented)
+                    _discardedVisualPackets.fetch_add(1, std::memory_order_relaxed);
+            }
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (packet.diagnosticCapture != nullptr && retirement != Gpu::FrameRetirement::Presented)
+            {
+                packet.diagnosticCapture->Fail(std::make_exception_ptr(std::runtime_error(
+                    retirement == Gpu::FrameRetirement::Superseded ? "Vulkan diagnostic frame was superseded"
+                        : retirement == Gpu::FrameRetirement::Busy ? "Vulkan diagnostic frame acquisition was skipped"
+                                                                   : "Vulkan diagnostic frame retired without presentation")));
+            }
+    #endif
             if (packet.readback != nullptr && retirement != Gpu::FrameRetirement::Presented)
             {
                 packet.readback->Fail(std::make_exception_ptr(std::runtime_error(
@@ -634,7 +856,7 @@ namespace OpenRCT2::Ui
             }
             if (packet.residency)
             {
-                _textureCache.RetireFrame(packet.residency, retirement);
+                _textureCache->RetireFrame(packet.residency, retirement);
                 packet.residency = {};
             }
         }
@@ -646,6 +868,9 @@ namespace OpenRCT2::Ui
             packet->frameNumber = 0;
             packet->readback.reset();
             packet->timingBoundary.reset();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            packet->diagnosticCapture.reset();
+    #endif
             packet->hasVisualFrame = false;
             _frameMailbox.Recycle(std::move(packet));
         }
@@ -660,6 +885,88 @@ namespace OpenRCT2::Ui
             const bool available = _backend->ReadbackLatestIndexedCanvas(extent, packet.readback->GetPixels());
             packet.readback->Complete(available);
         }
+
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+        void CompleteDiagnosticCapture(Gpu::RecordedFramePacket& packet)
+        {
+            if (packet.diagnosticCapture == nullptr || !packet.diagnosticCapture->IsPending())
+                return;
+            auto output = _backend->ReadbackFrameRgba(packet.frameNumber);
+            if (!output.has_value())
+                throw std::runtime_error("Vulkan diagnostic frame is unavailable after presentation");
+            Vulkan::Diagnostic::CaptureResult result;
+            result.output = std::move(*output);
+            const auto extent = packet.presentation.logicalExtent;
+            result.indexed.resize(static_cast<size_t>(extent.width) * extent.height);
+            // The worker has not taken another packet: latest indexed is still
+            // this exact successfully presented frame, not a later screenshot.
+            if (!_backend->ReadbackLatestIndexedCanvas(extent, result.indexed))
+                throw std::runtime_error("Vulkan diagnostic indexed canvas is unavailable");
+            const auto& commands = packet.commands;
+            result.terrainScenes = commands.terrainScenes;
+            result.coverage = {
+                .frameNumber = packet.frameNumber,
+                .resizeVersion = packet.presentation.resizeVersion,
+                .surfaceFormatVersion = packet.presentation.surfaceFormatVersion,
+                .paletteVersion = packet.presentation.paletteVersion,
+                .graphicsLookupTablesVersion = packet.presentation.graphicsLookupTablesVersion,
+                .lineCount = commands.lines.size(),
+                .opaqueRectCount = commands.opaqueRects.size(),
+                .opaqueSpriteCount = commands.opaqueSprites.size(),
+                .transparentRectCount = commands.transparentRects.size(),
+                .weatherCount = commands.weather.size(),
+                .nativeBalloonViewports = commands.balloons.size(),
+                .cpuBalloonSpriteCalls = commands.cpuBalloonSpriteCalls,
+                .worldSurfaces = commands.worldSurfaces.has_value(),
+                .worldEpoch = commands.worldSurfaces.has_value() ? commands.worldSurfaces->worldEpoch : 0,
+                .worldSurfaceRecordCount = commands.worldSurfaces.has_value() ? commands.worldSurfaces->recordCount : 0,
+            };
+            // Opt-in diagnostics inspect the captured packet; no glyph raster or
+            // ordinary frame state is altered. Bounds are clipped, right/bottom exclusive.
+            const auto inspectTtf = [&](const auto& batch, size_t& count) {
+                for (const auto& command : batch)
+                {
+                    if ((static_cast<uint32_t>(command.flags) & Gpu::RectCommand::FLAG_TTF_TEXT) == 0)
+                        continue;
+                    const auto left = std::max(command.bounds.x, command.clip.x);
+                    const auto top = std::max(command.bounds.y, command.clip.y);
+                    const auto right = std::min(command.bounds.z, command.clip.z);
+                    const auto bottom = std::min(command.bounds.w, command.clip.w);
+                    if (left >= right || top >= bottom)
+                        continue;
+                    count++;
+                    result.coverage.ttfClippedBoundsAndThreshold.push_back(
+                        { left, top, right, bottom,
+                          static_cast<int32_t>(
+                              (static_cast<uint32_t>(command.flags) & Gpu::RectCommand::FLAG_TTF_HINTING_THRESHOLD_MASK)
+                              >> 8) });
+                }
+            };
+            inspectTtf(commands.opaqueRects, result.coverage.ttfOpaqueCount);
+            inspectTtf(commands.transparentRects, result.coverage.ttfTransparentCount);
+            // Read the already-resolved packet only. Capturing another LightFX
+            // snapshot here would advance the legacy temporal resolver twice.
+            if (commands.lightFx.has_value())
+            {
+                const auto& lightFx = *commands.lightFx;
+                auto& coverage = result.coverage;
+                coverage.lightFxCommandCount = lightFx.lights.size();
+                coverage.lightFxCpuIntensityAttached = lightFx.HasCpuIntensity();
+                const auto hashBytes = [](std::span<const std::byte> bytes) {
+                    uint64_t hash = 14695981039346656037ULL;
+                    for (const auto byte : bytes)
+                        hash = (hash ^ std::to_integer<uint8_t>(byte)) * 1099511628211ULL;
+                    return hash;
+                };
+                coverage.lightFxCommandHash = hashBytes(std::as_bytes(std::span(lightFx.lights)));
+                coverage.lightFxPaletteHash = hashBytes(lightFx.lightPalette);
+                for (const auto& light : lightFx.lights)
+                    if (light.type < coverage.lightFxTypeHistogram.size())
+                        coverage.lightFxTypeHistogram[light.type]++;
+            }
+            packet.diagnosticCapture->Complete(std::move(result));
+        }
+    #endif
 
         void CompleteTimingBoundary(Gpu::RecordedFramePacket& packet)
         {
@@ -699,11 +1006,59 @@ namespace OpenRCT2::Ui
 
         void StoreWorkerError(std::exception_ptr error) noexcept
         {
-            std::scoped_lock lock(_workerErrorMutex);
-            if (!_workerError)
+            bool first = false;
             {
-                _workerError = std::move(error);
+                std::scoped_lock lock(_workerErrorMutex);
+                if (!_workerError)
+                {
+                    _workerError = error;
+                    first = true;
+                }
             }
+            if (first)
+            {
+                // Preserve the original renderer failure even if logging fails.
+                // The path is captured on the UI owner before starting this thread.
+                try
+                {
+                    std::string message = "unknown renderer exception";
+                    try
+                    {
+                        if (error)
+                            std::rethrow_exception(error);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        message = e.what();
+                    }
+                    catch (...)
+                    {
+                    }
+                    Console::Error::WriteLine("Vulkan render worker stopped: %s", message.c_str());
+                    const auto timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    std::tm utc{};
+    #ifdef _WIN32
+                    gmtime_s(&utc, &timestamp);
+    #else
+                    gmtime_r(&timestamp, &utc);
+    #endif
+                    char date[32]{};
+                    std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S UTC", &utc);
+                    const auto line = std::string(date) + " Vulkan render worker stopped: " + message + "\n";
+                    FileStream log(_renderErrorPath, FileMode::append);
+                    log.Write(line.data(), line.size());
+                }
+                catch (...)
+                {
+                }
+            }
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            {
+                const std::scoped_lock lock(_diagnosticMutex);
+                if (auto request = _outstandingCapture.lock())
+                    request->Fail(error);
+            }
+    #endif
         }
 
         void RethrowWorkerError()
@@ -731,7 +1086,7 @@ namespace OpenRCT2::Ui
             // The worker owns completion timing, but atlas maps remain single-writer state of this recording thread.
             try
             {
-                _textureCache.DrainFrameRetirements();
+                _textureCache->DrainFrameRetirements();
             }
             catch (...)
             {
@@ -743,27 +1098,58 @@ namespace OpenRCT2::Ui
     public:
         void PaintWindows() override
         {
-            auto& commands = _recordingPacket->commands;
-            const auto commandCount = [&commands] {
-                return commands.lines.size() + commands.opaqueRects.size() + commands.opaqueSprites.size()
-                    + commands.transparentRects.size();
-            };
-            const auto beforeViewportUpdate = commandCount();
-            WindowUpdateAllViewports();
-            if (commandCount() != beforeViewportUpdate)
+            if (_preparingWorld)
             {
-                // Shift helpers can emit provisional strip redraws. This backend always follows with the authoritative full
-                // scene, so retaining those batches would apply transparent sprites twice.
-                _drawingContext.End();
-                commands.lines.clear();
-                commands.opaqueRects.clear();
-                commands.opaqueSprites.clear();
-                commands.transparentRects.clear();
-                _drawingContext.Begin(commands);
+                // A loading frame contains ordinary game widgets, never a world
+                // snapshot or partially loaded catalog. Viewports are inhibited.
+                WindowDrawAll(_mainTarget, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
+                return;
             }
+            PROFILED_FUNCTION();
+
+            WindowUpdateAllViewports();
             // Publish the immutable scene before traversing any window or viewport. The backend clears its indexed and depth
             // canvases for every admitted packet, and this traversal therefore records one complete replacement frame.
             ViewportBeginPresentationFrame();
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (_recordingPacket->diagnosticCapture != nullptr)
+            {
+                // Latch from the immutable generation used below, never the worker's later live registry state.
+                const auto generation = ViewportGetPresentationGeneration();
+                if (generation == nullptr || generation->entities == nullptr)
+                    throw std::runtime_error("Named Vulkan paint has no entity publication");
+                Vulkan::Diagnostic::BalloonPublication publication;
+                publication.retained = generation->balloons != nullptr;
+                publication.entityCount = generation->entities->GetCapturedEntityCount();
+                publication.metrics = generation->entities->GetBalloonMetrics();
+                publication.producerTotals = ViewportGetBalloonPublicationCopyTotals();
+                if (publication.retained)
+                {
+                    const auto& balloons = *generation->balloons;
+                    publication.epoch = balloons.epoch;
+                    publication.sequence = balloons.sequence;
+                    publication.count = balloons.count;
+                    for (const auto& chunk : balloons.chunks)
+                    {
+                        if (chunk == nullptr)
+                            continue;
+                        for (size_t i = 0; i < chunk->records.size(); i++)
+                        {
+                            if (chunk->records[i].present == 0)
+                                continue;
+                            const auto& balloon = chunk->compatibility[i];
+                            publication.records.push_back(
+                                { balloon.id.ToUnderlying(), balloon.x, balloon.y, balloon.z, balloon.frame, balloon.popped,
+                                  balloon.timeToMove, static_cast<uint8_t>(balloon.colour), balloon.spriteData.width,
+                                  balloon.spriteData.heightMin, balloon.spriteData.heightMax, balloon.orientation });
+                        }
+                    }
+                }
+                _recordingPacket->diagnosticCapture->BindBalloonPublication(std::move(publication));
+                if (Vulkan::Diagnostic::NativeTerrainFixtureEnabled.load())
+                    _recordingPacket->diagnosticCapture->BindTerrainPublication(generation->map);
+            }
+    #endif
             WindowDrawAll(_mainTarget, 0, 0, static_cast<int32_t>(_width), static_cast<int32_t>(_height));
         }
 
@@ -784,14 +1170,13 @@ namespace OpenRCT2::Ui
                 return {};
             }
 
+            RethrowWorkerError();
             auto readback = std::make_shared<Gpu::SynchronousReadback>(Gpu::Extent{ _width, _height });
             auto result = _frameMailbox.PublishReadback(readback);
-            if (result.released != nullptr)
-            {
-                result.released->Fail(std::make_exception_ptr(std::runtime_error(
-                    result.accepted ? "Vulkan screenshot request was superseded"
-                                    : "Vulkan render worker rejected a screenshot request")));
-            }
+            if (result.accepted && result.released != nullptr)
+                result.released->Fail(std::make_exception_ptr(std::runtime_error("Vulkan screenshot request was superseded")));
+            // On rejection released == readback. Preserve the worker's actual
+            // error before the single-assignment request receives any fallback.
             if (!result.accepted)
             {
                 try
@@ -819,6 +1204,17 @@ namespace OpenRCT2::Ui
         Drawing::RenderTarget* getRT() override
         {
             return &_mainTarget;
+        }
+
+        EntityPublicationProfile GetEntityPublicationProfile() const override
+        {
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+            if (Vulkan::Diagnostic::RetainedPeepPublicationEnabled.load())
+                return EntityPublicationProfile::nativePeeps;
+            if (Vulkan::Diagnostic::RetainedBalloonPublicationEnabled.load())
+                return EntityPublicationProfile::retainedBalloons;
+    #endif
+            return EntityPublicationProfile::gpuWorld;
         }
 
         DrawingEngineFlags GetFlags() override
@@ -856,13 +1252,34 @@ namespace OpenRCT2::Ui
 
         void InvalidateImage(uint32_t image) override
         {
-            _textureCache.InvalidateImage(image);
+            _textureCache->InvalidateImage(image);
+        }
+
+        std::optional<Drawing::FramePresentationCounters> GetFramePresentationCounters() const override
+        {
+            auto result = _backend->GetFramePresentationCounters();
+            result.publishedVisualPackets = _publishedVisualPackets.load(std::memory_order_relaxed);
+            result.supersededVisualPackets = _supersededVisualPackets.load(std::memory_order_relaxed);
+            result.unavailableVisualPackets = _unavailableVisualPackets.load(std::memory_order_relaxed);
+            result.discardedVisualPackets = _discardedVisualPackets.load(std::memory_order_relaxed);
+            return result;
         }
     };
-    std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext)
+    std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(
+        IUiContext& uiContext, std::shared_ptr<Vulkan::DeviceContextOwner> owner)
     {
-        return std::make_unique<VulkanDrawingEngine>(uiContext);
+        return std::make_unique<VulkanDrawingEngine>(uiContext, std::move(owner));
     }
+    #ifdef OPENRCT2_VULKAN_DIAGNOSTICS
+    std::shared_ptr<Vulkan::Diagnostic::CaptureRequest> Vulkan::Diagnostic::ArmNextCapture(
+        Drawing::IDrawingEngine& engine, std::string name)
+    {
+        auto* vulkan = dynamic_cast<VulkanDrawingEngine*>(&engine);
+        if (vulkan == nullptr)
+            throw std::invalid_argument("Vulkan diagnostic capture requires the Vulkan drawing engine");
+        return vulkan->ArmDiagnosticCapture(std::move(name));
+    }
+    #endif
 } // namespace OpenRCT2::Ui
 
 #endif // ENABLE_VULKAN

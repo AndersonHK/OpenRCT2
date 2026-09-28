@@ -1,0 +1,490 @@
+{
+  "status": "upload accounting smoke qualified; performance/calibration gates open",
+  "build": "obj/vulkan-parity/build-32/receipt.json",
+  "runtimeTests": "obj/vulkan-parity/run-27/summary.json",
+  "sameInitialFinalStateAndFinalChecksum": true,
+  "telemetry": {
+    "schema": 1,
+    "attemptedFrames": 400,
+    "submittedFrames": 400,
+    "auxiliarySamples": 0,
+    "allocatedBytes": 1531170691,
+    "alignmentBytes": 3357,
+    "allocationFailures": 0,
+    "captureRequests": 0,
+    "readbackRequests": 0,
+    "readbackBytes": 0,
+    "lostSamples": 0,
+    "overflow": false,
+    "attempted": [
+      [
+        409600,
+        0,
+        409600,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        3433391,
+        54560,
+        3378831,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1527327700,
+        0,
+        0,
+        1527327700,
+        0
+      ]
+    ],
+    "submitted": [
+      [
+        409600,
+        0,
+        409600,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        3433391,
+        54560,
+        3378831,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1527327700,
+        0,
+        0,
+        1527327700,
+        0
+      ]
+    ]
+  },
+  "perSubmittedFrame": {
+    "commandHostWrittenBytes": 3818319.25,
+    "atlasHostWrittenBytes": 8583.4775,
+    "paletteHostWrittenBytes": 1024.0
+  },
+  "limitations": [
+    "400 measured ticks only; no sustained acceptance or overhead claim",
+    "API payload bytes; not physical bandwidth",
+    "hostWritten and directVertex cover same commands, do not sum",
+    "producer state copying/traversal not yet counted",
+    "zero native world bytes here reflects fallback, not retained-world success"
+  ],
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/perf-vulkan-telemetry-smoke-01/summary.json",
+      "sha256": "21a1d42ab7a2a88d4ebbc15c41a62db883ca1266cb186bdb67ed4b84a00470dd",
+      "result": {
+        "metrics": {
+          "renderer": "vulkan",
+          "vsync": "disabled",
+          "elapsedSeconds": 3.568879,
+          "logicalTicks": 400,
+          "logicalTps": 112.08,
+          "draws": {
+            "count": 400.0,
+            "fps": 112.08
+          },
+          "ui": {
+            "messagePumps": 401.0,
+            "windowUpdates": 400.0,
+            "messageHz": 112.36,
+            "windowHz": 112.08
+          },
+          "simulation": {
+            "seconds": 0.938747,
+            "utilisationPercent": 26.3,
+            "meanMicrosecondsPerTick": 2346.867
+          },
+          "simulationBatches": {
+            "count": 400.0,
+            "meanMicroseconds": 2346.867,
+            "longestMilliseconds": 2.975,
+            "longestSliceMilliseconds": 2.975
+          },
+          "drawCpu": {
+            "seconds": 2.04882,
+            "utilisationPercent": 57.4,
+            "meanMicroseconds": 5122.051
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 8.862,
+            "p95": 9.583,
+            "p99": 10.02,
+            "max": 10.536
+          },
+          "rendererCpu": {
+            "submitMeanUs": 378.305,
+            "presentMeanUs": 164.64,
+            "samples": 400.0
+          },
+          "presentApi": {
+            "meanUs": 120.781,
+            "samples": 400.0
+          },
+          "gpuFrame": {
+            "meanUs": 287.613,
+            "samples": 400.0
+          },
+          "gpuPasses": {
+            "uploadMeanUs": 14.525,
+            "drawMeanUs": 267.237,
+            "lightFxMeanUs": 0.003,
+            "compositeMeanUs": 5.848
+          }
+        },
+        "states": {
+          "initial": {
+            "simulationTick": {
+              "tick": 3133931
+            },
+            "guests": {
+              "total": 13213,
+              "inside": 13212,
+              "outside": 1
+            },
+            "guestStates": {
+              "walking": 6322,
+              "queued": 2672,
+              "onRide": 2889
+            },
+            "transportRoutes": {
+              "active": 2
+            },
+            "staffVehicles": {
+              "staff": 2208,
+              "vehicles": 2128
+            },
+            "routeCache": {
+              "nodes": 6663,
+              "targets": 543,
+              "directionEntries": 3611346,
+              "distanceEntries": 3611346,
+              "singleRideTargets": 517,
+              "status": "current"
+            }
+          },
+          "final": {
+            "simulationTick": {
+              "tick": 3134331
+            },
+            "guests": {
+              "total": 13434,
+              "inside": 13364,
+              "outside": 70
+            },
+            "guestStates": {
+              "walking": 6751,
+              "queued": 2664,
+              "onRide": 2828
+            },
+            "transportRoutes": {
+              "active": 4
+            },
+            "staffVehicles": {
+              "staff": 2208,
+              "vehicles": 2128
+            },
+            "routeCache": {
+              "nodes": 6663,
+              "targets": 543,
+              "directionEntries": 3611346,
+              "distanceEntries": 3611346,
+              "singleRideTargets": 517,
+              "status": "current"
+            }
+          }
+        },
+        "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000",
+        "missingMetrics": [
+          "initial entity checksum is not emitted",
+          "actual drawable extent/selected monitor refresh is not emitted",
+          "displayed presentation cadence is not measured",
+          "producer CPU copies, physical bandwidth, flush/high-water and generation age are not measured"
+        ],
+        "uploadTelemetry": {
+          "schema": 1,
+          "attemptedFrames": 400,
+          "submittedFrames": 400,
+          "auxiliarySamples": 0,
+          "allocatedBytes": 1531170691,
+          "alignmentBytes": 3357,
+          "allocationFailures": 0,
+          "captureRequests": 0,
+          "readbackRequests": 0,
+          "readbackBytes": 0,
+          "lostSamples": 0,
+          "overflow": false,
+          "attempted": [
+            [
+              409600,
+              0,
+              409600,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              3433391,
+              54560,
+              3378831,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1527327700,
+              0,
+              0,
+              1527327700,
+              0
+            ]
+          ],
+          "submitted": [
+            [
+              409600,
+              0,
+              409600,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              3433391,
+              54560,
+              3378831,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1527327700,
+              0,
+              0,
+              1527327700,
+              0
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/perf-vulkan-telemetry-disabled-smoke-01/summary.json",
+      "sha256": "949bbbea52da8d146aa0941c088f78e2bf0793200544d7b95ed128f5d4a8880f",
+      "result": {
+        "metrics": {
+          "renderer": "vulkan",
+          "vsync": "disabled",
+          "elapsedSeconds": 3.585934,
+          "logicalTicks": 400,
+          "logicalTps": 111.547,
+          "draws": {
+            "count": 401.0,
+            "fps": 111.826
+          },
+          "ui": {
+            "messagePumps": 401.0,
+            "windowUpdates": 401.0,
+            "messageHz": 111.826,
+            "windowHz": 111.826
+          },
+          "simulation": {
+            "seconds": 0.948915,
+            "utilisationPercent": 26.5,
+            "meanMicrosecondsPerTick": 2372.288
+          },
+          "simulationBatches": {
+            "count": 400.0,
+            "meanMicroseconds": 2372.288,
+            "longestMilliseconds": 3.092,
+            "longestSliceMilliseconds": 3.092
+          },
+          "drawCpu": {
+            "seconds": 2.045038,
+            "utilisationPercent": 57.0,
+            "meanMicroseconds": 5099.845
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 8.884,
+            "p95": 9.535,
+            "p99": 9.88,
+            "max": 10.385
+          },
+          "rendererCpu": {
+            "submitMeanUs": 378.057,
+            "presentMeanUs": 160.248,
+            "samples": 401.0
+          },
+          "presentApi": {
+            "meanUs": 119.096,
+            "samples": 401.0
+          },
+          "gpuFrame": {
+            "meanUs": 289.58,
+            "samples": 401.0
+          },
+          "gpuPasses": {
+            "uploadMeanUs": 14.31,
+            "drawMeanUs": 269.408,
+            "lightFxMeanUs": 0.003,
+            "compositeMeanUs": 5.858
+          }
+        },
+        "states": {
+          "initial": {
+            "simulationTick": {
+              "tick": 3133931
+            },
+            "guests": {
+              "total": 13213,
+              "inside": 13212,
+              "outside": 1
+            },
+            "guestStates": {
+              "walking": 6322,
+              "queued": 2672,
+              "onRide": 2889
+            },
+            "transportRoutes": {
+              "active": 2
+            },
+            "staffVehicles": {
+              "staff": 2208,
+              "vehicles": 2128
+            },
+            "routeCache": {
+              "nodes": 6663,
+              "targets": 543,
+              "directionEntries": 3611346,
+              "distanceEntries": 3611346,
+              "singleRideTargets": 517,
+              "status": "current"
+            }
+          },
+          "final": {
+            "simulationTick": {
+              "tick": 3134331
+            },
+            "guests": {
+              "total": 13434,
+              "inside": 13364,
+              "outside": 70
+            },
+            "guestStates": {
+              "walking": 6751,
+              "queued": 2664,
+              "onRide": 2828
+            },
+            "transportRoutes": {
+              "active": 4
+            },
+            "staffVehicles": {
+              "staff": 2208,
+              "vehicles": 2128
+            },
+            "routeCache": {
+              "nodes": 6663,
+              "targets": 543,
+              "directionEntries": 3611346,
+              "distanceEntries": 3611346,
+              "singleRideTargets": 517,
+              "status": "current"
+            }
+          }
+        },
+        "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000",
+        "missingMetrics": [
+          "initial entity checksum is not emitted",
+          "actual drawable extent/selected monitor refresh is not emitted",
+          "displayed presentation cadence is not measured",
+          "CPU copied/upload byte counters are not emitted"
+        ]
+      }
+    }
+  ]
+}

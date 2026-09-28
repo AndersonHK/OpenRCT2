@@ -28,7 +28,11 @@ This makes the three targets distinct:
 
 ## Automatic updates
 
-`RideRatingsCalculateValue()` now calls `RideUpdateTargetPrice()` after updating `ride.value`. This keeps automatic prices tied to rating changes, age decay, same-type competition penalties, and aggregate ride-stat updates.
+Values now carry a fractional-cent remainder alongside `ride.value`; all policy adjustments retain that precision and the
+final result rounds to the nearest cent. `RidePriceRounding::nearestTenCents` is an explicitly opt-in final rounding mode
+retained for a possible future setting. Production callers leave it disabled. See [precision details](guest-services-and-boarding.md).
+
+`RideRating::UpdateValue()` now calls `RideUpdateTargetPrice()` after updating `ride.value`. This keeps automatic prices tied to rating changes, age decay, same-type competition penalties, and aggregate ride-stat updates.
 
 When a ride has no value yet, the current price is preserved. Once ratings produce a value, the selected target starts controlling admission price.
 
@@ -36,12 +40,15 @@ When a ride has no value yet, the current price is preserved. Once ratings produ
 
 Target pricing applies only to normal ride admission. Shops, facilities, toilets, and secondary/photo items retain direct price controls because their prices are item costs rather than ride admission value.
 
-Existing save files load with the neutral/fair-price target. The target field was introduced in fork-private park-file version `60000`; cent-precision money begins at fork-private version `60001`; new saves now use fork-private version `60002` because park entrance pricing policies are also serialized. The high version band is intentional so future upstream OpenRCT2 save versions can continue from their own latest number without colliding with this mod's custom fields.
+Existing save files load with the neutral/fair-price target. The target field was introduced in fork-private park-file
+version `60000`; cent money begins at `60001` and entrance pricing policies at `60002`. Current version `60017` also
+preserves fractional ride value and the guest-service state described in the implementation document. The high version
+band keeps upstream format versions separate from this fork's custom fields.
 
 ## Functions touched
 
 - `RidePriceTarget`, `Ride::priceTarget`, `RideGetTargetPrice()`, `RideUsesTargetPricing()`, and `RideUpdateTargetPrice()` in `src/openrct2/ride/Ride.h` and `src/openrct2/ride/Ride.cpp`.
-- `RideRatingsCalculateValue()` in `src/openrct2/ride/RideRatings.cpp`.
+- `RideRating::UpdateValue()` in `src/openrct2/ride/RideRatings.cpp`.
 - `RideSetPriceAction` in `src/openrct2/actions/ride/RideSetPriceAction.h` and `src/openrct2/actions/ride/RideSetPriceAction.cpp`.
 - Ride creation defaults in `src/openrct2/actions/ride/RideCreateAction.cpp`.
 - Guest discount, expensive, and refusal price thresholds in `src/openrct2/entity/Guest.cpp`.

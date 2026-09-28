@@ -16,6 +16,7 @@
 #include "../profiling/Profiling.h"
 #include "../ride/TrackDesign.h"
 #include "../world/Map.h"
+#include "Paint.SessionFlags.h"
 #include "Paint.h"
 #include "entity/Paint.Balloon.h"
 #include "entity/Paint.CrashSplashParticle.h"
@@ -43,6 +44,9 @@ using namespace OpenRCT2::Drawing;
 void EntityPaintSetup(PaintSession& session, const CoordsXY& pos)
 {
     PROFILED_FUNCTION();
+
+    if (session.Flags & PaintSessionFlags::EntitiesDrawn)
+        return;
 
     if (!MapIsLocationValid(pos))
     {

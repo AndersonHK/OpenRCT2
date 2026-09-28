@@ -469,7 +469,11 @@ namespace OpenRCT2::GameActions
         {
             if (it.element->getType() == TileElementType::smallScenery)
             {
-                it.element->asSmallScenery()->setAge(0);
+                if (it.element->asSmallScenery()->getAge() != 0)
+                {
+                    it.element->asSmallScenery()->setAge(0);
+                    MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+                }
             }
         } while (TileElementIteratorNext(&it));
 
@@ -489,7 +493,11 @@ namespace OpenRCT2::GameActions
             if (!(it.element)->asPath()->hasAddition())
                 continue;
 
-            it.element->asPath()->setIsBroken(false);
+            if (it.element->asPath()->isBroken())
+            {
+                it.element->asPath()->setIsBroken(false);
+                MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+            }
         } while (TileElementIteratorNext(&it));
 
         Drawing::GfxInvalidateScreen();
@@ -514,8 +522,12 @@ namespace OpenRCT2::GameActions
                 continue;
 
             auto* pathAdditionEntry = path->getAdditionEntry();
-            if (pathAdditionEntry != nullptr && pathAdditionEntry->flags & PATH_ADDITION_FLAG_IS_BIN)
+            if (pathAdditionEntry != nullptr && pathAdditionEntry->flags & PATH_ADDITION_FLAG_IS_BIN
+                && path->getAdditionStatus() != 0xFF)
+            {
                 path->setAdditionStatus(0xFF);
+                MarkMapTilePresentationDirty(TileCoordsXY{ it.x, it.y }.toCoordsXY());
+            }
 
         } while (TileElementIteratorNext(&it));
 
@@ -693,12 +705,12 @@ namespace OpenRCT2::GameActions
                     break;
                 case OBJECT_BALLOON:
                     peep->giveItem(ShopItem::balloon);
-                    peep->balloonColour = Drawing::getRandomColourNetworkSafe();
+                    peep->setBalloonColour(Drawing::getRandomColourNetworkSafe());
                     peep->updateAnimationGroup();
                     break;
                 case OBJECT_UMBRELLA:
                     peep->giveItem(ShopItem::umbrella);
-                    peep->umbrellaColour = Drawing::getRandomColourNetworkSafe();
+                    peep->setUmbrellaColour(Drawing::getRandomColourNetworkSafe());
                     peep->updateAnimationGroup();
                     break;
             }

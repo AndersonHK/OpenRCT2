@@ -31,23 +31,24 @@ namespace OpenRCT2
         { STR_WATCHING_RIDE, STR_GUESTS_WATCHING_RIDE },                       // watchingRide
         { STR_WATCHING_CONSTRUCTION_OF, STR_GUESTS_WATCHING_CONSTRUCTION_OF }, // watchingRideConstruction
         { STR_WATCHING_NEW_RIDE_BEING_CONSTRUCTED,
-          STR_GUESTS_WATCHING_NEW_RIDE_BEING_CONSTRUCTED },        // watchingRideConstructionUnspecific
-        { STR_QUEUING_FOR, STR_GUESTS_QUEUING_FOR },               // queuingFor
-        { STR_ON_RIDE, STR_GUESTS_ON_RIDE },                       // onRide
-        { STR_IN_RIDE, STR_GUESTS_IN_RIDE },                       // inRide
-        { STR_AT_RIDE, STR_GUESTS_AT_RIDE },                       // atShop
-        { STR_LEAVING_PARK, STR_GUESTS_LEAVING_PARK },             // leavingPark
-        { STR_SWEEPING_FOOTPATH, kStringIdEmpty },                 // sweepingFootpath
-        { STR_EMPTYING_LITTER_BIN, kStringIdEmpty },               // emptyingBin
-        { STR_WATERING_GARDENS, kStringIdEmpty },                  // wateringGardens
-        { STR_MOWING_GRASS, kStringIdEmpty },                      // mowingGrass
-        { STR_HEADING_TO_RIDE_FOR_INSPECTION, kStringIdEmpty },    // headingToInspectRide
-        { STR_INSPECTING_RIDE, kStringIdEmpty },                   // inspectingRide
-        { STR_FIXING_RIDE, kStringIdEmpty },                       // fixingRide
-        { STR_ANSWERING_RADIO_CALL, kStringIdEmpty },              // answeringRadioCall
-        { STR_RESPONDING_TO_RIDE_BREAKDOWN_CALL, kStringIdEmpty }, // respondingToBreakdownCall
+          STR_GUESTS_WATCHING_NEW_RIDE_BEING_CONSTRUCTED },                  // watchingRideConstructionUnspecific
+        { STR_QUEUING_FOR, STR_GUESTS_QUEUING_FOR },                         // queuingFor
+        { STR_ON_RIDE, STR_GUESTS_ON_RIDE },                                 // onRide
+        { STR_IN_RIDE, STR_GUESTS_IN_RIDE },                                 // inRide
+        { STR_AT_RIDE, STR_GUESTS_AT_RIDE },                                 // atShop
+        { STR_LEAVING_PARK, STR_GUESTS_LEAVING_PARK },                       // leavingPark
+        { STR_SWEEPING_FOOTPATH, kStringIdEmpty },                           // sweepingFootpath
+        { STR_EMPTYING_LITTER_BIN, kStringIdEmpty },                         // emptyingBin
+        { STR_WATERING_GARDENS, kStringIdEmpty },                            // wateringGardens
+        { STR_MOWING_GRASS, kStringIdEmpty },                                // mowingGrass
+        { STR_HEADING_TO_RIDE_FOR_INSPECTION, kStringIdEmpty },              // headingToInspectRide
+        { STR_INSPECTING_RIDE, kStringIdEmpty },                             // inspectingRide
+        { STR_FIXING_RIDE, kStringIdEmpty },                                 // fixingRide
+        { STR_ANSWERING_RADIO_CALL, kStringIdEmpty },                        // answeringRadioCall
+        { STR_RESPONDING_TO_RIDE_BREAKDOWN_CALL, kStringIdEmpty },           // respondingToBreakdownCall
         { STR_WALKING_TO_PLATFORM_FOR, STR_GUESTS_WALKING_TO_PLATFORM_FOR }, // walkingToPlatform
         { STR_WAITING_ON_PLATFORM_FOR, STR_GUESTS_WAITING_ON_PLATFORM_FOR }, // waitingOnPlatform
+        { STR_REPAIRING_PATH_FURNITURE, kStringIdEmpty },                    // repairingPathAddition
     });
     static_assert(std::size(kPeepActionToStringMapping) == kNumPeepActionDescriptionTypes);
 

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "PresentationGeneration.h"
+#include "SelectedVehicleSnapshot.h"
 
 #include <cstdint>
 #include <memory>
@@ -19,13 +20,19 @@ class JobPool;
 namespace OpenRCT2
 {
     class EntityRegistry;
+    uint64_t NextRetainedPublicationEpoch();
+    namespace Drawing
+    {
+        struct BalloonPublicationCopyTotals;
+    }
 
     /**
      * Sole owner of main-window presentation publication.
      *
-     * A caller begins at most one immutable generation per draw, may schedule preparation of its replacement after visible
-     * paint work, and resets the whole scene at lifecycle boundaries. Map and entity snapshots never advance independently
-     * outside this owner.
+     * A caller begins at most one immutable generation per draw and captures/queues its replacement at that same owner
+     * boundary, before window traversal. Map and entity snapshots share one source tick and never advance independently.
+     * Native terrain uses the previous complete generation while preparation is pending, including during interactive
+     * map edits. Only bootstrap/lifecycle recovery may wait; no worker reads live mutable map or entity state.
      */
     class PresentationScene final
     {
@@ -41,9 +48,17 @@ namespace OpenRCT2
         PresentationScene& operator=(const PresentationScene&) = delete;
 
         /** Returns true when a new generation was admitted for this draw. */
-        bool BeginFrame(JobPool& jobs, EntityRegistry& entities, uint32_t drawCount, bool synchronousMapPublication);
-        void ScheduleNext(JobPool& jobs, EntityRegistry& entities);
+        bool BeginFrame(
+            JobPool& jobs, EntityRegistry& entities, uint32_t drawCount, bool synchronousMapPublication,
+            EntityPublicationProfile profile = EntityPublicationProfile::legacyBulk,
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations = {});
+        void ScheduleNext(
+            JobPool& jobs, EntityRegistry& entities,
+            std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations = {});
         void Reset(JobPool& jobs);
+        void SetSelectedVehicleRequests(std::vector<Drawing::SelectedVehicleRequest> requests);
+        // Producer-thread totals include prepared snapshots discarded before admission; lifetime of this scene owner.
+        [[nodiscard]] Drawing::BalloonPublicationCopyTotals GetBalloonPublicationCopyTotals() const noexcept;
 
         [[nodiscard]] const std::shared_ptr<const PresentationGeneration>& GetGeneration() const noexcept;
     };

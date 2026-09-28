@@ -1,0 +1,123 @@
+{
+  "status": "pass",
+  "scope": "E3b shared device/submission extraction, unchanged window output; no offscreen image rendering or final performance claim",
+  "fullSuite": {
+    "path": "obj/vulkan-parity/run-29/summary.json",
+    "sha256": "7548b1abee9ef9ae58868f94ceeef6e563df05042d0b671da54dd93f01459e7f",
+    "tests": 737
+  },
+  "freshNoWindow": {
+    "path": "obj/vulkan-parity/e3b-no-window-contracts-01/summary.json",
+    "sha256": "d8ea09daf4728a89bcc9d73d69091fe866a6aa3f460a45bf8ebc1c1b0471dcf8",
+    "tests": 6
+  },
+  "windowedRuns": [
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-baseline-01/summary.json",
+      "sha256": "253e5a15ef949f51392eb6d15a8470173f8d19cb909d8f99f318bc08af0fe229",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01",
+          "summarySha256": "4d91b5a792a8464c7b5e51bf9d6b7b989f9c5b94c14438c55287f6c5cca90495"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-everything-saved-01/summary.json",
+      "sha256": "6468c0ca0caf2c86464c2915a2afa3713caf29aafe038929b68317307538127a",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-saved-02",
+          "summarySha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-light-night-01/summary.json",
+      "sha256": "b203a89f04c8146eae3c020a0270493dbc57f1cd8e332176a190ff7bd0052733",
+      "captures": 4,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-light-night-01",
+          "summarySha256": "b22d4effd3acffa379984f39413e45ff2ac40168e23c327874ae4c6811fc0041"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-overlap-01/summary.json",
+      "sha256": "ae276445a67ceb40b6e7f2257d901a3b5009f85fe46e2496c714f00a84a0a376",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-overlap-01",
+          "summarySha256": "e58b8cba542119b35341e234236cc34b0ad85df3c53bd3eac12351ab495e087f"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-scroll-01/summary.json",
+      "sha256": "df0fb749c79284d804df8545b0a83171d6149a4ed2d478ab784d0d7bcb8cc13c",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-scroll-01",
+          "summarySha256": "f3bec397267be6eb84a521fddc8bef83cb7d1269956a5f1fbb4a365f00a745de"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-terrain-r0z1phase-01/summary.json",
+      "sha256": "672f7b1d5582f821ce9dcef83f22df0ca580833583b92d241f3668431f2bdc8b",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-terrain-r0z1phase-01",
+          "summarySha256": "6115c291b7ad398c02db310e66058030434fe6cbaa845c8ce9e3073d24f38b70"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-text-01/summary.json",
+      "sha256": "8396c3e4107a6fca3e25139503f9642b42c870475e46efc0f4d49e9684c402d1",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-text-01",
+          "summarySha256": "189a31715df534af48b3a6353ea1374b634880546a2f35551ab75a3bd94755bd"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-weather-palette-01/summary.json",
+      "sha256": "aeb0aa3de90697b837d52a0b2a998a26882238da5677a14469788d5695b93523",
+      "captures": 6,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-weather-palette-01",
+          "summarySha256": "52e133cb942e2a81208eefc349e38bd896a5e3321e1fe29f9ab45f8ea54a81e3"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e3b-vulkan-weather-precipitation-01/summary.json",
+      "sha256": "f1809478612521a8bcd6255138940e238e6ac8841b33644de785e71541888dda",
+      "captures": 8,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-weather-precipitation-01",
+          "summarySha256": "7beac0841ca284aa0b0f10f2d639452f21ef6b3b31e6cae4db7628607ad25465"
+        }
+      ]
+    }
+  ],
+  "windowedCaptures": 60,
+  "visualReview": "No divergence; exact comparison against previously agent-reviewed frozen samples. No new exception.",
+  "sdlFreeRendererCompile": {
+    "path": "obj/vulkan-parity/e3b-sdl-free-cmake-02/qualification.json",
+    "sha256": "d6aa2ba870afddf6ef8e85252a768c424ba781a2d531714af071f3d7da532237",
+    "translationUnits": 16,
+    "shaders": 17
+  }
+}

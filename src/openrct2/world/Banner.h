@@ -45,23 +45,58 @@ using BannerFlags = FlagHolder<uint8_t, BannerFlag>;
 struct Banner
 {
     BannerIndex id = BannerIndex::GetNull();
-    OpenRCT2::ObjectEntryIndex type = kBannerNull;
-    BannerFlags flags{};
-    std::string text;
     OpenRCT2::Drawing::Colour colour{};
-    RideId rideIndex{};
-    OpenRCT2::Drawing::TextColour textColour{};
     TileCoordsXY position;
+
+    Banner() = default;
+    Banner(const Banner&) = default;
+    Banner(Banner&&) noexcept = default;
+    Banner& operator=(const Banner&);
+    Banner& operator=(Banner&&) noexcept;
+
+    OpenRCT2::ObjectEntryIndex getType() const noexcept
+    {
+        return _type;
+    }
+    BannerFlags getFlags() const noexcept
+    {
+        return _flags;
+    }
+    const std::string& getRawText() const noexcept
+    {
+        return _text;
+    }
+    RideId getRideIndex() const noexcept
+    {
+        return _rideIndex;
+    }
+    OpenRCT2::Drawing::TextColour getTextColour() const noexcept
+    {
+        return _textColour;
+    }
+    void setType(OpenRCT2::ObjectEntryIndex value);
+    void setFlags(BannerFlags value);
+    void setFlag(BannerFlag flag, bool value);
+    void setText(std::string value);
+    void setRideIndex(RideId value);
+    void setTextColour(OpenRCT2::Drawing::TextColour value);
 
     bool isNull() const
     {
-        return type == kBannerNull;
+        return _type == kBannerNull;
     }
 
     std::string getTextWithColour() const;
     std::string getText() const;
     void formatTextWithColourTo(OpenRCT2::Formatter&) const;
     void formatTextTo(OpenRCT2::Formatter&) const;
+
+private:
+    OpenRCT2::ObjectEntryIndex _type = kBannerNull;
+    BannerFlags _flags{};
+    std::string _text;
+    RideId _rideIndex{};
+    OpenRCT2::Drawing::TextColour _textColour{};
 };
 
 void BannerInit(OpenRCT2::GameState_t& gameState);

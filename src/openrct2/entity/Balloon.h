@@ -33,6 +33,7 @@ namespace OpenRCT2
         static void create(const CoordsXYZ& balloonPos, Drawing::Colour colour, bool isPopped);
         void update();
         void pop(bool playSound);
+        void setColour(Drawing::Colour newColour);
         void press();
         void serialise(DataSerialiser& stream);
         bool collides() const;

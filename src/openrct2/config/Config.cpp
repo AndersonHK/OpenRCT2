@@ -20,7 +20,6 @@
 #include "../core/FileStream.h"
 #include "../core/Path.hpp"
 #include "../core/String.hpp"
-#include "../drawing/IDrawingEngine.h"
 #include "../interface/Window.h"
 #include "../localisation/Currency.h"
 #include "../localisation/Formatting.h"
@@ -105,15 +104,6 @@ namespace OpenRCT2::Config
         ConfigEnumEntry<int32_t>("MM/DD/YY", DATE_FORMAT_MONTH_DAY_YEAR),
         ConfigEnumEntry<int32_t>("YY/MM/DD", DATE_FORMAT_YEAR_MONTH_DAY),
         ConfigEnumEntry<int32_t>("YY/DD/MM", DATE_FORMAT_YEAR_DAY_MONTH),
-    });
-
-    static const auto Enum_DrawingEngine = ConfigEnum<DrawingEngine>({
-        ConfigEnumEntry<DrawingEngine>("SOFTWARE_HWD", DrawingEngine::softwareWithHardwareDisplay),
-        // Read old configurations without retaining a second graphics backend.
-        ConfigEnumEntry<DrawingEngine>("OPENGL", DrawingEngine::softwareWithHardwareDisplay),
-#ifdef ENABLE_VULKAN
-        ConfigEnumEntry<DrawingEngine>("VULKAN", DrawingEngine::vulkan),
-#endif
     });
 
     static const auto Enum_Temperature = ConfigEnum<TemperatureUnit>({
@@ -216,8 +206,6 @@ namespace OpenRCT2::Config
             model->windowSnapProximity = reader->GetInt32("window_snap_proximity", 5);
             model->windowWidth = reader->GetInt32("window_width", -1);
             model->defaultDisplay = reader->GetInt32("default_display", 0);
-            model->drawingEngine = reader->GetEnum<DrawingEngine>(
-                "drawing_engine", DrawingEngine::softwareWithHardwareDisplay, Enum_DrawingEngine);
             model->uncapFPS = reader->GetBoolean("uncap_fps", false);
             model->useVSync = reader->GetBoolean("use_vsync", true);
             model->enableHdr10Output = reader->GetBoolean("enable_hdr10_output", false);
@@ -237,12 +225,8 @@ namespace OpenRCT2::Config
 
             // Default config setting is false until the games canvas can be separated from the effect
             model->dayNightCycle = reader->GetBoolean("day_night_cycle", false);
-            bool supportsLightFx = model->drawingEngine == DrawingEngine::softwareWithHardwareDisplay;
-#ifdef ENABLE_VULKAN
-            supportsLightFx |= model->drawingEngine == DrawingEngine::vulkan;
-#endif
-            model->enableLightFx = supportsLightFx && reader->GetBoolean("enable_light_fx", false);
-            model->enableLightFxForVehicles = supportsLightFx && reader->GetBoolean("enable_light_fx_for_vehicles", false);
+            model->enableLightFx = reader->GetBoolean("enable_light_fx", false);
+            model->enableLightFxForVehicles = reader->GetBoolean("enable_light_fx_for_vehicles", false);
             model->upperCaseBanners = reader->GetBoolean("upper_case_banners", false);
             model->disableLightningEffect = reader->GetBoolean("disable_lightning_effect", false);
             model->windowScale = reader->GetFloat("window_scale", Platform::GetDefaultScale());
@@ -329,7 +313,6 @@ namespace OpenRCT2::Config
         writer->WriteInt32("window_snap_proximity", model->windowSnapProximity);
         writer->WriteInt32("window_width", model->windowWidth);
         writer->WriteInt32("default_display", model->defaultDisplay);
-        writer->WriteEnum<DrawingEngine>("drawing_engine", model->drawingEngine, Enum_DrawingEngine);
         writer->WriteBoolean("uncap_fps", model->uncapFPS);
         writer->WriteBoolean("use_vsync", model->useVSync);
         writer->WriteBoolean("enable_hdr10_output", model->enableHdr10Output);

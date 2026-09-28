@@ -1,0 +1,174 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "terrain_surface_rules.glsl"
+
+// Three explicitly separated dispatches: validate/count, scan, emit. No CPU
+// tile command preparation or count readback is needed between these passes.
+layout(local_size_x = 64) in;
+struct Tile { int baseZ; int slope; uint grass; uint surfaceMaterial; uint edgeMaterial; uint kind; uint r0; uint r1; };
+struct Material { uint imageBase; uint imageCount; uint kind; uint flags; uint selectors[144]; };
+struct Primitive
+{
+    uint tileIndex; uint imageIndex; uint kind; uint parentIndex;
+    int offsetX; int offsetY; int offsetZ; int attachedY;
+    int boundsX; int boundsY; int boundsZ; uint rotation;
+    uint localOrdinal; int edge; uint r0; uint r1;
+};
+struct TileCount { uint count; uint offset; uint rear; uint front; uint invalid; uint border; uint r0; uint r1; };
+layout(std430, binding=0) readonly buffer Tiles { Tile records[]; } tiles;
+layout(std430, binding=1) readonly buffer Materials { Material records[]; } materials;
+layout(std430, binding=2) buffer Counts { TileCount records[]; } counts;
+layout(std430, binding=3) writeonly buffer Primitives { Primitive records[]; } primitives;
+layout(std430, binding=4) buffer Status
+{
+    uint error; uint primitiveCount; uint firstInvalidTile; uint requiredCapacity;
+    uint baseCount; uint rearCount; uint frontCount; uint borderCount;
+    uint drawingQualified; uint r0; uint r1; uint r2;
+} status;
+layout(push_constant) uniform Parameters
+{
+    uint pass; uint rotation; int zoom; uint materialCount;
+    uint capacity; uint transparentBackground; uint blankImage; uint reserved;
+} parameters;
+
+bool validTile(Tile tile, uint index)
+{
+    bool border = index % 32u == 0u || index % 32u == 31u || index / 32u == 0u || index / 32u == 31u;
+    return terrainRuleInputValid(tile.baseZ, tile.slope, int(parameters.rotation))
+        && tile.slope < 15 && tile.grass <= 6u && tile.r0 == 0u && tile.r1 == 0u
+        && tile.kind == (border ? 2u : 1u)
+        && (!border || (tile.baseZ == 16 && tile.slope == 0));
+}
+
+TerrainEdgePlan planEdge(uint index, int edge)
+{
+    Tile tile = tiles.records[index];
+    ivec2 neighbour = ivec2(int(index % 32u), int(index / 32u))
+        + ivec2(terrainNeighbourX(edge, int(parameters.rotation)), terrainNeighbourY(edge, int(parameters.rotation)));
+    bool present = all(greaterThanEqual(neighbour, ivec2(0))) && all(lessThan(neighbour, ivec2(32)));
+    Tile adjacent = tile;
+    if (present) adjacent = tiles.records[uint(neighbour.y) * 32u + uint(neighbour.x)];
+    return terrainPlanEdge(edge, tile.baseZ, tile.slope, adjacent.baseZ, adjacent.slope, present, int(parameters.rotation));
+}
+
+bool validMaterial(uint index, uint kind)
+{
+    if (index >= parameters.materialCount) return false;
+    Material material = materials.records[index];
+    return material.kind == kind && material.flags == 0u && material.imageCount > 0u
+        && material.imageBase <= 0x7fffffffu && material.imageCount <= 0x7fffffffu - material.imageBase;
+}
+
+uint surfaceOffset(uint index)
+{
+    Tile tile = tiles.records[index];
+    int selector = terrainMaterialSelector(int(tile.grass), int(parameters.rotation), int(index % 32u), int(index / 32u), parameters.zoom);
+    uint entry = materials.records[tile.surfaceMaterial].selectors[selector];
+    return entry * 19u + uint(terrainShapeImageOffset(terrainRelativeSlope(tile.slope, int(parameters.rotation))));
+}
+
+void countTile(uint index)
+{
+    Tile tile = tiles.records[index];
+    TileCount result = TileCount(0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u);
+    if (!validTile(tile, index)) { result.invalid = 1u; counts.records[index] = result; return; }
+    if (tile.kind == 2u)
+    {
+        result.border = parameters.transparentBackground == 0u ? 1u : 0u;
+        result.count = result.border;
+        counts.records[index] = result;
+        return;
+    }
+    if (!validMaterial(tile.surfaceMaterial, 1u) || !validMaterial(tile.edgeMaterial, 2u))
+    { result.invalid = 1u; counts.records[index] = result; return; }
+    int selector = terrainMaterialSelector(int(tile.grass), int(parameters.rotation), int(index % 32u), int(index / 32u), parameters.zoom);
+    uint entry = materials.records[tile.surfaceMaterial].selectors[selector];
+    // Check multiply before calculating the selected address; never trust object metadata.
+    if (entry > 0x7fffffffu / 19u || surfaceOffset(index) >= materials.records[tile.surfaceMaterial].imageCount
+        || materials.records[tile.edgeMaterial].imageCount < 36u)
+    { result.invalid = 1u; counts.records[index] = result; return; }
+    for (int edge = 0; edge < 4; edge++)
+    {
+        TerrainEdgePlan plan = planEdge(index, edge);
+        if (edge < 2) result.front += uint(plan.count); else result.rear += uint(plan.count);
+    }
+    result.count = 1u + result.front + result.rear;
+    counts.records[index] = result;
+}
+
+void scanCounts()
+{
+    status.error = 0u; status.primitiveCount = 0u; status.firstInvalidTile = 0xffffffffu;
+    status.requiredCapacity = 0u; status.baseCount = 0u; status.rearCount = 0u;
+    status.frontCount = 0u; status.borderCount = 0u; status.drawingQualified = 0u;
+    status.r0 = 0u; status.r1 = 0u; status.r2 = 0u;
+    uint next = 0u;
+    for (uint index = 0u; index < 1024u; index++)
+    {
+        TileCount count = counts.records[index];
+        counts.records[index].offset = next;
+        next += count.count; // Max bound 1024 * 512: cannot wrap uint.
+        if (count.invalid != 0u && status.firstInvalidTile == 0xffffffffu) status.firstInvalidTile = index;
+        status.baseCount += tiles.records[index].kind == 1u && count.invalid == 0u ? 1u : 0u;
+        status.rearCount += count.rear; status.frontCount += count.front; status.borderCount += count.border;
+    }
+    status.requiredCapacity = next;
+    status.error = status.firstInvalidTile != 0xffffffffu ? 1u : (next > parameters.capacity ? 2u : 0u);
+    status.primitiveCount = status.error == 0u ? next : 0u;
+}
+
+Primitive primitive(uint index, uint destination, uint image, uint kind, uint ordinal)
+{
+    return Primitive(index, image, kind, destination, 0, 0, tiles.records[index].baseZ, 0,
+        32, 32, -1, parameters.rotation, ordinal, -1, 0u, 0u);
+}
+
+void emitTile(uint index)
+{
+    if (status.error != 0u) return; // No partial scene even when one tile/material is invalid.
+    TileCount count = counts.records[index];
+    if (count.count == 0u) return;
+    Tile tile = tiles.records[index];
+    uint base = count.offset;
+    if (tile.kind == 2u)
+    {
+        Primitive outPrimitive = primitive(index, base, parameters.blankImage, 3u, 0u);
+        outPrimitive.offsetZ = 16; primitives.records[base] = outPrimitive; return;
+    }
+    primitives.records[base] = primitive(index, base, materials.records[tile.surfaceMaterial].imageBase + surfaceOffset(index), 0u, 0u);
+    uint ordinal = 1u;
+    // This preserves local base/attachment traversal only. Tile-row emission is NOT painter sorting.
+    for (int local = 0; local < 4; local++)
+    {
+        int edge = local < 2 ? terrainRearEdgeForTraversal(local) : local - 2;
+        TerrainEdgePlan plan = planEdge(index, edge);
+        for (int strip = 0; strip < plan.count; strip++)
+        {
+            TerrainEdgeEmission emission = terrainEdgeAt(plan, strip);
+            uint destination = base + ordinal;
+            Primitive outPrimitive = primitive(index, destination, materials.records[tile.edgeMaterial].imageBase + uint(emission.imageOffset),
+                emission.attached != 0 ? 1u : 2u, ordinal);
+            outPrimitive.edge = edge;
+            if (emission.attached != 0)
+            {
+                outPrimitive.parentIndex = base; outPrimitive.attachedY = emission.y;
+                outPrimitive.boundsX = 0; outPrimitive.boundsY = 0; outPrimitive.boundsZ = 0;
+            }
+            else
+            {
+                outPrimitive.offsetX = emission.x; outPrimitive.offsetY = emission.y; outPrimitive.offsetZ = emission.z;
+                outPrimitive.boundsX = emission.boundsX; outPrimitive.boundsY = emission.boundsY; outPrimitive.boundsZ = emission.boundsZ;
+            }
+            primitives.records[destination] = outPrimitive; ordinal++;
+        }
+    }
+}
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (parameters.pass == 1u) { if (index == 0u) scanCounts(); return; }
+    if (index >= 1024u) return;
+    if (parameters.pass == 0u) countTile(index);
+    else if (parameters.pass == 2u) emitTile(index);
+}

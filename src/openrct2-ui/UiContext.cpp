@@ -32,6 +32,9 @@
 #include <openrct2-ui/interface/Window.h>
 #include <openrct2/Context.h>
 #include <openrct2/Diagnostic.h>
+#include <openrct2/TitleLoadingDiagnostic.h>
+#include <openrct2/core/Console.hpp>
+#include <stdexcept>
 #include <openrct2/Input.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/Version.h>
@@ -77,6 +80,7 @@ private:
     const std::unique_ptr<IPlatformUiContext> _platformUiContext;
     const std::unique_ptr<IWindowManager> _windowManager;
 
+    std::shared_ptr<IDrawingEngineFactory> _drawingEngineFactory;
     CursorRepository _cursorRepository;
 
     SDL_Window* _window = nullptr;
@@ -120,9 +124,11 @@ public:
         return _shortcutManager;
     }
 
-    explicit UiContext(IPlatformEnvironment& env)
+    explicit UiContext(IPlatformEnvironment& env, std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
         : _platformUiContext(CreatePlatformUiContext())
         , _windowManager(CreateWindowManager())
+        , _drawingEngineFactory(
+              drawingEngineFactory ? std::move(drawingEngineFactory) : std::make_shared<DrawingEngineFactory>())
         , _shortcutManager(env)
     {
         LogSDLVersion();
@@ -137,6 +143,9 @@ public:
     ~UiContext() override
     {
         UiContext::CloseWindow();
+        // Release the presentation owner/loader lease before SDL video quits.
+        // Context has already drained and released its auxiliary factory.
+        _drawingEngineFactory.reset();
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
 
@@ -183,6 +192,14 @@ public:
     uint32_t GetRefreshRate() const override
     {
         return _refreshRate;
+    }
+
+    Resolution GetDrawableSize() const override
+    {
+        if (_window == nullptr)
+            return {};
+        const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
+        return { static_cast<int32_t>(extent.width), static_cast<int32_t>(extent.height) };
     }
 
     ScaleQuality GetScaleQuality() override
@@ -296,7 +313,7 @@ public:
     // Drawing
     std::shared_ptr<IDrawingEngineFactory> GetDrawingEngineFactory() override
     {
-        return std::make_shared<DrawingEngineFactory>();
+        return _drawingEngineFactory;
     }
 
     void DrawWeatherAnimation(IWeatherDrawer* weatherDrawer, RenderTarget& rt, DrawWeatherFunc drawFunc) override
@@ -861,21 +878,9 @@ private:
         int wWidth, wHeight;
         SDL_GetWindowSize(_window, &wWidth, &wHeight);
 
-        int32_t rWidth = 0;
-        int32_t rHeight = 0;
-        if (auto* renderer = SDL_GetRenderer(_window); renderer != nullptr)
-        {
-            if (SDL_GetRendererOutputSize(renderer, &rWidth, &rHeight) != 0)
-                return;
-        }
-#ifdef ENABLE_VULKAN
-        else if (Config::Get().general.drawingEngine == DrawingEngine::vulkan)
-        {
-            const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
-            rWidth = static_cast<int32_t>(extent.width);
-            rHeight = static_cast<int32_t>(extent.height);
-        }
-#endif
+        const auto extent = Vulkan::Platform::GetDrawableExtent(_window);
+        const auto rWidth = static_cast<int32_t>(extent.width);
+        const auto rHeight = static_cast<int32_t>(extent.height);
         if (rWidth <= 0 || rHeight <= 0 || wWidth <= 0 || wHeight <= 0)
             return;
         config.windowScale = static_cast<float>(rWidth) / wWidth;
@@ -907,34 +912,35 @@ private:
 
         // Create window in window first rather than fullscreen so we have the display the window is on first
         uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (gIntegratedBenchmark.enabled && !gIntegratedBenchmark.visible)
+        if ((gIntegratedBenchmark.enabled && !gIntegratedBenchmark.visible) || IsTitleLoadingDiagnostic())
         {
             flags |= SDL_WINDOW_HIDDEN;
         }
-        const auto drawingEngine = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-#ifdef ENABLE_VULKAN
-        if (drawingEngine == DrawingEngine::vulkan)
-        {
-            flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
-        }
-#endif
+        flags |= Vulkan::Platform::GetRequiredSdlWindowFlags();
 
         _window = SDL_CreateWindow(OPENRCT2_NAME, windowPos.x, windowPos.y, width, height, flags);
         if (_window == nullptr)
         {
             SDLException::Throw("SDL_CreateWindow");
         }
+        if (IsTitleLoadingDiagnostic())
+        {
+            if ((SDL_GetWindowFlags(_window) & SDL_WINDOW_HIDDEN) == 0)
+                throw std::runtime_error("Title loading diagnostic requires a hidden window");
+            Console::WriteLine("Title loading diagnostic: hidden window, dummy audio");
+        }
         UpdateWindowDisplayIndex();
 
-        ApplyScreenSaverLockSetting();
+        if (!IsTitleLoadingDiagnostic())
+            ApplyScreenSaverLockSetting();
 
         SDL_SetWindowMinimumSize(_window, 720, 480);
-        SetCursorTrap(gIntegratedBenchmark.enabled ? false : Config::Get().general.trapCursor);
+        SetCursorTrap(gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic() ? false : Config::Get().general.trapCursor);
         _platformUiContext->SetWindowIcon(_window);
 
         UpdateFullscreenResolutions();
 
-        if (!gIntegratedBenchmark.enabled)
+        if (!gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
         {
             SetFullscreenMode(static_cast<FullscreenMode>(Config::Get().general.fullscreenMode));
         }
@@ -1188,9 +1194,10 @@ private:
     }
 };
 
-std::unique_ptr<IUiContext> Ui::CreateUiContext(IPlatformEnvironment& env)
+std::unique_ptr<IUiContext> Ui::CreateUiContext(
+    IPlatformEnvironment& env, std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
 {
-    return std::make_unique<UiContext>(env);
+    return std::make_unique<UiContext>(env, std::move(drawingEngineFactory));
 }
 
 InGameConsole& Ui::GetInGameConsole()

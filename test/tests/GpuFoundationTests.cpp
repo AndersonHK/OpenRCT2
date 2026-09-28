@@ -8,34 +8,55 @@
  *****************************************************************************/
 
 #include <gtest/gtest.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuAtlas.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuBackend.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuCommandStream.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuFrameMailbox.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuTextureCache.h>
-#include <openrct2-ui/drawing/engines/gpu/GpuTransparencyDepth.h>
+#include <openrct2-renderer/gpu/GpuAtlas.h>
+#include <openrct2-renderer/gpu/GpuBackend.h>
+#include <openrct2-renderer/gpu/GpuCommandStream.h>
+#include <openrct2-renderer/gpu/GpuFrameMailbox.h>
+#include <openrct2-renderer/gpu/GpuTextureCache.h>
+#include <openrct2-renderer/gpu/GpuTransparencyDepth.h>
 #ifdef ENABLE_VULKAN
-    #include <openrct2-ui/drawing/engines/vulkan/VulkanDevice.h>
-    #include <openrct2-ui/drawing/engines/vulkan/VulkanSurfaceFormat.h>
+    #include <openrct2-renderer/vulkan/VulkanDevice.h>
+    #include <openrct2-renderer/vulkan/VulkanSurfaceFormat.h>
 #endif
-#include <openrct2/drawing/LightFX.h>
-#include <openrct2/drawing/TTF.h>
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
+#include <limits>
+#include <openrct2/drawing/LightFX.h>
+#include <openrct2/drawing/TTF.h>
 #include <optional>
 #include <stdexcept>
 #include <utility>
 
+namespace IndexedDepthRules
+{
+#include "../../data/shaders/vulkan/indexed_depth.glsl"
+}
+
 using namespace OpenRCT2::Ui::Gpu;
 namespace LightFx = OpenRCT2::Drawing::LightFx;
+
+TEST(GpuFoundationTest, HdrWhiteMatchesWindowsAbsoluteUnitsAndBoundsInvalidSettings)
+{
+    EXPECT_EQ(DecodeWindowsSdrWhiteNits(0), std::nullopt);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(1000), 80.0f);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(2538), 203.04f);
+    EXPECT_FLOAT_EQ(*DecodeWindowsSdrWhiteNits(3500), 280.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(*DecodeWindowsSdrWhiteNits(1)), 80.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(280.0f), 280.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(0.0f), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(-1.0f), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(std::numeric_limits<float>::quiet_NaN()), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(std::numeric_limits<float>::infinity()), 203.0f);
+    EXPECT_FLOAT_EQ(NormaliseHdrPaperWhiteNits(*DecodeWindowsSdrWhiteNits(UINT32_MAX)), 1000.0f);
+}
 
 namespace
 {
     constexpr std::array kLightTypes = {
-        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2,
-        LightFx::LightType::lantern3, LightFx::LightType::spot0, LightFx::LightType::spot1,
-        LightFx::LightType::spot2, LightFx::LightType::spot3,
+        LightFx::LightType::lantern0, LightFx::LightType::lantern1, LightFx::LightType::lantern2, LightFx::LightType::lantern3,
+        LightFx::LightType::spot0,    LightFx::LightType::spot1,    LightFx::LightType::spot2,    LightFx::LightType::spot3,
     };
     constexpr std::array<uint8_t, 5> kLightIntensities = { 0, 1, 127, 254, 255 };
 
@@ -67,17 +88,18 @@ namespace
 #endif
 } // namespace
 
-TEST(GpuFoundationTest, AtlasSizeOrdersUseTheLegacyPowerOfTwoClasses)
+TEST(GpuFoundationTest, AtlasSizeOrdersRoundEachAxisToPowerOfTwoWithMinimum32)
 {
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(1, 1), 5);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32, 32), 5);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33, 1), 6);
-    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128, 129), 8);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(1), 5);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(32), 5);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(33), 6);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(128), 7);
+    EXPECT_EQ(AtlasPage::CalculateImageSizeOrder(129), 8);
 }
 
 TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
 {
-    AtlasPage page(7, 64);
+    AtlasPage page(7, 64, 32);
     page.Initialise(128, 128);
 
     const auto location = page.Allocate(40, 20);
@@ -86,10 +108,77 @@ TEST(GpuFoundationTest, AtlasAllocationRetainsLayerAndPixelBounds)
     EXPECT_EQ(location.bounds.w - location.bounds.y, 20);
     EXPECT_FLOAT_EQ(location.coords.z, 128.0f);
     EXPECT_FLOAT_EQ(location.coords.w, 128.0f);
-    EXPECT_EQ(page.GetFreeSlots(), 3);
+    EXPECT_EQ(page.GetFreeSlots(), 7);
 
     page.Free(location);
-    EXPECT_EQ(page.GetFreeSlots(), 4);
+    EXPECT_EQ(page.GetFreeSlots(), 8);
+}
+
+TEST(GpuFoundationTest, RectangularAtlasPacksSkinnyArtWithoutOverlapAndReusesFreedDescriptors)
+{
+    for (const auto vertical : { false, true })
+    {
+        const int32_t width = vertical ? 28 : 234;
+        const int32_t height = vertical ? 234 : 28;
+        AtlasPage page(7, vertical ? 32 : 256, vertical ? 256 : 32);
+        page.Initialise(kAtlasDimension, kAtlasDimension);
+        ASSERT_EQ(page.GetFreeSlots(), 512); // A square256 class held only64.
+        EXPECT_TRUE(page.IsImageSuitable(width, height));
+        EXPECT_FALSE(page.IsImageSuitable(height, width));
+        std::array<bool, kAtlasSlotsPerLayer> occupied{};
+        std::vector<TextureLocation> locations;
+        while (page.GetFreeSlots() != 0)
+        {
+            const auto location = page.Allocate(width, height);
+            EXPECT_EQ(location.GetDescriptorIndex(), 7u * kAtlasSlotsPerLayer + location.slot);
+            EXPECT_LT(location.slot, kAtlasSlotsPerLayer);
+            EXPECT_GE(location.bounds.x, 0);
+            EXPECT_GE(location.bounds.y, 0);
+            EXPECT_LE(location.bounds.z, kAtlasDimension);
+            EXPECT_LE(location.bounds.w, kAtlasDimension);
+            EXPECT_EQ(location.bounds.z - location.bounds.x, width);
+            EXPECT_EQ(location.bounds.w - location.bounds.y, height);
+            for (int32_t y = location.bounds.y / 32; y <= (location.bounds.w - 1) / 32; ++y)
+                for (int32_t x = location.bounds.x / 32; x <= (location.bounds.z - 1) / 32; ++x)
+                {
+                    const auto cell = y * 64 + x;
+                    ASSERT_FALSE(occupied[cell]);
+                    occupied[cell] = true;
+                }
+            locations.push_back(location);
+        }
+        EXPECT_TRUE(std::all_of(occupied.begin(), occupied.end(), [](bool used) { return used; }));
+        for (size_t i = 0; i < locations.size(); i += 2)
+            page.Free(locations[i]);
+        ASSERT_EQ(page.GetFreeSlots(), 256);
+        for (size_t i = locations.size() - 2;; i -= 2)
+        {
+            const auto reused = page.Allocate(width, height);
+            EXPECT_EQ(reused.GetDescriptorIndex(), locations[i].GetDescriptorIndex());
+            EXPECT_EQ(reused.bounds.x, locations[i].bounds.x);
+            EXPECT_EQ(reused.bounds.y, locations[i].bounds.y);
+            if (i == 0)
+                break;
+        }
+        EXPECT_EQ(page.GetFreeSlots(), 0);
+    }
+}
+
+TEST(GpuFoundationTest, EveryRectangularAtlasClassFitsDescriptorBudget)
+{
+    for (int32_t width = 32; width <= kAtlasDimension; width *= 2)
+        for (int32_t height = 32; height <= kAtlasDimension; height *= 2)
+        {
+            AtlasPage page(255, width, height);
+            page.Initialise(kAtlasDimension, kAtlasDimension);
+            const auto capacity = (kAtlasDimension / width) * (kAtlasDimension / height);
+            ASSERT_EQ(page.GetFreeSlots(), capacity);
+            ASSERT_LE(capacity, static_cast<int32_t>(kAtlasSlotsPerLayer));
+            const auto location = page.Allocate(width, height);
+            EXPECT_LT(location.GetDescriptorIndex(), kSpriteAssetDescriptorCount);
+            EXPECT_EQ(location.bounds.z, kAtlasDimension);
+            EXPECT_EQ(location.bounds.w, kAtlasDimension);
+        }
 }
 
 TEST(GpuFoundationTest, AtlasAllocationIdentityDistinguishesReusedSlots)
@@ -137,10 +226,43 @@ TEST(GpuFoundationTest, CompactSpritePackingPreservesPalettesAndEffects)
     EXPECT_EQ(SpriteCommand::GetEffectColour(effects), 197);
 }
 
+TEST(GpuFoundationTest, NativeTerrainReservesPainterDepthBetweenEarlierCommandsAndLaterUi)
+{
+    for (const uint32_t count : { 1024u, static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount) })
+    {
+        const auto range = GetWorldSurfaceDepthRange(37, count);
+        ASSERT_TRUE(range.has_value());
+        EXPECT_EQ(range->first, 37);
+        EXPECT_EQ(range->next, 37 + static_cast<int32_t>(kWorldSceneDepthReservation));
+        const auto depth = [](int32_t key) {
+            return std::bit_cast<float>(IndexedDepthRules::indexedDepthBits(static_cast<uint32_t>(key), 0));
+        };
+        // Less depth wins. A later UI rectangle must beat every native tile,
+        // while the first native tile must beat preceding ordinary commands.
+        EXPECT_LT(depth(range->first), depth(36));
+        EXPECT_LT(depth(range->next), depth(range->next - 1));
+        EXPECT_GT(depth(range->next), 0.0f);
+        const auto following = GetWorldSurfaceDepthRange(range->next + 11, count);
+        // CommandStream owns one world; auxiliary views have separate executors.
+        EXPECT_FALSE(following.has_value());
+    }
+    constexpr int32_t limit = (1 << 22) - 1;
+    EXPECT_TRUE(GetWorldSurfaceDepthRange(limit - kWorldSceneDepthReservation, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit - kWorldSceneDepthReservation + 1, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(-1, 1024).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(limit, 1).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(0, 0).has_value());
+    EXPECT_FALSE(GetWorldSurfaceDepthRange(0, static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount) + 1).has_value());
+}
+
 TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 {
     EXPECT_EQ(sizeof(WorldSurfaceRecord), 64u);
-    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 40u);
+    EXPECT_EQ(sizeof(WorldSurfaceSourceRecord), 64u);
+    EXPECT_EQ(offsetof(WorldSurfaceSourceRecord, surfaceOrdinal), 60u);
+    EXPECT_EQ(offsetof(WorldSurfaceSourceRecord, maxClearanceZ), 56u);
+    EXPECT_EQ(sizeof(WorldPathSourceRecord), 48u);
+    EXPECT_EQ(sizeof(WorldObjectSourceRecord), 64u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteVariant), 32u);
     EXPECT_EQ(sizeof(WorldSurfaceSpriteSet), 200u);
     EXPECT_EQ(kWorldSurfaceChunkWidth, 256u);
@@ -151,14 +273,14 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_GT(kWorldSurfaceDepthCapacity, kWorldSurfaceMaximumRecordCount);
     EXPECT_EQ(kWorldSurfaceComputeLocalSize, 128u);
     EXPECT_EQ(kWorldSurfaceComputeBlockWidth, 1024u);
-    EXPECT_EQ(kWorldSurfaceMaximumDrawCount, 979u);
+    EXPECT_EQ(kWorldSurfaceMaximumDrawCount, 1235u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(0), 0u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1024), 1u);
     EXPECT_EQ(GetWorldSurfaceDrawCount(1025), 2u);
-    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 979, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 978, 4096, true));
-    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 979, 4096, false));
+    EXPECT_TRUE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1235, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(127, 128, 1235, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1234, 4100, true));
+    EXPECT_FALSE(AreWorldSurfaceComputeLimitsSufficient(128, 128, 1235, 4100, false));
 
     WorldSurfaceRecord record{};
     record.world = { 64, 96, 32 };
@@ -167,9 +289,9 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
     EXPECT_LT(record.depth, kWorldSurfaceDepthCapacity);
 
     EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 0), 5u);
-    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 1), 1u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 1), 2u);
     EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 2), 0u);
-    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 3), 4u);
+    EXPECT_EQ(GetWorldSurfaceOrderIndex(3, 2, 2, 1, 3), 3u);
     for (uint32_t rotation = 0; rotation < 4; rotation++)
     {
         for (uint32_t sourceIndex = 0; sourceIndex < 6; sourceIndex++)
@@ -189,6 +311,73 @@ TEST(GpuFoundationTest, WorldSurfaceAbiHasStableComputeBlocksAndDepthCapacity)
 }
 
 #ifndef DISABLE_TTF
+TEST(GpuFoundationTest, BatchUploadRetirementPreservesUnpresentedUploadsAndReusedSlots)
+{
+    constexpr uint64_t count = 256;
+    TextureCache cache(1);
+    std::array<std::byte, 8> pixels{};
+    const auto record = [&](uint64_t first, uint64_t last, FrameCommandStream& commands) {
+        cache.BeginFrame();
+        for (uint64_t id = first; id <= last; ++id)
+        {
+            pixels.fill(std::byte(id <= count ? id & 255 : 231));
+            if (id > count)
+                pixels.front() = std::byte(17); // Distinct from every uniform original glyph.
+            TTFSurface surface{ pixels.data(), 4, 2, id };
+            static_cast<void>(cache.GetOrLoadTTFTexture(surface));
+        }
+        return cache.SealFrame(commands);
+    };
+
+    FrameCommandStream initial;
+    const auto failed = record(1, count, initial);
+    ASSERT_EQ(initial.textureUploads.size(), count);
+    cache.RetireFrame(failed, FrameRetirement::Failed);
+    FrameCommandStream discarded;
+    const auto superseded = record(1, count, discarded);
+    ASSERT_EQ(discarded.textureUploads.size(), count);
+    cache.RetireFrame(superseded, FrameRetirement::Superseded);
+
+    // Present only half the pending catalog; unbound uploads must survive the
+    // one-pass removal even though they were present in the earlier packets.
+    FrameCommandStream subset;
+    const auto presentedSubset = record(1, count / 2, subset);
+    ASSERT_EQ(subset.textureUploads.size(), count / 2);
+    cache.RetireFrame(presentedSubset, FrameRetirement::Presented);
+    FrameCommandStream remaining;
+    const auto presentedRemaining = record(1, count, remaining);
+    ASSERT_EQ(remaining.textureUploads.size(), count / 2);
+    for (size_t i = 0; i < remaining.textureUploads.size(); ++i)
+    {
+        EXPECT_EQ(remaining.textureUploads[i].descriptorIndex, initial.textureUploads[i + count / 2].descriptorIndex);
+        EXPECT_EQ(remaining.textureUploads[i].pixels, initial.textureUploads[i + count / 2].pixels);
+    }
+    cache.RetireFrame(presentedRemaining, FrameRetirement::Presented);
+
+    // The bounded TTF cache evicts the oldest identity and reuses its physical
+    // atlas slot. The new bytes still require successful presentation of their
+    // own allocation, despite the slot's previously acknowledged upload.
+    FrameCommandStream replacement;
+    const auto failedReplacement = record(count + 1, count + 1, replacement);
+    ASSERT_EQ(replacement.textureUploads.size(), 1u);
+    const auto reused = std::find_if(initial.textureUploads.begin(), initial.textureUploads.end(), [&](const auto& upload) {
+        return upload.descriptorIndex == replacement.textureUploads.front().descriptorIndex;
+    });
+    ASSERT_NE(reused, initial.textureUploads.end());
+    EXPECT_NE(replacement.textureUploads.front().pixels, reused->pixels);
+    cache.RetireFrame(failedReplacement, FrameRetirement::Failed);
+    FrameCommandStream retry;
+    const auto presentedReplacement = record(count + 1, count + 1, retry);
+    ASSERT_EQ(retry.textureUploads.size(), 1u);
+    EXPECT_EQ(retry.textureUploads.front().pixels, replacement.textureUploads.front().pixels);
+    cache.RetireFrame(presentedReplacement, FrameRetirement::Presented);
+    FrameCommandStream committed;
+    const auto final = record(count + 1, count + 1, committed);
+    EXPECT_TRUE(committed.textureUploads.empty());
+    cache.RetireFrame(final, FrameRetirement::Presented);
+    cache.DrainFrameRetirements();
+}
+
 TEST(GpuFoundationTest, ResidencyLeaseDefersEvictedTtfSlotReuseUntilRetirement)
 {
     constexpr int32_t surfaceSize = 128;
@@ -270,6 +459,7 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
 
     auto newest = MakeFramePacket(11);
     newest->presentation.paletteVersion = 4;
+    newest->presentation.hdrPaperWhiteNits = 280.0f;
     newest->presentation.surfaceFormatVersion = 5;
     newest->presentation.graphicsLookupTablesVersion = 6;
     newest->presentation.logicalExtent = { 640, 480 };
@@ -278,11 +468,13 @@ TEST(GpuFoundationTest, NewestFrameMailboxReplacesPendingVisualWork)
     ASSERT_TRUE(newestResult.accepted);
     ASSERT_NE(newestResult.released, nullptr);
     EXPECT_EQ(newestResult.released->frameNumber, 10u);
+    EXPECT_FLOAT_EQ(newestResult.released->presentation.hdrPaperWhiteNits, 203.0f);
 
     const auto taken = mailbox.WaitTakeNewest();
     ASSERT_NE(taken, nullptr);
     EXPECT_EQ(taken->frameNumber, 11u);
     EXPECT_EQ(taken->presentation.paletteVersion, 4u);
+    EXPECT_FLOAT_EQ(taken->presentation.hdrPaperWhiteNits, 280.0f);
     EXPECT_EQ(taken->presentation.surfaceFormatVersion, 5u);
     EXPECT_EQ(taken->presentation.graphicsLookupTablesVersion, 6u);
     EXPECT_EQ(taken->presentation.logicalExtent, (Extent{ 640, 480 }));
@@ -531,8 +723,7 @@ TEST(GpuFoundationTest, VulkanHdr10ClassificationRequiresAnApprovedExactPair)
     EXPECT_TRUE(IsHdr10SurfaceFormat({ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT }));
     EXPECT_TRUE(IsHdr10SurfaceFormat(kHdr10Format));
     EXPECT_FALSE(IsHdr10SurfaceFormat(kNonTenBitHdrFormat));
-    EXPECT_FALSE(IsHdr10SurfaceFormat(
-        { VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }));
+    EXPECT_FALSE(IsHdr10SurfaceFormat({ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }));
 }
 
 TEST(GpuFoundationTest, VulkanGpuTimestampDurationsHandleLinearAndWrappedCounters)
@@ -568,11 +759,9 @@ TEST(GpuFoundationTest, VulkanHdr10SelectionHonoursAvailabilityAndUserPreference
 
 TEST(GpuFoundationTest, VulkanHdr10FallbacksNeverActivateWithoutAnApprovedPair)
 {
+    ExpectSurfaceSelection(std::array{ kNonTenBitHdrFormat }, true, false, false, kNonTenBitHdrFormat);
     ExpectSurfaceSelection(
-        std::array{ kNonTenBitHdrFormat }, true, false, false, kNonTenBitHdrFormat);
-    ExpectSurfaceSelection(
-        std::array{ kUndefinedHdrFormat }, true, false, false,
-        { VK_FORMAT_B8G8R8A8_UNORM, kUndefinedHdrFormat.colorSpace });
+        std::array{ kUndefinedHdrFormat }, true, false, false, { VK_FORMAT_B8G8R8A8_UNORM, kUndefinedHdrFormat.colorSpace });
 }
 
 TEST(GpuFoundationTest, VulkanOutputRejectsUnsupportedOrInactiveColourSpacePairs)
@@ -581,8 +770,7 @@ TEST(GpuFoundationTest, VulkanOutputRejectsUnsupportedOrInactiveColourSpacePairs
 
     constexpr VkSurfaceFormatKHR hdr10{ VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_COLOR_SPACE_HDR10_ST2084_EXT };
     EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kSdrFormat }));
-    EXPECT_TRUE(IsSupportedOutputSurfaceFormat(
-        { .surfaceFormat = hdr10, .hdr10Available = true, .hdr10Active = true }));
+    EXPECT_TRUE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = hdr10, .hdr10Available = true, .hdr10Active = true }));
     EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = hdr10, .hdr10Available = true }));
     EXPECT_FALSE(IsSupportedOutputSurfaceFormat({ .surfaceFormat = kNonTenBitHdrFormat }));
 }
@@ -600,9 +788,7 @@ TEST(GpuFoundationTest, VulkanStraightAlphaCompositeSelectionNeverClaimsPremulti
     expect(
         VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
         VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR);
-    expect(
-        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
+    expect(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR, VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
     expect(VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR, std::nullopt);
 }
 #endif
@@ -704,8 +890,7 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             SCOPED_TRACE(testing::Message() << "type=" << typeValue << " intensity=" << static_cast<int>(intensity));
             LightFx::FrameSnapshot::ResolvedLight command;
             ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                static_cast<int32_t>(size / 2), static_cast<int32_t>(size / 2), size, size, type, intensity,
-                command));
+                static_cast<int32_t>(size / 2), static_cast<int32_t>(size / 2), size, size, type, intensity, command));
             ASSERT_EQ(command.destinationX, 0);
             ASSERT_EQ(command.destinationY, 0);
             ASSERT_EQ(command.width, size);
@@ -734,8 +919,7 @@ TEST(GpuFoundationTest, LightFxCommandRasterMatchesAllBakedFalloffsAndIntensityS
             for (uint32_t y = 0; y < size; y++)
                 std::transform(
                     falloffs.begin() + layerOffset + y * 256, falloffs.begin() + layerOffset + y * 256 + size,
-                    expected.begin() + static_cast<size_t>(y) * size,
-                    [intensity](std::byte falloff) {
+                    expected.begin() + static_cast<size_t>(y) * size, [intensity](std::byte falloff) {
                         return static_cast<uint8_t>(GetLightFxContribution(std::to_integer<uint8_t>(falloff), intensity));
                     });
             EXPECT_EQ(actual, expected);
@@ -764,19 +948,18 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
         };
         for (const auto [centreX, centreY] : centres)
         {
-            SCOPED_TRACE(testing::Message() << "type=" << static_cast<uint32_t>(type) << " centre=" << centreX << ','
-                                            << centreY);
+            SCOPED_TRACE(
+                testing::Message() << "type=" << static_cast<uint32_t>(type) << " centre=" << centreX << ',' << centreY);
             LightFx::FrameSnapshot::ResolvedLight clipped;
-            ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                centreX, centreY, canvasSize, canvasSize, type, 255, clipped));
+            ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(centreX, centreY, canvasSize, canvasSize, type, 255, clipped));
             const int32_t unclippedLeft = centreX - static_cast<int32_t>(size / 2);
             const int32_t unclippedTop = centreY - static_cast<int32_t>(size / 2);
             const int32_t expectedLeft = std::max(unclippedLeft, 0);
             const int32_t expectedTop = std::max(unclippedTop, 0);
-            const int32_t expectedRight = std::min(unclippedLeft + static_cast<int32_t>(size),
-                                                   static_cast<int32_t>(canvasSize));
-            const int32_t expectedBottom = std::min(unclippedTop + static_cast<int32_t>(size),
-                                                    static_cast<int32_t>(canvasSize));
+            const int32_t expectedRight = std::min(
+                unclippedLeft + static_cast<int32_t>(size), static_cast<int32_t>(canvasSize));
+            const int32_t expectedBottom = std::min(
+                unclippedTop + static_cast<int32_t>(size), static_cast<int32_t>(canvasSize));
             ASSERT_EQ(clipped.destinationX, expectedLeft);
             ASSERT_EQ(clipped.destinationY, expectedTop);
             ASSERT_EQ(clipped.width, static_cast<uint32_t>(expectedRight - expectedLeft));
@@ -784,8 +967,8 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
             ASSERT_EQ(clipped.sourceStride, size);
             ASSERT_EQ(
                 clipped.sourceOffset,
-                static_cast<uint32_t>((expectedTop - unclippedTop) * static_cast<int32_t>(size)
-                                      + expectedLeft - unclippedLeft));
+                static_cast<uint32_t>(
+                    (expectedTop - unclippedTop) * static_cast<int32_t>(size) + expectedLeft - unclippedLeft));
             std::vector<uint8_t> actual(static_cast<size_t>(canvasSize) * canvasSize);
             ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(canvasSize, canvasSize, { &clipped, 1 }, actual));
 
@@ -793,8 +976,7 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
             for (uint32_t y = 0; y < clipped.height; y++)
                 std::copy_n(
                     fullRaster.begin() + clipped.sourceOffset + y * clipped.sourceStride, clipped.width,
-                    expected.begin() + (static_cast<size_t>(clipped.destinationY) + y) * canvasSize
-                        + clipped.destinationX);
+                    expected.begin() + (static_cast<size_t>(clipped.destinationY) + y) * canvasSize + clipped.destinationX);
             EXPECT_EQ(actual, expected);
         }
     }
@@ -803,9 +985,8 @@ TEST(GpuFoundationTest, LightFxResolvedCommandsPreserveAllFourClippedEdges)
 TEST(GpuFoundationTest, LightFxNarrowCanvasUsesTheLegacyFlatClampedSourceStride)
 {
     LightFx::Init();
-    constexpr std::array smallCanvases = {
-        std::pair{ 1u, 1u }, std::pair{ 3u, 2u }, std::pair{ 7u, 5u }, std::pair{ 31u, 9u }
-    };
+    constexpr std::array smallCanvases = { std::pair{ 1u, 1u }, std::pair{ 3u, 2u }, std::pair{ 7u, 5u },
+                                           std::pair{ 31u, 9u } };
 
     for (const auto type : kLightTypes)
     {
@@ -814,21 +995,19 @@ TEST(GpuFoundationTest, LightFxNarrowCanvasUsesTheLegacyFlatClampedSourceStride)
         {
             LightFx::FrameSnapshot::ResolvedLight fullCommand;
             ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                static_cast<int32_t>(nativeSize / 2), static_cast<int32_t>(nativeSize / 2), nativeSize, nativeSize,
-                type, intensity, fullCommand));
+                static_cast<int32_t>(nativeSize / 2), static_cast<int32_t>(nativeSize / 2), nativeSize, nativeSize, type,
+                intensity, fullCommand));
             std::vector<uint8_t> fullRaster(static_cast<size_t>(nativeSize) * nativeSize);
-            ASSERT_TRUE(
-                LightFx::RasterizeResolvedLightCommands(nativeSize, nativeSize, { &fullCommand, 1 }, fullRaster));
+            ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(nativeSize, nativeSize, { &fullCommand, 1 }, fullRaster));
 
             for (const auto [width, height] : smallCanvases)
             {
-                SCOPED_TRACE(testing::Message() << "type=" << static_cast<uint32_t>(type)
-                                                << " intensity=" << static_cast<int>(intensity) << " canvas=" << width
-                                                << 'x' << height);
+                SCOPED_TRACE(
+                    testing::Message() << "type=" << static_cast<uint32_t>(type) << " intensity=" << static_cast<int>(intensity)
+                                       << " canvas=" << width << 'x' << height);
                 LightFx::FrameSnapshot::ResolvedLight narrow;
                 ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-                    static_cast<int32_t>(width / 2), static_cast<int32_t>(height / 2), width, height, type,
-                    intensity, narrow));
+                    static_cast<int32_t>(width / 2), static_cast<int32_t>(height / 2), width, height, type, intensity, narrow));
                 ASSERT_EQ(narrow.destinationX, 0);
                 ASSERT_EQ(narrow.destinationY, 0);
                 ASSERT_EQ(narrow.width, width);
@@ -849,8 +1028,8 @@ TEST(GpuFoundationTest, LightFxOverlapsSaturateExactlyAfterExceeding255)
     LightFx::Init();
     constexpr uint32_t size = 32;
     LightFx::FrameSnapshot::ResolvedLight command;
-    ASSERT_TRUE(LightFx::ResolveLightCommandForCanvas(
-        size / 2, size / 2, size, size, LightFx::LightType::lantern0, 255, command));
+    ASSERT_TRUE(
+        LightFx::ResolveLightCommandForCanvas(size / 2, size / 2, size, size, LightFx::LightType::lantern0, 255, command));
 
     std::vector<uint8_t> single(size * size);
     ASSERT_TRUE(LightFx::RasterizeResolvedLightCommands(size, size, { &command, 1 }, single));
@@ -945,4 +1124,53 @@ TEST(GpuFoundationTest, IntegratedTimingFieldsRemainExplicitlyOptional)
     EXPECT_FALSE(timings.hasGpuTimestamp);
     EXPECT_FALSE(timings.hasGpuPassTimestamps);
     EXPECT_FALSE(timings.hasPresentCallMeasurement);
+}
+
+TEST(GpuFoundationTest, MaterializationPrefixAllocationIncludesTheAcceptedPartialBlock)
+{
+    // Before kernel splitting the arena counted tiles plus entity records.
+    // A non-aligned maximum map now pads its tile boundary: this legal work
+    // count passed the rounded dispatch limit but overran that old allocation.
+    const auto tileCount = static_cast<uint32_t>(kWorldSurfaceMaximumRecordCount);
+    const uint32_t work = GetWorldEntityRecordBase(tileCount) + 4 * 65535u;
+    ASSERT_LE(GetWorldSurfaceDrawCount(work), kWorldSurfaceMaximumDrawCount);
+    ASSERT_GT(work, tileCount + 4 * 65536u);
+    EXPECT_LE(work, kWorldSurfacePrefixCapacity);
+    EXPECT_LE(work - 1, kWorldSurfacePrefixCapacity - 1);
+    // Every possible count in the final accepted block must have storage;
+    // the first count beyond it is rejected by the dispatch admission guard.
+    const auto first = (kWorldSurfaceMaximumDrawCount - 1) * kWorldSurfaceComputeBlockWidth + 1;
+    for (uint32_t count = first; count <= kWorldSurfacePrefixCapacity; ++count)
+    {
+        ASSERT_EQ(GetWorldSurfaceDrawCount(count), kWorldSurfaceMaximumDrawCount);
+        ASSERT_LT(count - 1, kWorldSurfacePrefixCapacity);
+    }
+    EXPECT_GT(GetWorldSurfaceDrawCount(kWorldSurfacePrefixCapacity + 1), kWorldSurfaceMaximumDrawCount);
+}
+
+TEST(GpuFoundationTest, WorldSurfaceDiagonalTraversalIsBijectiveAndMonotonicForRectangles)
+{
+    using namespace OpenRCT2::Ui::Gpu;
+    for (const auto dimensions : { Int2{ 1, 17 }, Int2{ 17, 1 }, Int2{ 32, 32 }, Int2{ 29, 7 }, Int2{ 7, 29 } })
+        for (uint32_t rotation = 0; rotation < 4; rotation++)
+        {
+            const auto width = uint32_t(dimensions.x), height = uint32_t(dimensions.y);
+            std::vector<bool> seen(width * height);
+            int32_t previous = -1;
+            for (uint32_t rank = 0; rank < width * height; rank++)
+            {
+                const auto source = GetWorldSurfaceSourceIndexForOrder(width, height, rank, rotation);
+                ASSERT_LT(source, seen.size());
+                EXPECT_FALSE(seen[source]);
+                seen[source] = true;
+                const auto x = source % width, y = source / width;
+                EXPECT_EQ(GetWorldSurfaceOrderIndex(width, height, x, y, rotation), rank);
+                const auto diagonal = rotation == 0 ? x + y
+                    : rotation == 1                 ? y + width - 1 - x
+                    : rotation == 2                 ? width - 1 - x + height - 1 - y
+                                                    : x + height - 1 - y;
+                EXPECT_GE(int32_t(diagonal), previous);
+                previous = int32_t(diagonal);
+            }
+        }
 }

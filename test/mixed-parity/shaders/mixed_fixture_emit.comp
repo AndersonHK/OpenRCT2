@@ -1,0 +1,149 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Rejected initial scalar-depth hypothesis, retained for diagnostic comparisons.
+// Test-only shader. Complete-scene admission remains closed.
+#include "peep_rules.glsl"
+#include "terrain_sprite_geometry.glsl"
+layout(local_size_x=64) in;
+const uint OWNERS=256u, PARTS=4u, CAPACITY=1024u, INDIRECT=1028u;
+struct StaticInstance { int x; int y; int z; uint id; uint definitionBase; uint objectKey; uint objectGeneration; uint present; };
+struct StaticPart {
+    uint image; uint palettes; uint effects; uint parentPart;
+    int ox; int oy; int oz; int attachedY;
+    int bx; int by; int bz; int sx; int sy; int sz; uint r0; uint r1;
+};
+struct StaticDefinition { uint objectKey; uint generation; uint rotation; uint count; StaticPart parts[4]; };
+struct Variant { int width; int height; int xOffset; int yOffset; uint asset; uint flags; int zoom; int shift; };
+struct Sprite { uint image; int width; int height; int xOffset; int yOffset; uint flags; uint r0; uint r1; Variant variants[2]; };
+layout(std430,binding=0) readonly buffer StaticInputs { StaticInstance records[]; } staticInputs;
+layout(std430,binding=1) readonly buffer StaticRules { StaticDefinition records[]; } staticRules;
+layout(std430,binding=2) readonly buffer PeepInputs { PeepRaw records[]; } peeps;
+layout(std430,binding=3) readonly buffer Descriptors { PeepAnimationDescriptor records[]; } descriptors;
+layout(std430,binding=4) readonly buffer Facts { PeepAnimationFact records[]; } facts;
+layout(std430,binding=5) readonly buffer Sprites { Sprite records[]; } sprites;
+layout(std430,binding=6) buffer Scratch { uint words[]; } scratch;
+layout(std430,binding=7) buffer Status { uint words[]; } status;
+layout(std430,binding=8) writeonly buffer Commands { uint words[]; } commands;
+layout(push_constant) uniform Parameters {
+    int x; int y; int width; int height; int clipX; int clipY; uint rotation; uint pass;
+    uint staticCount; uint peepCount; uint definitionCount; uint descriptorCount;
+    uint factCount; uint spriteCount; uint assetCount; uint outputCapacity;
+} camera;
+// Host: descriptors/sprites sorted uniquely; immutable tables/assets fully
+// leased. Static definitions have four consecutive rotation rows. Counts and
+// all static part fields are validated at object/fixture load. No live pointers.
+void fail(uint code) { atomicMax(status.words[0],code); }
+bool countsValid() {
+    return camera.rotation<4u && camera.width>0 && camera.width<=4096 && camera.height>0 && camera.height<=4096
+        && camera.x>=-1048576 && camera.x<=1048576 && camera.y>=-1048576 && camera.y<=1048576
+        && camera.staticCount<=OWNERS && camera.peepCount<=OWNERS-camera.staticCount
+        && camera.staticCount<=uint(staticInputs.records.length()) && camera.peepCount<=uint(peeps.records.length())
+        && camera.definitionCount<=uint(staticRules.records.length()) && camera.descriptorCount<=uint(descriptors.records.length())
+        && camera.factCount<=uint(facts.records.length()) && camera.spriteCount<=uint(sprites.records.length())
+        && camera.outputCapacity<=CAPACITY && uint(scratch.words.length())>=CAPACITY*15u
+        && uint(commands.words.length())>=camera.outputCapacity*15u;
+}
+int findSprite(uint image) {
+    uint lo=0u,hi=camera.spriteCount;
+    while(lo<hi) { uint mid=lo+(hi-lo)/2u; if(sprites.records[mid].image<image) lo=mid+1u; else hi=mid; }
+    if(lo>=camera.spriteCount || sprites.records[lo].image!=image) { fail(3u); return -1; }
+    return int(lo);
+}
+int findDescriptor(uint object) {
+    uint lo=0u,hi=camera.descriptorCount;
+    while(lo<hi) { uint mid=lo+(hi-lo)/2u; if(descriptors.records[mid].objectIndex<object) lo=mid+1u; else hi=mid; }
+    if(lo>=camera.descriptorCount || descriptors.records[lo].objectIndex!=object) { fail(1u); return -1; }
+    return int(lo);
+}
+// Experimental common scalar for every family. No category depth interval.
+// Original bounds-origin is the anchor; later proofs may reject this hypothesis.
+int scalarDepth(ivec3 anchor,uint owner,uint layer) {
+    ivec2 xy=terrainRotateXY(anchor.xy,camera.rotation);
+    int value=xy.x+xy.y+anchor.z;
+    if(value < -2048 || value > 2047) { fail(4u); return 0; }
+    return (value+2048)*1024 + int(owner*4u+layer);
+}
+void emit(uint owner,uint part,uint image,ivec2 projected,ivec3 depthAnchor,uint palettes,uint effects) {
+    int si=findSprite(image); if(si<0) return;
+    Sprite sprite=sprites.records[si]; Variant v=sprite.variants[0];
+    if(sprite.flags!=0u || v.flags>1u || v.zoom!=0 || v.shift!=0 || v.asset>=camera.assetCount) { fail(3u); return; }
+    // Zoom0 only; full viewport clipping has no legacy column phase ambiguity.
+    if(projected.x+sprite.xOffset+sprite.width<=camera.x || projected.x+sprite.xOffset>=camera.x+camera.width) return;
+    TerrainSpriteGeometry geometry=terrainSpriteGeometry(projected,ivec2(v.width,v.height),ivec2(v.xOffset,v.yOffset),
+        (v.flags&1u)!=0u,0,0,0,ivec4(camera.x,camera.y,camera.width,camera.height),ivec2(camera.clipX,camera.clipY));
+    if(geometry.visible==0u) return;
+    int depth=scalarDepth(depthAnchor,owner,part);
+    uint slot=owner*PARTS+part, word=slot*15u;
+    ivec4 clip=ivec4(camera.clipX,camera.clipY,camera.clipX+camera.width,camera.clipY+camera.height);
+    for(int i=0;i<4;i++) { scratch.words[word+uint(i)]=uint(clip[i]); scratch.words[word+4u+uint(i)]=uint(geometry.bounds[i]); }
+    scratch.words[word+8u]=uint(geometry.texelOffset.x); scratch.words[word+9u]=uint(geometry.texelOffset.y);
+    scratch.words[word+10u]=v.asset; scratch.words[word+11u]=palettes; scratch.words[word+12u]=effects;
+    scratch.words[word+13u]=uint(depth); scratch.words[word+14u]=floatBitsToUint(geometry.sampleStep);
+    status.words[4u+slot]=1u;
+}
+void emitStatic(uint owner) {
+    StaticInstance raw=staticInputs.records[owner]; if(raw.present==0u) return;
+    if(raw.present!=1u || raw.definitionBase>camera.definitionCount || 4u>camera.definitionCount-raw.definitionBase
+        || raw.objectGeneration==0u || any(lessThan(ivec3(raw.x,raw.y,raw.z),ivec3(-1024))) || any(greaterThan(ivec3(raw.x,raw.y,raw.z),ivec3(1024)))) { fail(1u); return; }
+    StaticDefinition rule=staticRules.records[raw.definitionBase+camera.rotation];
+    if(rule.objectKey!=raw.objectKey || rule.generation!=raw.objectGeneration || rule.rotation!=camera.rotation || rule.count>4u) { fail(1u); return; }
+    for(uint part=0u;part<rule.count;part++) {
+        StaticPart p=rule.parts[part]; StaticPart anchor=p;
+        if(p.parentPart!=0xffffffffu) {
+            if(p.parentPart>=part || rule.parts[p.parentPart].parentPart!=0xffffffffu) { fail(1u); return; }
+            anchor=rule.parts[p.parentPart];
+        }
+        ivec2 pos=terrainProjectParent(ivec2(raw.x,raw.y),ivec3(anchor.ox,anchor.oy,raw.z+anchor.oz),camera.rotation);
+        if(p.parentPart!=0xffffffffu) pos.y+=p.attachedY;
+        ivec3 begin,end;
+        terrainParentPaintBounds(ivec2(raw.x,raw.y),ivec3(anchor.bx,anchor.by,raw.z+anchor.bz),
+            ivec3(anchor.sx,anchor.sy,anchor.sz),camera.rotation,begin,end);
+        emit(owner,part,p.image,pos,begin,p.palettes,p.effects);
+    }
+}
+void emitPeep(uint index,uint owner) {
+    PeepRaw raw=peeps.records[index]; if((raw.flags&1u)==0u) return;
+    // No interpolation, staff lights or special invisible/void colours in this fixture.
+    if((raw.flags&4u)!=0u) { fail(1u); return; }
+    int di=findDescriptor(raw.objectIndex); if(di<0) return;
+    PeepAnimationDescriptor descriptor=descriptors.records[di];
+    uint fi=peepFactAddress(raw,descriptor,camera.factCount); if(fi==0xffffffffu) { fail(1u); return; }
+    PeepSelection s=peepSelect(raw,descriptor,facts.records[fi],camera.rotation,camera.factCount);
+    PeepProjection p=peepProject(raw,camera.rotation,0);
+    if(s.error!=0u || p.error!=0u || s.parentPrimary>=54u || s.parentSecondary>=54u || s.childPrimary>=54u) { fail(1u); return; }
+    if(camera.y+camera.height<=p.screenY-int(raw.heightMin) || p.screenY+int(raw.heightMax)<=camera.y
+        || camera.x+camera.width<=p.screenX-int(raw.width) || p.screenX+int(raw.width)<=camera.x) return;
+    uint palette=(s.parentPrimary+1u) | ((s.parentSecondary+1u)<<8u) | (s.parentRemapCount<<24u);
+    emit(owner,0u,s.parentImage,ivec2(p.drawX,p.drawY),ivec3(p.x,p.y,p.z),palette,s.parentRemapCount);
+    if(s.childPresent!=0u) emit(owner,1u,s.childImage,ivec2(p.drawX,p.drawY),ivec3(p.x,p.y,p.z),
+        (s.childPrimary+1u) | (1u<<24u),1u);
+    // Child-only visibility still keeps the same scalar owner anchor. Picking
+    // metadata must report promotion separately before admission is enabled.
+}
+void main() {
+    uint index=gl_GlobalInvocationID.x;
+    if(uint(status.words.length())<INDIRECT+4u) return; // Host must reject this layout before recording.
+    if(camera.pass==1u) {
+        if(index!=0u) return;
+        status.words[INDIRECT]=4u; status.words[INDIRECT+1u]=0u;
+        status.words[INDIRECT+2u]=0u; status.words[INDIRECT+3u]=0u;
+        if(!countsValid() || status.words[0]!=0u) return;
+        uint count=0u;
+        for(uint slot=0u;slot<(camera.staticCount+camera.peepCount)*PARTS;slot++) if(status.words[4u+slot]!=0u) count++;
+        status.words[1]=count;
+        if(count>camera.outputCapacity) { fail(2u); return; }
+        // Single bounded 1024-slot stable compaction, not a population-scale sorter.
+        uint outputIndex=0u;
+        for(uint slot=0u;slot<(camera.staticCount+camera.peepCount)*PARTS;slot++) if(status.words[4u+slot]!=0u) {
+            for(uint word=0u;word<15u;word++) commands.words[outputIndex*15u+word]=scratch.words[slot*15u+word];
+            outputIndex++;
+        }
+        status.words[INDIRECT+1u]=count;
+        return;
+    }
+    if(camera.pass!=0u || !countsValid()) { fail(1u); return; }
+    if(index>=camera.staticCount+camera.peepCount) return;
+    for(uint part=0u;part<PARTS;part++) status.words[4u+index*PARTS+part]=0u;
+    if(index<camera.staticCount) emitStatic(index); else emitPeep(index-camera.staticCount,index);
+}
+

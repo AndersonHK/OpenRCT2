@@ -2920,11 +2920,6 @@ STR_5871    :Desativar envelhecimento de plantas
 STR_5872    :Desabilita o envelhecimento das plantas para que elas não murchem.
 STR_5873    :Permitir corrente de elevação em todas{NEWLINE}as peças de pista
 STR_5874    :Permite que qualquer parte da pista tenha corrente de elevação
-STR_5875    :Motor gráfico:
-STR_5876    :Motor gráfico que será usado para renderizar o jogo.
-STR_5877    :Software
-STR_5878    :Software (exibição por hardware)
-STR_5879    :OpenGL (experimental)
 STR_5880    :Somente selecionados
 STR_5881    :Somente não selecionados
 STR_5882    :Moeda Personalizada

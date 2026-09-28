@@ -85,9 +85,9 @@ namespace OpenRCT2::GameActions
 
         if (!_name.empty())
         {
-            banner->flags.unset(BannerFlag::linkedToRide);
-            banner->rideIndex = RideId::GetNull();
-            banner->text = _name;
+            banner->setFlag(BannerFlag::linkedToRide, false);
+            banner->setRideIndex(RideId::GetNull());
+            banner->setText(_name);
         }
         else
         {
@@ -95,15 +95,15 @@ namespace OpenRCT2::GameActions
             RideId rideIndex = BannerGetClosestRideIndex({ banner->position.toCoordsXY(), 16 });
             if (rideIndex.IsNull())
             {
-                banner->flags.unset(BannerFlag::linkedToRide);
-                banner->rideIndex = RideId::GetNull();
-                banner->text = {};
+                banner->setFlag(BannerFlag::linkedToRide, false);
+                banner->setRideIndex(RideId::GetNull());
+                banner->setText({});
             }
             else
             {
-                banner->flags.set(BannerFlag::linkedToRide);
-                banner->rideIndex = rideIndex;
-                banner->text = {};
+                banner->setFlag(BannerFlag::linkedToRide, true);
+                banner->setRideIndex(rideIndex);
+                banner->setText({});
             }
         }
 

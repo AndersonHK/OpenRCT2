@@ -185,6 +185,11 @@ void X8DrawingEngine::EndDraw()
     _drawingContext->EndDraw();
 }
 
+void X8DrawingEngine::AbortDraw()
+{
+    _drawingContext->EndDraw();
+}
+
 void X8DrawingEngine::PaintWindows()
 {
     if (gPaintForceRedraw)

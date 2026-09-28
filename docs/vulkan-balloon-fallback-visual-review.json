@@ -1,0 +1,2567 @@
+{
+  "schema": 1,
+  "status": "pass-bounded-fallback-review",
+  "reviewer": "/root/balloon_visual",
+  "processes": 18,
+  "captures": 36.0,
+  "manuallyReviewedPairs": [
+    {
+      "case": "smooth",
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-smooth-01/comparisons/baseline-0/reference.png",
+          "sha256": "ce22056df3b1c47efc8313916e5f41319f639806959130dba455c3f0e3b4ce69"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-smooth-01/comparisons/baseline-0/candidate.png",
+          "sha256": "ce22056df3b1c47efc8313916e5f41319f639806959130dba455c3f0e3b4ce69"
+        }
+      ],
+      "observation": "Intact/popped balloon grid and dense center remain visible; grass, map border and UI match with no double sprites."
+    },
+    {
+      "case": "hide-entities",
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-hide-entities-01/comparisons/baseline-0/reference.png",
+          "sha256": "9bd2f5871c0c2210aa92d574617b0c1264ae24204fbad66bf8408570b0a4e1bf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-hide-entities-01/comparisons/baseline-0/candidate.png",
+          "sha256": "9bd2f5871c0c2210aa92d574617b0c1264ae24204fbad66bf8408570b0a4e1bf"
+        }
+      ],
+      "observation": "No balloons visible; matching unbroken grass, map clipping and UI. Hidden output is intentional for this mode."
+    },
+    {
+      "case": "path-issues",
+      "images": [
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-path-issues-01/comparisons/baseline-0/reference.png",
+          "sha256": "9bd2f5871c0c2210aa92d574617b0c1264ae24204fbad66bf8408570b0a4e1bf"
+        },
+        {
+          "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-path-issues-01/comparisons/baseline-0/candidate.png",
+          "sha256": "9bd2f5871c0c2210aa92d574617b0c1264ae24204fbad66bf8408570b0a4e1bf"
+        }
+      ],
+      "observation": "No balloons visible; matching unbroken grass, map clipping and UI. Hidden output is intentional for this mode."
+    }
+  ],
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-smooth-01",
+      "case": "smooth",
+      "lane": "frozen",
+      "freshRepeat": false,
+      "summarySha256": "3e71b046151273a676e20f8b1e617439e4c58486cfd822a2da2a519b96ff51f4",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "381b9c6c58ed53c4b3624fba10e92a9dd45b346a527880e1e003df84aa9d9904",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "cd026180f84f02f6b9c1e521d1b79862b6ac9b2751fb797a45f19aa02f57b5bc",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-smooth-02",
+      "case": "smooth",
+      "lane": "frozen",
+      "freshRepeat": true,
+      "summarySha256": "582ee4f0b6f921715ad2ad21256854ed3af5f20ac2a41e5c7af410b7d670d1b8",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-smooth-01",
+          "summarySha256": "3e71b046151273a676e20f8b1e617439e4c58486cfd822a2da2a519b96ff51f4"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "381b9c6c58ed53c4b3624fba10e92a9dd45b346a527880e1e003df84aa9d9904",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "cd026180f84f02f6b9c1e521d1b79862b6ac9b2751fb797a45f19aa02f57b5bc",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-smooth-01",
+      "case": "smooth",
+      "lane": "software",
+      "freshRepeat": false,
+      "summarySha256": "acbef4d11adea8290f50c973ab4e5b98a6863e2bfb7d1e82aa3eb6e472fcf587",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-smooth-01",
+          "summarySha256": "3e71b046151273a676e20f8b1e617439e4c58486cfd822a2da2a519b96ff51f4"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "381b9c6c58ed53c4b3624fba10e92a9dd45b346a527880e1e003df84aa9d9904",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "cd026180f84f02f6b9c1e521d1b79862b6ac9b2751fb797a45f19aa02f57b5bc",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-smooth-02",
+      "case": "smooth",
+      "lane": "software",
+      "freshRepeat": true,
+      "summarySha256": "c98edd98294b74bd886d2e528c5e186ee81fe0db96d431855d84dcbdc00d25f2",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-software-smooth-01",
+          "summarySha256": "acbef4d11adea8290f50c973ab4e5b98a6863e2bfb7d1e82aa3eb6e472fcf587"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "381b9c6c58ed53c4b3624fba10e92a9dd45b346a527880e1e003df84aa9d9904",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "cd026180f84f02f6b9c1e521d1b79862b6ac9b2751fb797a45f19aa02f57b5bc",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-smooth-01",
+      "case": "smooth",
+      "lane": "vulkan",
+      "freshRepeat": false,
+      "summarySha256": "ee18604034094d0e5de775c5ac99b58323c19d8ff4aa1a2a16bda5e8847fc41c",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-smooth-01",
+          "summarySha256": "3e71b046151273a676e20f8b1e617439e4c58486cfd822a2da2a519b96ff51f4"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "15a8674efee12af837ab162af9d34280826906ac687122537b7ca771dfc70f53",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 44,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "39bfdaa4bc6f17b57923a3ed7a8b865fb240aeef1612cc3852f6e9f1b8b4d657",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 44,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "489994b715b53c26d9d52f733e40062b589a3f700c4d8f03af20d01d2c0c254f"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-smooth-02",
+      "case": "smooth",
+      "lane": "vulkan",
+      "freshRepeat": true,
+      "summarySha256": "0a086c62a48d26e799a78a534a39bcb19593300e7d321e0737297d49b8cb251c",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-vulkan-smooth-01",
+          "summarySha256": "ee18604034094d0e5de775c5ac99b58323c19d8ff4aa1a2a16bda5e8847fc41c"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "15a8674efee12af837ab162af9d34280826906ac687122537b7ca771dfc70f53",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 44,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+          "indexedSha256": "ad3a223e310c7a27c72bf85dd4550af633324df23641a3b09c1b4781791728d1",
+          "reportSha256": "39bfdaa4bc6f17b57923a3ed7a8b865fb240aeef1612cc3852f6e9f1b8b4d657",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 0,
+          "landscapeSmoothing": true,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 44,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "ad30df1b246dfa9557ae55b93b71b960629f88ae935cc3acf0effaec69454e9d"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-hide-entities-01",
+      "case": "hide-entities",
+      "lane": "frozen",
+      "freshRepeat": false,
+      "summarySha256": "0c36fd5bc01af87d36ad3c5c8e6bb774748e2ab313f71f6c064a0f04c59e86c3",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "1c3528a9b8eef051b747eb81a8487e3475df0fd357a33ac6f037f8576464fade",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "713d4889d66fa991fceaa0600fe425b27b707b8fd56093df8cf5e5ad4095cac3",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-hide-entities-02",
+      "case": "hide-entities",
+      "lane": "frozen",
+      "freshRepeat": true,
+      "summarySha256": "612d2867136d6e276a04590b533bee8ac996770acffc0ce3cff3e56009deba39",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-hide-entities-01",
+          "summarySha256": "0c36fd5bc01af87d36ad3c5c8e6bb774748e2ab313f71f6c064a0f04c59e86c3"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "1c3528a9b8eef051b747eb81a8487e3475df0fd357a33ac6f037f8576464fade",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "713d4889d66fa991fceaa0600fe425b27b707b8fd56093df8cf5e5ad4095cac3",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-hide-entities-01",
+      "case": "hide-entities",
+      "lane": "software",
+      "freshRepeat": false,
+      "summarySha256": "0529b0283332f4206b4128e40c0defd8fd597088df35314c3774da3d9cad8c37",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-hide-entities-01",
+          "summarySha256": "0c36fd5bc01af87d36ad3c5c8e6bb774748e2ab313f71f6c064a0f04c59e86c3"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "1c3528a9b8eef051b747eb81a8487e3475df0fd357a33ac6f037f8576464fade",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "713d4889d66fa991fceaa0600fe425b27b707b8fd56093df8cf5e5ad4095cac3",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-hide-entities-02",
+      "case": "hide-entities",
+      "lane": "software",
+      "freshRepeat": true,
+      "summarySha256": "5ed93e9770dfe9cedc17a89affe31b8c8ce02f8db0b1728e9bfd4a2d883858f6",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-software-hide-entities-01",
+          "summarySha256": "0529b0283332f4206b4128e40c0defd8fd597088df35314c3774da3d9cad8c37"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "1c3528a9b8eef051b747eb81a8487e3475df0fd357a33ac6f037f8576464fade",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "713d4889d66fa991fceaa0600fe425b27b707b8fd56093df8cf5e5ad4095cac3",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-hide-entities-01",
+      "case": "hide-entities",
+      "lane": "vulkan",
+      "freshRepeat": false,
+      "summarySha256": "e327d6f32ecca8efa3994277c6b5afacd298a64fa5807998cca0f41afc59e8a7",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-hide-entities-01",
+          "summarySha256": "0c36fd5bc01af87d36ad3c5c8e6bb774748e2ab313f71f6c064a0f04c59e86c3"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "3f027866bb8af9c1bac94a21168ee813ac3ce4d8a22c5009984cfb0295156d1b",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "b667854a6bf478b2d2fe30578679402a2cf4df83c1bbf8eb1a73e47353c00932",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "413ed2c06d8740abb856e51b1baca0fca2d0acde5acf2f69c4e7292aef1d217b"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-hide-entities-02",
+      "case": "hide-entities",
+      "lane": "vulkan",
+      "freshRepeat": true,
+      "summarySha256": "f01558e60871c51d486ccfef25854fa05a967665ca7f7f4f5f2bb52988cc8ca4",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-vulkan-hide-entities-01",
+          "summarySha256": "e327d6f32ecca8efa3994277c6b5afacd298a64fa5807998cca0f41afc59e8a7"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "3f027866bb8af9c1bac94a21168ee813ac3ce4d8a22c5009984cfb0295156d1b",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "b667854a6bf478b2d2fe30578679402a2cf4df83c1bbf8eb1a73e47353c00932",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 16384,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "917e10b3c6c064611d147c066b1f70373afdb89f1f9cc308f915fddc8caadad3"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-path-issues-01",
+      "case": "path-issues",
+      "lane": "frozen",
+      "freshRepeat": false,
+      "summarySha256": "b73041484935c709ec7e6cf9f88947bab041ef2876ac1d568b0cfa049554cafd",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "246acacfa6be16c0c80c045a110ea5997b42f4b98aae49560a0c120e43303269",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "936cb2966f7d0031c8f82b78cc92285a448815117dbc9eab7dec76cebffc77aa",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-frozen-path-issues-02",
+      "case": "path-issues",
+      "lane": "frozen",
+      "freshRepeat": true,
+      "summarySha256": "ebe08b21543bf4e0901ca1622120c0c3ebd9c8c9c38de4eae2c5a06f294a615e",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-18\\receipt.json",
+        "sha256": "41725fcf8b9edf4a98ec4296fc34fd2c62d58473c589ce6ad4044a60d0f412fb"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-path-issues-01",
+          "summarySha256": "b73041484935c709ec7e6cf9f88947bab041ef2876ac1d568b0cfa049554cafd"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "246acacfa6be16c0c80c045a110ea5997b42f4b98aae49560a0c120e43303269",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "936cb2966f7d0031c8f82b78cc92285a448815117dbc9eab7dec76cebffc77aa",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-path-issues-01",
+      "case": "path-issues",
+      "lane": "software",
+      "freshRepeat": false,
+      "summarySha256": "51f8952a5365f262214c2a4ab016254caeabdb4177faaaabaf9191fdc5c10028",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-path-issues-01",
+          "summarySha256": "b73041484935c709ec7e6cf9f88947bab041ef2876ac1d568b0cfa049554cafd"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "246acacfa6be16c0c80c045a110ea5997b42f4b98aae49560a0c120e43303269",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "936cb2966f7d0031c8f82b78cc92285a448815117dbc9eab7dec76cebffc77aa",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-software-path-issues-02",
+      "case": "path-issues",
+      "lane": "software",
+      "freshRepeat": true,
+      "summarySha256": "488e3ce7b9e982fe3993a23abd4f075699b5dd4b8ec5434cd532cf67afa23be5",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-software-path-issues-01",
+          "summarySha256": "51f8952a5365f262214c2a4ab016254caeabdb4177faaaabaf9191fdc5c10028"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "246acacfa6be16c0c80c045a110ea5997b42f4b98aae49560a0c120e43303269",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "936cb2966f7d0031c8f82b78cc92285a448815117dbc9eab7dec76cebffc77aa",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": null,
+          "gpuAdmission": null,
+          "worldSurfaceAdmission": "unavailable-software"
+        }
+      ],
+      "validation": null
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-path-issues-01",
+      "case": "path-issues",
+      "lane": "vulkan",
+      "freshRepeat": false,
+      "summarySha256": "d3214d627f41ab206998348632943f6b398bc69327369e6a825137f1949d131e",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-frozen-path-issues-01",
+          "summarySha256": "b73041484935c709ec7e6cf9f88947bab041ef2876ac1d568b0cfa049554cafd"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "30e4acf85d8980180b126161a88f7a2f5eccbe977946ee8163d5c9de5a868142",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "70bde4dd0a6a8bfe19c60fad979e07eb03cae953ce064a1ba5134c22c6b572f7",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "99c13d24cc71d0e90a1dbf766ab00c535f49a1c643097cdc3f5f9f93744632b1"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-balloon-fallback-vulkan-path-issues-02",
+      "case": "path-issues",
+      "lane": "vulkan",
+      "freshRepeat": true,
+      "summarySha256": "a184584c41beeab6173d5fe4a40bb1492ffb1044021e1db46e4a8cb8e13345dd",
+      "status": "pass",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-30\\receipt.json",
+        "sha256": "a4e892b116aa3af0e899f1a9f689dfa23ed48078d85130fa13bf67752e609c7a"
+      },
+      "references": [
+        {
+          "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-balloon-fallback-vulkan-path-issues-01",
+          "summarySha256": "d3214d627f41ab206998348632943f6b398bc69327369e6a825137f1949d131e"
+        }
+      ],
+      "samples": [
+        {
+          "name": "baseline-0",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "30e4acf85d8980180b126161a88f7a2f5eccbe977946ee8163d5c9de5a868142",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 3,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        },
+        {
+          "name": "baseline-1",
+          "rgbaSha256": "acfb9267864362e9e289e6f5884c33ed513a4c050f2d9922480c962980edcb18",
+          "indexedSha256": "e89653c23a45c1ce46236ff7db5dea0343fbba9336797ea4fd7a14d24f8b2b10",
+          "reportSha256": "70bde4dd0a6a8bfe19c60fad979e07eb03cae953ce064a1ba5134c22c6b572f7",
+          "cameraContract": {
+            "afterPaintPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "afterWarmupPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "expectedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "loadedPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                3775
+              ],
+              "zoom": 0
+            },
+            "loadedTargetPose": {
+              "rotation": 0,
+              "viewPosition": [
+                -480,
+                32
+              ],
+              "zoom": 0
+            },
+            "paintOrdinal": 4,
+            "version": 2,
+            "warmupPaints": 2
+          },
+          "viewportFlags": 262144,
+          "landscapeSmoothing": false,
+          "nativeBalloonFixture": {
+            "cpuBalloonSpriteCalls": 0,
+            "sourceUploadBytes": 0,
+            "spriteUploadBytes": 0,
+            "submittedViewports": 0,
+            "uploadEpoch": 0,
+            "uploadGpuRevision": 0,
+            "uploadSequence": 0,
+            "viewports": 0
+          },
+          "gpuAdmission": false,
+          "worldSurfaceAdmission": "ordinary-paint"
+        }
+      ],
+      "validation": {
+        "activated": true,
+        "diagnostics": [],
+        "logSha256": "d9b047bac4cc9c60e472b9ab03fd5c780120b0480b424519abc0ec101df27124"
+      }
+    }
+  ],
+  "exceptions": [],
+  "globalGatePQualified": false,
+  "scope": "Three excluded-mode fallback controls with explicit native-attempt/decline, frozen/current/Vulkan exact pixels and independent fresh repeats. No broad fallback, native coverage expansion or throughput claim."
+}

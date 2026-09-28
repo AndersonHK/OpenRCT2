@@ -9,16 +9,18 @@
 
 #pragma once
 
-#include <atomic>
+#include "../profiling/SimulationAttribution.h"
+
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
 #include <functional>
-#include <mutex>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -41,6 +43,7 @@ private:
         std::condition_variable Complete;
         size_t Remaining = 0;
         std::exception_ptr FirstError{};
+        std::unique_ptr<OpenRCT2::SimulationAttribution::Workers> Attribution;
     };
 
     bool _shouldStop = false;
@@ -100,8 +103,8 @@ public:
     void Join(std::function<void()> reportFn = nullptr);
     // ParallelFor waits on its own task group; unrelated producers remain in flight. Nested worker calls execute serially.
     void ParallelFor(
-        size_t count, const std::function<void(size_t)>& workFn, size_t grainSize = 1,
-        std::function<void()> reportFn = nullptr, TaskPriority priority = TaskPriority::normal);
+        size_t count, const std::function<void(size_t)>& workFn, size_t grainSize = 1, std::function<void()> reportFn = nullptr,
+        TaskPriority priority = TaskPriority::normal);
     [[nodiscard]] TaskGroup CreateTaskGroup();
     void AddTask(TaskGroup& group, std::function<void()> workFn, TaskPriority priority = TaskPriority::normal);
     void Wait(TaskGroup& group);
@@ -109,8 +112,8 @@ public:
 
 private:
     void EnqueueTask(
-        std::function<void()> workFn, std::function<void()> completionFn,
-        std::shared_ptr<TaskGroupState> group = nullptr, TaskPriority priority = TaskPriority::normal);
+        std::function<void()> workFn, std::function<void()> completionFn, std::shared_ptr<TaskGroupState> group = nullptr,
+        TaskPriority priority = TaskPriority::normal);
     [[nodiscard]] bool HasPendingTasks() const noexcept;
     TaskData TakeNextTask();
     void JoinInternal(std::function<void()> reportFn);

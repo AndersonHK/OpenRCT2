@@ -2,6 +2,11 @@
 
 ## Scope
 
+The [two-wide congestion behavior](guest-services-and-boarding.md#crowded-two-wide-paths) uses exact field distances to
+validate short lateral-plus-forward maneuvers. An individual lateral step can increase distance by one; the complete
+three-step maneuver must reduce it. Ordinary steps and the committed forward steps still decrease distance. This guest-local
+policy does not modify the shared fields or their worker preparation contract.
+
 `MapPathRouteCache` shares the stable part of repeated walking searches to concrete park entrances, resolved ride entrances,
 and validated station-less shop or facility track terminals. It does not replace guest routing policy. A field answers one
 narrow question: from an exact cached path node, which permitted edge reduces the path-tile distance to this concrete target?

@@ -1,0 +1,36 @@
+#version 450
+// Auxiliary bitmap API only. One invocation visits at most 8192 pixels in legacy row-major order.
+// Consecutive dispatches use a storage barrier. Packed uint avoids requiring R8 storage-image support.
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0, std430) coherent volatile buffer Pixels { uint pixels[]; };
+layout(set = 0, binding = 1, std430) readonly buffer Remap { uint remap[]; };
+layout(push_constant) uniform Push
+{
+    uint stride, sourceX, sourceY, destinationX, destinationY, width, first, count, flags;
+} pc;
+
+uint readPixel(uint offset)
+{
+    return (pixels[offset >> 2u] >> ((offset & 3u) * 8u)) & 255u;
+}
+
+void main()
+{
+    for (uint n = 0u; n < min(pc.count, 8192u); ++n)
+    {
+        uint pixel = pc.first + n;
+        uint x = pixel % pc.width, y = pixel / pc.width;
+        uint source = (pc.sourceY + y) * pc.stride + pc.sourceX + x;
+        uint destination = (pc.destinationY + y) * pc.stride + pc.destinationX + x;
+        uint index = readPixel(source);
+        if ((pc.flags & 1u) != 0u && index == 0u)
+            continue;
+        uint value = (remap[index >> 2u] >> ((index & 3u) * 8u)) & 255u;
+        if ((pc.flags & 2u) != 0u && value == 0u)
+            continue;
+        uint shift = (destination & 3u) * 8u;
+        uint word = destination >> 2u;
+        pixels[word] = (pixels[word] & ~(255u << shift)) | (value << shift);
+        memoryBarrierBuffer();
+    }
+}

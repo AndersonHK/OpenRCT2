@@ -11,14 +11,19 @@
 
 #include "../Context.h"
 #include "../Diagnostic.h"
+#include "../OpenRCT2.h"
 #include "../ParkImporter.h"
 #include "../audio/Audio.h"
 #include "../core/Console.hpp"
 #include "../core/EnumUtils.hpp"
 #include "../core/JobPool.h"
+#include "../drawing/RetainedPeepState.h"
 #include "../localisation/StringIds.h"
 #include "../ride/Ride.h"
 #include "../ride/RideAudio.h"
+#include "../world/PathPresentation.h"
+#include "../world/TerrainPresentation.h"
+#include "../world/WorldObjectPresentation.h"
 #include "BannerSceneryEntry.h"
 #include "LargeSceneryEntry.h"
 #include "Object.h"
@@ -26,6 +31,7 @@
 #include "ObjectList.h"
 #include "ObjectRepository.h"
 #include "PathAdditionEntry.h"
+#include "PeepAnimationsObject.h"
 #include "RideObject.h"
 #include "SceneryGroupObject.h"
 #include "SceneryObject.h"
@@ -35,11 +41,30 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cstdlib>
 #include <memory>
+#include <stdexcept>
+#include <string_view>
 #include <unordered_set>
 
 namespace OpenRCT2
 {
+    namespace
+    {
+        // Process-unique across manager replacement and catalog recovery. Never wrap into a held old epoch.
+        std::atomic<uint64_t> _nextPeepAnimationCatalogEpoch{ 1 };
+        uint64_t NextPeepAnimationCatalogEpoch()
+        {
+            auto epoch = _nextPeepAnimationCatalogEpoch.load(std::memory_order_relaxed);
+            do
+            {
+                if (epoch == UINT64_MAX)
+                    throw std::overflow_error("Peep animation catalog epoch exhausted");
+            } while (!_nextPeepAnimationCatalogEpoch.compare_exchange_weak(epoch, epoch + 1, std::memory_order_relaxed));
+            return epoch;
+        }
+    } // namespace
 
     /**
      * Represents an object that is to be loaded or is loaded and ready
@@ -63,17 +88,170 @@ namespace OpenRCT2
         // Used to return a safe empty vector back from GetAllRideEntries, can be removed when std::span is available
         std::vector<ObjectEntryIndex> _nullRideTypeEntries;
 
+        // Catalog publication belongs to the existing authoritative object mutation boundary.
+        // Readers take an owned snapshot once; no frame-time object or slot scan is needed.
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> _peepAnimationCatalog;
+        std::vector<uint32_t> _peepAnimationGenerations;
+        uint64_t _peepAnimationSequence{};
+        uint32_t _peepAnimationMutationDepth{};
+        bool _peepAnimationMutationFailed{};
+        bool _peepAnimationCatalogAvailable{};
+        bool _peepAnimationShutdown{};
+
+        void RefreshPeepAnimationCatalog() noexcept
+        {
+            // Optional renderer metadata must not turn otherwise successful object loads into simulation failures.
+            // A missing catalog closes retained admission; it is never treated as an empty successful publication.
+            _peepAnimationCatalogAvailable = false;
+            if (gOpenRCT2NoGraphics)
+            {
+                // Image-free simulation intentionally has no sprite table. A renderer catalog is
+                // unavailable in this mode, not malformed object data to report on every mutation.
+                _peepAnimationCatalog.reset();
+                return;
+            }
+            try
+            {
+                if (_peepAnimationSequence == UINT64_MAX)
+                    throw std::overflow_error("Peep animation catalog sequence exhausted");
+                auto generations = _peepAnimationGenerations;
+                const auto& objects = GetObjectList(ObjectType::peepAnimations);
+                if (generations.size() < objects.size())
+                    generations.resize(objects.size());
+                std::vector<Drawing::RetainedPeepAnimationChange> changes;
+                changes.reserve(objects.size());
+                for (size_t slot = 0; slot < objects.size(); ++slot)
+                {
+                    const auto* object = objects[slot];
+                    if (object == nullptr)
+                        continue;
+                    if (generations[slot] == UINT32_MAX)
+                        throw std::overflow_error("Peep animation slot generation exhausted");
+                    const auto generation = ++generations[slot];
+                    changes.push_back(
+                        { static_cast<uint32_t>(slot), generation,
+                          Drawing::CaptureRetainedPeepAnimationObject(
+                              *static_cast<const PeepAnimationsObject*>(object), static_cast<uint32_t>(slot), generation) });
+                }
+                // A fresh complete epoch also represents disappeared slots. Old readers keep their immutable facts.
+                // Conservatively refresh all loaded peep slots only at an object mutation, including alias/rebind/reset.
+                auto catalog = Drawing::PublishRetainedPeepAnimationCatalog(
+                    nullptr, NextPeepAnimationCatalogEpoch(), _peepAnimationSequence + 1, true, changes);
+                _peepAnimationGenerations = std::move(generations);
+                _peepAnimationSequence = catalog->sequence;
+                _peepAnimationCatalog = std::move(catalog);
+                _peepAnimationCatalogAvailable = true;
+            }
+            catch (const std::exception& error)
+            {
+                _peepAnimationCatalog.reset();
+                LOG_WARNING("Retained peep animation catalog unavailable: %s", error.what());
+            }
+        }
+
+        static bool IsWorldMaterialType(ObjectType type)
+        {
+            return type == ObjectType::paths || type == ObjectType::footpathSurface || type == ObjectType::footpathRailings
+                || type == ObjectType::pathAdditions || type == ObjectType::smallScenery || type == ObjectType::largeScenery
+                || type == ObjectType::walls || type == ObjectType::banners || type == ObjectType::ride
+                || type == ObjectType::station || type == ObjectType::parkEntrance;
+        }
+        // Covers slot layout changes as well as image allocation, including exceptional exits.
+        class WorldMaterialMutation final
+        {
+            bool _active;
+            bool _invalidate;
+
+        public:
+            explicit WorldMaterialMutation(bool active = true, bool invalidate = true)
+                : _active(active)
+                , _invalidate(invalidate)
+            {
+                if (_active)
+                {
+                    if (_invalidate)
+                    {
+                        AdvancePathObjectRevision();
+                        AdvanceWorldObjectRevision();
+                    }
+                    gPathObjectMutationDepth.fetch_add(1, std::memory_order_acq_rel);
+                }
+            }
+            ~WorldMaterialMutation()
+            {
+                if (_active)
+                {
+                    if (_invalidate)
+                    {
+                        AdvancePathObjectRevision();
+                        AdvanceWorldObjectRevision();
+                    }
+                    gPathObjectMutationDepth.fetch_sub(1, std::memory_order_release);
+                }
+            }
+        };
+
+        class PeepAnimationMutation final
+        {
+            ObjectManager& _owner;
+            bool _active;
+            bool _complete{};
+
+        public:
+            explicit PeepAnimationMutation(ObjectManager& owner, bool active = true) noexcept
+                : _owner(owner)
+                , _active(active && !owner._peepAnimationShutdown)
+            {
+                if (!_active)
+                    return;
+                if (_owner._peepAnimationMutationDepth++ == 0)
+                    _owner._peepAnimationMutationFailed = false;
+                // Load callbacks cannot acquire stale facts while images or slot bindings are changing.
+                _owner._peepAnimationCatalogAvailable = false;
+            }
+            void Complete() noexcept
+            {
+                _complete = true;
+            }
+            ~PeepAnimationMutation()
+            {
+                if (!_active)
+                    return;
+                _owner._peepAnimationMutationFailed |= !_complete;
+                if (--_owner._peepAnimationMutationDepth != 0)
+                    return;
+                if (_owner._peepAnimationMutationFailed)
+                {
+                    _owner._peepAnimationCatalog.reset();
+                    return;
+                }
+                _owner.RefreshPeepAnimationCatalog();
+            }
+            PeepAnimationMutation(const PeepAnimationMutation&) = delete;
+            PeepAnimationMutation& operator=(const PeepAnimationMutation&) = delete;
+        };
+
     public:
         explicit ObjectManager(IObjectRepository& objectRepository)
             : _objectRepository(objectRepository)
         {
+            RefreshPeepAnimationCatalog();
             UpdateSceneryGroupIndexes();
             ResetTypeToRideEntryIndexMap();
         }
 
         ~ObjectManager() override
         {
+            // Teardown retires access without allocating a replacement catalog from a destructor.
+            _peepAnimationShutdown = true;
+            _peepAnimationCatalogAvailable = false;
+            _peepAnimationCatalog.reset();
             UnloadAll();
+        }
+
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> GetPeepAnimationCatalog() const noexcept override
+        {
+            return _peepAnimationCatalogAvailable ? _peepAnimationCatalog : nullptr;
         }
 
         Object* GetLoadedObject(ObjectType objectType, size_t index) override
@@ -206,8 +384,15 @@ namespace OpenRCT2
 
         void LoadObjects(const ObjectList& objectList, const bool reportProgress) override
         {
+            const auto* report = std::getenv("OPENRCT2_LOADING_REPORT");
+            const bool reportLoading = report != nullptr && std::string_view(report) == "1";
+            const auto started = reportLoading ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
             // Find all the required objects
             auto requiredObjects = GetRequiredObjects(objectList);
+            if (reportLoading)
+                Console::WriteLine(
+                    "Loading objects: stage=preflight required=%zu wall_ms=%.3f", requiredObjects.size(),
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
 
             // Load the required objects
             LoadObjects(requiredObjects, reportProgress);
@@ -215,10 +400,18 @@ namespace OpenRCT2
             // Update indices.
             UpdateSceneryGroupIndexes();
             ResetTypeToRideEntryIndexMap();
+            if (reportLoading)
+                Console::WriteLine(
+                    "Loading objects: stage=total required=%zu wall_ms=%.3f", requiredObjects.size(),
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count());
         }
 
         void UnloadObjects(const std::vector<ObjectEntryDescriptor>& entries) override
         {
+            const bool peepChange = std::any_of(entries.begin(), entries.end(), [](const auto& entry) {
+                return entry.GetType() == ObjectType::peepAnimations;
+            });
+            PeepAnimationMutation peepMutation(*this, peepChange);
             // TODO there are two performance issues here:
             //        - FindObject for every entry which is a dictionary lookup
             //        - GetLoadedObjectIndex for every entry which enumerates _loadedList
@@ -243,6 +436,7 @@ namespace OpenRCT2
                 UpdateSceneryGroupIndexes();
                 ResetTypeToRideEntryIndexMap();
             }
+            peepMutation.Complete();
         }
 
         void UnloadAllTransient() override
@@ -257,6 +451,8 @@ namespace OpenRCT2
 
         void ResetObjects() override
         {
+            WorldMaterialMutation worldMutation;
+            PeepAnimationMutation peepMutation(*this);
             for (auto& list : _loadedObjects)
             {
                 for (auto* loadedObject : list)
@@ -275,6 +471,7 @@ namespace OpenRCT2
             Audio::StopTitleMusic();
             Audio::PlayTitleMusic();
             RideAudio::StopAllChannels();
+            peepMutation.Complete();
         }
 
         std::vector<const ObjectRepositoryItem*> GetPackableObjects() override
@@ -334,6 +531,7 @@ namespace OpenRCT2
 
         void UnloadAll(bool onlyTransient)
         {
+            PeepAnimationMutation peepMutation(*this, !GetObjectList(ObjectType::peepAnimations).empty());
             for (auto type : getAllObjectTypes())
             {
                 if (!onlyTransient || !IsIntransientObjectType(type))
@@ -348,6 +546,7 @@ namespace OpenRCT2
             }
             UpdateSceneryGroupIndexes();
             ResetTypeToRideEntryIndexMap();
+            peepMutation.Complete();
         }
 
         Object* LoadObject(ObjectEntryIndex slot, std::string_view identifier)
@@ -381,6 +580,8 @@ namespace OpenRCT2
             }
             if (slot)
             {
+                WorldMaterialMutation worldMutation(IsWorldMaterialType(objectType));
+                PeepAnimationMutation peepMutation(*this, objectType == ObjectType::peepAnimations);
                 auto* object = GetOrLoadObject(ori);
                 if (object != nullptr)
                 {
@@ -391,10 +592,13 @@ namespace OpenRCT2
                     }
                     loadedObject = object;
                     list[*slot] = object;
+                    if (objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
+                        AdvanceTerrainObjectRevision();
                     UpdateSceneryGroupIndexes();
                     if (objectType == ObjectType::ride)
                         ResetTypeToRideEntryIndexMap();
                 }
+                peepMutation.Complete();
             }
             return loadedObject;
         }
@@ -436,6 +640,8 @@ namespace OpenRCT2
             if (object == nullptr)
                 return;
 
+            WorldMaterialMutation worldMutation(IsWorldMaterialType(object->GetObjectType()));
+            PeepAnimationMutation peepMutation(*this, object->GetObjectType() == ObjectType::peepAnimations);
             // Because it's possible to have the same loaded object for multiple
             // slots, we have to make sure find and set all of them to nullptr
             auto& list = GetObjectList(object->GetObjectType());
@@ -449,6 +655,7 @@ namespace OpenRCT2
             {
                 _objectRepository.UnregisterLoadedObject(ori, object);
             }
+            peepMutation.Complete();
         }
 
         void UnloadObjectsExcept(const std::vector<Object*>& newLoadedObjects)
@@ -592,6 +799,59 @@ namespace OpenRCT2
 
         void LoadObjects(std::vector<ObjectToLoad>& requiredObjects, bool reportProgress)
         {
+            const auto* report = std::getenv("OPENRCT2_LOADING_REPORT");
+            const bool reportLoading = report != nullptr && std::string_view(report) == "1";
+            auto stageStarted = reportLoading ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+            const auto reportStage = [&](const char* stage, size_t count) {
+                if (reportLoading)
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    Console::WriteLine(
+                        "Loading objects: stage=%s count=%zu wall_ms=%.3f", stage, count,
+                        std::chrono::duration<double, std::milli>(now - stageStarted).count());
+                    stageStarted = now;
+                }
+            };
+            // A title-sequence reload often requests the same already-resident
+            // objects. Qualify slot identity before opening mutation epochs:
+            // unchanged bindings must not invalidate every renderer catalog.
+            std::array<std::vector<Object*>, EnumValue(ObjectType::count)> planned;
+            std::array<bool, EnumValue(ObjectType::count)> changed{};
+            for (auto type : getAllObjectTypes())
+                if (IsIntransientObjectType(type))
+                    planned[EnumValue(type)] = GetObjectList(type);
+            for (const auto& required : requiredObjects)
+            {
+                const auto* repositoryItem = required.RepositoryItem;
+                if (repositoryItem == nullptr)
+                    continue;
+                const auto type = EnumValue(repositoryItem->Type);
+                auto& list = planned[type];
+                if (list.size() <= required.Index)
+                    list.resize(required.Index + 1);
+                list[required.Index] = repositoryItem->LoadedObject.get();
+                changed[type] |= list[required.Index] == nullptr;
+            }
+            bool anyChanged = false, worldChanged = false;
+            for (auto type : getAllObjectTypes())
+            {
+                const auto index = EnumValue(type);
+                const auto& previous = GetObjectList(type);
+                const auto& next = planned[index];
+                for (size_t slot = 0; slot < std::max(previous.size(), next.size()); ++slot)
+                    changed[index] |= (slot < previous.size() ? previous[slot] : nullptr)
+                        != (slot < next.size() ? next[slot] : nullptr);
+                anyChanged |= changed[index];
+                worldChanged |= changed[index] && IsWorldMaterialType(type);
+            }
+            if (!anyChanged)
+            {
+                reportStage("resident-noop", requiredObjects.size());
+                return;
+            }
+            WorldMaterialMutation worldMutation(true, worldChanged);
+            // The outer scope coalesces nested alias removals and publishes after the final slot layout is installed.
+            PeepAnimationMutation peepMutation(*this, changed[EnumValue(ObjectType::peepAnimations)]);
             std::vector<Object*> objects;
             std::vector<Object*> newLoadedObjects;
             std::vector<ObjectEntryDescriptor> badObjects;
@@ -616,6 +876,7 @@ namespace OpenRCT2
             // De-duplicate the list, since loading happens in parallel we can't have it race the repository item.
             std::sort(objectsToLoad.begin(), objectsToLoad.end());
             objectsToLoad.erase(std::unique(objectsToLoad.begin(), objectsToLoad.end()), objectsToLoad.end());
+            reportStage("resident-plan", objectsToLoad.size());
 
             // Prepare for loading objects multi-threaded
             const auto numRequired = objectsToLoad.size();
@@ -660,6 +921,7 @@ namespace OpenRCT2
                 }
             }
 
+            reportStage("parse", numRequired);
             // Assign the loaded objects to the required objects
             for (auto& requiredObject : requiredObjects)
             {
@@ -682,6 +944,7 @@ namespace OpenRCT2
             {
                 obj->Load();
             }
+            reportStage("image-install", newLoadedObjects.size());
 
             if (!badObjects.empty())
             {
@@ -721,9 +984,14 @@ namespace OpenRCT2
                     list.resize(otl.Index + 1);
                 }
                 list[otl.Index] = otl.LoadedObject;
+                if ((objectType == ObjectType::terrainSurface || objectType == ObjectType::terrainEdge)
+                    && changed[EnumValue(objectType)])
+                    AdvanceTerrainObjectRevision();
             }
 
+            peepMutation.Complete();
             LOG_VERBOSE("%u / %u new objects loaded", newLoadedObjects.size(), requiredObjects.size());
+            reportStage("unload-bind-catalog", requiredObjects.size());
         }
 
         Object* GetOrLoadObject(const ObjectRepositoryItem* ori)

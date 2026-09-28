@@ -22,15 +22,21 @@ Scenario objective currency is a union with non-money objective data in legacy f
 
 Scenario highscores were bumped to file version 3. Version 1 `money32` and version 2 legacy `money64` company values are converted into cent money when loaded, while new highscores write cent-based `money64`.
 
-Replay files were bumped to version 12. Older replay snapshots convert guest paid/cash fields and money-effect values from tenths to cents after loading. Old replay checksum comparison still has one unavoidable compatibility wrinkle: entity checksums include serialized money fields. During pre-version-12 playback, guest money is temporarily projected back to legacy units for checksum calculation, and any remaining legacy checksum mismatch is logged once instead of failing playback.
+The original cent conversion introduced replay version 12 with legacy money projection for old checksums. The later
+[guest services update](guest-services-and-boarding.md) uses replay version 13 and rejects earlier replay payloads because
+entity serialization changed. Old park files remain supported.
 
 ## Gameplay fixes
+
+September 2026 follow-up: restroom admission now scales toilet need against cents correctly. Rating-derived ride values
+retain 1/1024-cent remainders through automatic pricing, with only the final price rounded to cents. Optional final
+nearest-ten-cent rounding is retained in code but disabled. See [current semantics](guest-services-and-boarding.md).
 
 Guest shop and cash logic had several raw numeric comparisons that assumed tenths. Those now use `_GBP`, `ToMoney64()`, or `ToMoney16()` so value judgments, satisfaction, generated cash, and shop happiness continue to mean the same thing after the storage scale changed.
 
 Ride target pricing now uses `$0.05` minimum margins for discount, fair-price, and expensive targets. Because the runtime money type can represent cents, the previous `$0.10` precision limitation no longer applies.
 
-Ride descriptors intentionally keep their old tenth-based `DefaultPrices` and `UpkeepCosts` tables. `RideCreateAction` converts default admission prices with `ToMoney64()`, `RideRatingsCalculateValue()` stores computed ride value as cent money, and `RideComputeUpkeep()` converts its final legacy upkeep calculation once. This preserves the old authored tables while preventing new rides, automatic target prices, and running costs from becoming 10x too small.
+Ride descriptors intentionally keep their old tenth-based `DefaultPrices` and `UpkeepCosts` tables. `RideCreateAction` converts default admission prices with `ToMoney64()`, `RideRating::UpdateValue()` stores computed ride value as cent money, and `RideComputeUpkeep()` converts its final legacy upkeep calculation once. This preserves the old authored tables while preventing new rides, automatic target prices, and running costs from becoming 10x too small.
 
 Object JSON prices for banners, path additions, walls, and terrain surfaces are also legacy tenth-based values, matching their DAT importers. Those JSON readers now convert through `ToMoney64()`. Raw landscaping constants for terrain-edge and water changes were replaced with `_GBP` literals, and the scenario-editor initial-cash clamp was updated to the same cent scale.
 

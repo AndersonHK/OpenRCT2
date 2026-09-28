@@ -605,7 +605,7 @@ namespace OpenRCT2::Ui::Windows
                 animFrame = _tabAnimationOffset / 4;
 
             auto imageIndex = anim.baseImage + 1 + anim.frameOffsets[animFrame] * 4;
-            GfxDrawSprite(clippedRT, ImageId(imageIndex, staff->tShirtColour, staff->trousersColour), screenCoords);
+            GfxDrawSprite(clippedRT, ImageId(imageIndex, staff->getTShirtColour(), staff->getTrousersColour()), screenCoords);
         }
 
         void OverviewResize()
@@ -698,7 +698,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto& pickupAnim = animObj->GetPeepAnimation(staff->animationGroup, PeepAnimationType::hanging);
             auto baseImageId = pickupAnim.baseImage + pickupAnim.frameOffsets[pickedPeepFrame >> 2];
-            Drawing::pickupPeepSetImage(baseImageId, staff->tShirtColour, staff->trousersColour);
+            Drawing::pickupPeepSetImage(baseImageId, staff->getTShirtColour(), staff->getTrousersColour());
         }
 
         void OverviewToolDown(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords)

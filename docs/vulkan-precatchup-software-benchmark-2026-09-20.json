@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "status": "pass",
+  "date": "2026-09-20",
+  "oldRevision": "e874ceb7708974e00040419d30390686c52a5d31",
+  "currentRepositoryRevision": "d16251af26f40c2d6a845a3800b0898eba8925a4",
+  "currentSourceMatchesBuild56": true,
+  "oldSourceInstrumentation": "Untimed initial/final physical extent and cached monitor refresh reporting only; three files. Current toolchain and dependency cache; not an original historical binary.",
+  "runs": [
+    {
+      "name": "perf-precatchup-old-4k-software-vsync1-01",
+      "version": "old",
+      "vsync": 1,
+      "repeat": 1,
+      "tps": 117.069,
+      "fps": 56.466,
+      "cpuDrawMs": 10.555746,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-new-4k-software-vsync1-01",
+      "version": "new",
+      "vsync": 1,
+      "repeat": 1,
+      "tps": 115.67,
+      "fps": 56.061,
+      "cpuDrawMs": 10.739887000000001,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-old-4k-software-vsync0-01",
+      "version": "old",
+      "vsync": 0,
+      "repeat": 1,
+      "tps": 65.551,
+      "fps": 65.573,
+      "cpuDrawMs": 10.539657,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-new-4k-software-vsync0-01",
+      "version": "new",
+      "vsync": 0,
+      "repeat": 1,
+      "tps": 65.054,
+      "fps": 65.076,
+      "cpuDrawMs": 10.702705,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-new-4k-software-vsync0-02",
+      "version": "new",
+      "vsync": 0,
+      "repeat": 2,
+      "tps": 64.695,
+      "fps": 64.717,
+      "cpuDrawMs": 10.753663000000001,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-old-4k-software-vsync0-02",
+      "version": "old",
+      "vsync": 0,
+      "repeat": 2,
+      "tps": 66.11,
+      "fps": 66.132,
+      "cpuDrawMs": 10.411831,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-new-4k-software-vsync1-02",
+      "version": "new",
+      "vsync": 1,
+      "repeat": 2,
+      "tps": 114.363,
+      "fps": 56.915,
+      "cpuDrawMs": 10.582258,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-old-4k-software-vsync1-02",
+      "version": "old",
+      "vsync": 1,
+      "repeat": 2,
+      "tps": 113.521,
+      "fps": 57.782,
+      "cpuDrawMs": 10.399404,
+      "checksum": "9b7eee204b0471d7000000000000000000000000"
+    }
+  ],
+  "medians": [
+    {
+      "source": "old",
+      "vsync": 0,
+      "tps": 65.8305,
+      "fps": 65.85249999999999,
+      "cpuDrawMs": 10.475743999999999
+    },
+    {
+      "source": "new",
+      "vsync": 0,
+      "tps": 64.8745,
+      "fps": 64.8965,
+      "cpuDrawMs": 10.728184
+    },
+    {
+      "source": "old",
+      "vsync": 1,
+      "tps": 115.295,
+      "fps": 57.123999999999995,
+      "cpuDrawMs": 10.477575
+    },
+    {
+      "source": "new",
+      "vsync": 1,
+      "tps": 115.01650000000001,
+      "fps": 56.488,
+      "cpuDrawMs": 10.6610725
+    }
+  ],
+  "sustainedScale175": [
+    {
+      "name": "perf-precatchup-old-4k-scale175-long-01",
+      "version": "old",
+      "tps": 183.165,
+      "fps": 71.999,
+      "cpuDrawMs": 5.674747999999999,
+      "checksum": "65ae3b2fa03fa4cb000000000000000000000000"
+    },
+    {
+      "name": "perf-precatchup-new-4k-scale175-long-01",
+      "version": "new",
+      "tps": 180.044,
+      "fps": 72.018,
+      "cpuDrawMs": 5.787395999999999,
+      "checksum": "65ae3b2fa03fa4cb000000000000000000000000"
+    }
+  ],
+  "physicalExtent": [
+    3840,
+    2160
+  ],
+  "refreshHz": 144,
+  "mainSeries": {
+    "warmupTicks": 100,
+    "measuredTicks": 3000,
+    "scale": 1,
+    "repeatsPerCell": 2
+  },
+  "sustainedSeries": {
+    "warmupTicks": 2000,
+    "measuredTicks": 12000,
+    "scale": 1.75,
+    "repeatsPerSource": 1
+  },
+  "totalMeasuredTicks": 48000,
+  "sameStateCensusesWithinEachSeries": true,
+  "sameFinalChecksumWithinEachSeries": true,
+  "sameConfigWithinEachVSyncAndScaleCohort": true,
+  "sameRecordedHostWithinEachSeries": true,
+  "displayedPacingQualified": false,
+  "installedGameModified": false,
+  "productionCodeModified": false,
+  "limitations": [
+    "Hidden application draw cadence is not displayed scanout.",
+    "Small descriptive sample; no formal significance claim.",
+    "Historical source rebuilt with present-day MSVC/dependency cache; not original binary reproduction. Link dependencies are not fully inventoried in the build receipt.",
+    "Historical/current packaged assets differ by version; package inventories are pinned and simulation censuses/checksums agree.",
+    "Scale-one and scale-1.75 series have different warmup/length/visible world area and must not be treated as an isolated scale-only comparison."
+  ],
+  "evidenceSha256": {
+    "obj/vulkan-parity/perf-precatchup-old-4k-software-vsync1-01/summary.json": "cdbd0f26a70a7a92e71c00e8f9280879839d0488f6295a1a6e42d68159c07e0e",
+    "obj/vulkan-parity/perf-precatchup-new-4k-software-vsync1-01/summary.json": "7ef41578da665fc943c5d9e64ff95077d3e14cf851d53a3e010c1c826afbda1a",
+    "obj/vulkan-parity/perf-precatchup-old-4k-software-vsync0-01/summary.json": "e0506fb39f1db3053a9288350499ca843ca43cb125bea5b5a67ffc100a46cb02",
+    "obj/vulkan-parity/perf-precatchup-new-4k-software-vsync0-01/summary.json": "3d2f09fc462f0d303e937f0539de36ce406dcf34d8a6b77e1720698c4502bb67",
+    "obj/vulkan-parity/perf-precatchup-new-4k-software-vsync0-02/summary.json": "8659b3aa567254c0d2fa60cac6c16286d2f5169140b31c67098c75e625fecca9",
+    "obj/vulkan-parity/perf-precatchup-old-4k-software-vsync0-02/summary.json": "6a1a4db6f977a8cf43b4b30d43817f2f47344d4c5444b6febd4282ac21e71d15",
+    "obj/vulkan-parity/perf-precatchup-new-4k-software-vsync1-02/summary.json": "6f1563070b176b566165b24ad961018359b9eb1b4d4bd15a1e648b2e345c5cd4",
+    "obj/vulkan-parity/perf-precatchup-old-4k-software-vsync1-02/summary.json": "8bc6f536fe8c83babb7261bf229ac22a4992f4de1854c67a4ad55c719f2f780f",
+    "obj/vulkan-parity/perf-precatchup-old-4k-scale175-long-01/summary.json": "fd6e2a4f996cd54a361ac0defa9224fb50f093413bca8bf86988f9189497dd2e",
+    "obj/vulkan-parity/perf-precatchup-new-4k-scale175-long-01/summary.json": "75a2a6187e8eb082db3a068aff126d199c2f404de90b2c3c8c079cecd17f486a",
+    "obj/vulkan-parity/historical-e874-build-01/build.py": "6fd7e06c4b1d55397cd53c83d6e05898aaf1f3318db8938f0ecbb2c0e04ae8b5",
+    "obj/vulkan-parity/historical-e874-build-01/receipt.json": "91ecd3fc9037923a0c21422362f761a795eb771e239aaf697af0d355096a0394",
+    "obj/vulkan-parity/historical-e874-build-01/source.zip": "c1639cc7de8577b8ccf79ca57434a7b708c9ef1bb573ed11fc126a3170cd0c86",
+    "obj/vulkan-parity/historical-e874-build-01/measurement-only.patch": "d0c06c31c01108d67cdc6232ae5eeb1c43e710f6c5afdf77b12fa2a6437347ec",
+    "obj/vulkan-parity/historical-e874-build-01/run-historical-executed.py": "e337b65741557a1a5fe15e7463e824cff94411c9336816c1702a7b423d47dd86",
+    "obj/vulkan-parity/historical-e874-build-01/run-matrix.py": "2b0e46dd290797f16ca174b8233c3fceab829cb4aa2b1ba6fd5c876840a10d20",
+    "obj/vulkan-parity/historical-e874-build-01/run-long-scale.py": "4ae24e13c0c7a327ca0e8db5b1d82166f87c7286f4e884926ed601a60c94c50b",
+    "obj/vulkan-parity/historical-e874-build-01/scale175.ini": "852deb71c092b45aca861006ee0bc127027cf97931a09f288a5a620691a79577",
+    "obj/vulkan-parity/historical-e874-build-01/snapshot/snapshot.json": "1e8972a5a741cae73f0a8e07e0902f6a4b6adb4e8d9258a7149feea209cbe050",
+    "obj/vulkan-parity/historical-e874-build-01/independent-method-review.md": "5a6f34546399bd358486e3ffca7dd46b6a9c286b5e1d680e20ca5cea0f16f2f0",
+    "docs/vulkan-architecture-reviews/historical-benchmark-method.md": "5a6f34546399bd358486e3ffca7dd46b6a9c286b5e1d680e20ca5cea0f16f2f0"
+  }
+}

@@ -232,6 +232,7 @@ struct CarEntry
     uint8_t numVerticalFramesOverride; // A custom number that can be used rather than letting RCT2 determine it.
     // Needs the overrideNumberOfVerticalFrames CarEntryFlag to be set.
     uint8_t guestLoadingWaypointSegments;
+    uint16_t boardingDurationTicks{}; // Optional JSON boardingDuration in simulation seconds.
     uint16_t animationSpeed;
     uint8_t animationFrames;
     struct
@@ -248,6 +249,9 @@ struct CarEntry
     bool groupEnabled(SpriteGroupType rotationType) const;
     uint32_t groupImageId(SpriteGroupType spriteGroup) const;
     uint32_t getSpriteOffset(SpriteGroupType spriteGroup, int32_t imageDirection, uint8_t rankIndex) const;
+    // Complete immutable rider-art domain, including row-zero animation banks.
+    // Animation frame indices and seating rows both fit the original byte domain.
+    uint8_t getNumRiderImageBanks() const;
 
     bool isVisible() const;
 };

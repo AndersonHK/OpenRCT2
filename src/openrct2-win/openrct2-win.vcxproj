@@ -59,7 +59,7 @@
       <AdditionalOptions>$(OPENRCT2_CL_ADDITIONALOPTIONS) %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(VulkanAdditionalDependencies)libopenrct2.lib;libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VulkanAdditionalDependencies)libopenrct2.lib;libopenrct2renderer.lib;libopenrct2ui.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ProgramDatabaseFile>$(OutDir)openrct2-win.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <StackReserveSize>8388608</StackReserveSize>
@@ -80,6 +80,10 @@
     <Manifest Include="openrct2-win.manifest" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\openrct2-renderer\libopenrct2renderer.vcxproj">
+      <Project>{4F65E397-FDA9-4F15-A03C-C3A2139BDE8E}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="..\openrct2-deps\openrct2-deps.vcxproj">
       <Project>{c453da76-44b3-4ac8-aaa2-2b64a76993a5}</Project>
     </ProjectReference>

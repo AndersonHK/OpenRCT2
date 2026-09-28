@@ -1,0 +1,447 @@
+{
+  "schema": 1,
+  "status": "deployed-for-manual-test",
+  "createdUtc": "2026-09-20T07:10:26.140054+00:00",
+  "checkpoint": "build52-run45",
+  "softwareFrozen": true,
+  "softwareStillAvailable": true,
+  "nativeTerrainRuntimeAdmission": false,
+  "migrationComplete": false,
+  "gatePComplete": false,
+  "newAcceptedExceptions": [],
+  "deployment": {
+    "destination": "D:\\Games\\Independent\\OpenRCT2Mod",
+    "backup": "D:\\Games\\Independent\\OpenRCT2Mod\\backup-before-vulkan-20260920-000626-696",
+    "files": 4715,
+    "sourceInputCount": 1954,
+    "sourceArchive": {
+      "sha256": "afaa0e48533071e0c08585f9b810935b08a36d44396906e26d73a88e6f39f95c",
+      "size": 18678143
+    },
+    "objectsRevision": "b2a5511cd7ff90646dd40c61f08cb27fa977e8f4",
+    "sourceIdentity": "exact archived receipt inputs including uncommitted files",
+    "profilePolicy": "No profile/config/save paths are package targets; destination-only data is preserved"
+  },
+  "qualified": {
+    "tests": 798,
+    "parityTests": 66,
+    "nativeUiProcesses": 22,
+    "nativeUiCaptures": 84,
+    "manualDistinctViews": 21,
+    "terrainPythonGates": 6,
+    "shippedShaders": 21
+  },
+  "performance": {
+    "scope": "Short hidden EverythingPark measurements, 960x640, 100 warmup and 2000 measured ticks; no sustained/displayed-cadence claim.",
+    "runs": [
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-software-vsync0-01\\summary.json",
+        "sha256": "33c702a6d6be1f19db87f3ecea373a6154a29226094211ab9ba5937200db1458",
+        "metrics": {
+          "renderer": "software",
+          "vsync": "disabled",
+          "elapsedSeconds": 12.153242,
+          "logicalTicks": 2000,
+          "logicalTps": 164.565,
+          "draws": {
+            "count": 2002.0,
+            "fps": 164.73
+          },
+          "ui": {
+            "messagePumps": 2002.0,
+            "windowUpdates": 2002.0,
+            "messageHz": 164.73,
+            "windowHz": 164.73
+          },
+          "simulation": {
+            "seconds": 4.425754,
+            "utilisationPercent": 36.4,
+            "meanMicrosecondsPerTick": 2212.877
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 2212.877,
+            "longestMilliseconds": 3.363,
+            "longestSliceMilliseconds": 3.363
+          },
+          "drawCpu": {
+            "seconds": 5.067693,
+            "utilisationPercent": 41.7,
+            "meanMicroseconds": 2531.315
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 6.078,
+            "p95": 6.572,
+            "p99": 6.915,
+            "max": 20.318
+          },
+          "rendererCpu": null,
+          "presentApi": null,
+          "gpuFrame": null,
+          "gpuPasses": null
+        }
+      },
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-vulkan-vsync0-01\\summary.json",
+        "sha256": "2d7025683dce934c6be4091a92492b91d84a27e8f5bb7f2fe2d25da2008cd5bf",
+        "metrics": {
+          "renderer": "vulkan",
+          "vsync": "disabled",
+          "elapsedSeconds": 16.668342,
+          "logicalTicks": 2000,
+          "logicalTps": 119.988,
+          "draws": {
+            "count": 2000.0,
+            "fps": 119.988
+          },
+          "ui": {
+            "messagePumps": 2001.0,
+            "windowUpdates": 2000.0,
+            "messageHz": 120.048,
+            "windowHz": 119.988
+          },
+          "simulation": {
+            "seconds": 4.133653,
+            "utilisationPercent": 24.8,
+            "meanMicrosecondsPerTick": 2066.827
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 2066.827,
+            "longestMilliseconds": 3.131,
+            "longestSliceMilliseconds": 3.131
+          },
+          "drawCpu": {
+            "seconds": 9.884749,
+            "utilisationPercent": 59.3,
+            "meanMicroseconds": 4942.375
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 8.273,
+            "p95": 8.895,
+            "p99": 9.373,
+            "max": 10.313
+          },
+          "rendererCpu": {
+            "submitMeanUs": 494.591,
+            "presentMeanUs": 187.325,
+            "samples": 2000.0
+          },
+          "presentApi": {
+            "meanUs": 135.844,
+            "samples": 2000.0
+          },
+          "gpuFrame": {
+            "meanUs": 273.252,
+            "samples": 2000.0
+          },
+          "gpuPasses": {
+            "uploadMeanUs": 6.926,
+            "drawMeanUs": 261.651,
+            "lightFxMeanUs": 0.003,
+            "compositeMeanUs": 4.672
+          }
+        }
+      },
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-vulkan-vsync0-02\\summary.json",
+        "sha256": "68bbb6149400bc0d6a6294b07c5a30078f64d11dab796de565c88bb8ea2eff80",
+        "metrics": {
+          "renderer": "vulkan",
+          "vsync": "disabled",
+          "elapsedSeconds": 16.838341,
+          "logicalTicks": 2000,
+          "logicalTps": 118.777,
+          "draws": {
+            "count": 2000.0,
+            "fps": 118.777
+          },
+          "ui": {
+            "messagePumps": 2001.0,
+            "windowUpdates": 2000.0,
+            "messageHz": 118.836,
+            "windowHz": 118.777
+          },
+          "simulation": {
+            "seconds": 4.178247,
+            "utilisationPercent": 24.8,
+            "meanMicrosecondsPerTick": 2089.124
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 2089.124,
+            "longestMilliseconds": 6.483,
+            "longestSliceMilliseconds": 6.483
+          },
+          "drawCpu": {
+            "seconds": 9.98895,
+            "utilisationPercent": 59.3,
+            "meanMicroseconds": 4994.475
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 8.293,
+            "p95": 9.192,
+            "p99": 9.618,
+            "max": 57.073
+          },
+          "rendererCpu": {
+            "submitMeanUs": 502.298,
+            "presentMeanUs": 193.14,
+            "samples": 2000.0
+          },
+          "presentApi": {
+            "meanUs": 140.877,
+            "samples": 2000.0
+          },
+          "gpuFrame": {
+            "meanUs": 272.872,
+            "samples": 2000.0
+          },
+          "gpuPasses": {
+            "uploadMeanUs": 6.896,
+            "drawMeanUs": 261.321,
+            "lightFxMeanUs": 0.003,
+            "compositeMeanUs": 4.652
+          }
+        }
+      },
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-software-vsync0-02\\summary.json",
+        "sha256": "822ee47e6acfd7c34f4efc2c60aec275aad4093bf560ffc7af3004463be88e7a",
+        "metrics": {
+          "renderer": "software",
+          "vsync": "disabled",
+          "elapsedSeconds": 12.437615,
+          "logicalTicks": 2000,
+          "logicalTps": 160.803,
+          "draws": {
+            "count": 2003.0,
+            "fps": 161.044
+          },
+          "ui": {
+            "messagePumps": 2003.0,
+            "windowUpdates": 2003.0,
+            "messageHz": 161.044,
+            "windowHz": 161.044
+          },
+          "simulation": {
+            "seconds": 4.490924,
+            "utilisationPercent": 36.1,
+            "meanMicrosecondsPerTick": 2245.462
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 2245.462,
+            "longestMilliseconds": 3.482,
+            "longestSliceMilliseconds": 3.482
+          },
+          "drawCpu": {
+            "seconds": 5.251948,
+            "utilisationPercent": 42.2,
+            "meanMicroseconds": 2622.041
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 6.105,
+            "p95": 7.26,
+            "p99": 7.744,
+            "max": 8.602
+          },
+          "rendererCpu": null,
+          "presentApi": null,
+          "gpuFrame": null,
+          "gpuPasses": null
+        }
+      },
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-software-vsync1-01\\summary.json",
+        "sha256": "3be8aa5319caeb7a1b99b963d6b6ecc0d3b68c5100b2617ac4b87d9e83b290a2",
+        "metrics": {
+          "renderer": "software",
+          "vsync": "enabled",
+          "elapsedSeconds": 13.535588,
+          "logicalTicks": 2000,
+          "logicalTps": 147.759,
+          "draws": {
+            "count": 1949.0,
+            "fps": 143.991
+          },
+          "ui": {
+            "messagePumps": 1950.0,
+            "windowUpdates": 1949.0,
+            "messageHz": 144.065,
+            "windowHz": 143.991
+          },
+          "simulation": {
+            "seconds": 4.483992,
+            "utilisationPercent": 33.1,
+            "meanMicrosecondsPerTick": 2241.996
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 2241.996,
+            "longestMilliseconds": 3.51,
+            "longestSliceMilliseconds": 3.51
+          },
+          "drawCpu": {
+            "seconds": 6.456327,
+            "utilisationPercent": 47.7,
+            "meanMicroseconds": 3312.636
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 6.942,
+            "p95": 7.356,
+            "p99": 8.45,
+            "max": 8.856
+          },
+          "rendererCpu": null,
+          "presentApi": null,
+          "gpuFrame": null,
+          "gpuPasses": null
+        }
+      },
+      {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\perf-checkpoint52-vulkan-vsync1-01\\summary.json",
+        "sha256": "9e07d26ff31863059fbb9b03dc1b12fce7c2d884b1658d2c4c13afd9a26ee7eb",
+        "metrics": {
+          "renderer": "vulkan",
+          "vsync": "enabled",
+          "elapsedSeconds": 7.944855,
+          "logicalTicks": 2000,
+          "logicalTps": 251.735,
+          "draws": {
+            "count": 623.0,
+            "fps": 78.416
+          },
+          "ui": {
+            "messagePumps": 625.0,
+            "windowUpdates": 623.0,
+            "messageHz": 78.667,
+            "windowHz": 78.416
+          },
+          "simulation": {
+            "seconds": 3.7951,
+            "utilisationPercent": 47.8,
+            "meanMicrosecondsPerTick": 1897.55
+          },
+          "simulationBatches": {
+            "count": 2000.0,
+            "meanMicroseconds": 1897.55,
+            "longestMilliseconds": 2.97,
+            "longestSliceMilliseconds": 2.97
+          },
+          "drawCpu": {
+            "seconds": 3.306351,
+            "utilisationPercent": 41.6,
+            "meanMicroseconds": 5307.145
+          },
+          "applicationFrameIntervalsMs": {
+            "p50": 13.658,
+            "p95": 14.581,
+            "p99": 14.957,
+            "max": 16.047
+          },
+          "rendererCpu": {
+            "submitMeanUs": 417.282,
+            "presentMeanUs": 150.275,
+            "samples": 623.0
+          },
+          "presentApi": {
+            "meanUs": 110.026,
+            "samples": 623.0
+          },
+          "gpuFrame": {
+            "meanUs": 270.341,
+            "samples": 623.0
+          },
+          "gpuPasses": {
+            "uploadMeanUs": 13.118,
+            "drawMeanUs": 251.197,
+            "lightFxMeanUs": 0.004,
+            "compositeMeanUs": 6.022
+          }
+        }
+      }
+    ],
+    "separateInstrumentedCommandBytesPerSubmittedFrame": 3818292.518703242,
+    "trafficUnits": "API payload; physical bandwidth and producer copies not measured"
+  },
+  "open": [
+    "Transparent main-viewport destination history: 18990 differing pixels in bounded scene",
+    "Retained shaders for arbitrary world categories and maps; actual terrain edit/restore/reload qualification",
+    "Interactive auxiliary callers and platform/loader packaging",
+    "Near-vsync displayed cadence with minimal CPU/bandwidth and sustained large-park TPS improvement",
+    "Vulkan default/exclusive switch and software removal after migration gates"
+  ],
+  "evidence": [
+    {
+      "path": "obj/vulkan-parity/build-52/receipt.json",
+      "sha256": "ef5f0dee973f80116dd9950abad507e416677678e1d43bd5cd683b7cc62cb922",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/run-45/summary.json",
+      "sha256": "33ed9244775b6fdca4f25c55d3fec383d1c10127595a7760b97e6a74310512de",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-cache-build-07/receipt.json",
+      "sha256": "9033ece08506810b0712a2d651d2f0f32568bae8b5c3f2a009ad787688572a34",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/catalog-checkpoint52-ui/summary.json",
+      "sha256": "5788ad0c50bdd187e4c2a87231f4d7165e0dc29f29ece68dfc53fd0353acf083",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/catalog-checkpoint52-ui-manual-review/audit.json",
+      "sha256": "1562a38dd2159111b3c4e8fe0e2a2858542c906f3c3db0311015fe1d6a2f4cfd",
+      "recordedStatus": "pass-for-listed-subset"
+    },
+    {
+      "path": "obj/vulkan-parity/performance-checkpoint52/measurement-summary.json",
+      "sha256": "ecb2f49dc6c0f61f058acf87420318373eb3f0103f76f21606550121eabe22f0",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/performance-checkpoint52-independent-audit.json",
+      "sha256": "a3e1de609f736a8cb7387b55f6816ff53280a9b33f50fec8ee79bc89c19c836d",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/perf-checkpoint52-vulkan-upload-01/summary.json",
+      "sha256": "bb6b596b4839cd8b3eebcb246156c205b1595156f6612f1c1bd9af6a94e3c905",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/installed-checkpoint52-smoke/summary.json",
+      "sha256": "63f3338ddb37e462db70fec5c38b3f3b1fe78f89a8b0224eeffb18e08502dabb",
+      "recordedStatus": "pass"
+    },
+    {
+      "path": "obj/vulkan-parity/transparent-history-manual-review-01/audit.json",
+      "sha256": "64a47be8362a73d588660fa6b4e20405055202a68de8806e12e19f7cc550114f",
+      "recordedStatus": "review-complete-parity-failures-preserved"
+    },
+    {
+      "path": "obj/vulkan-parity/terrain-catalog-history-application.json",
+      "sha256": "9983c344356a0a1653687142d252ebf85531a3ec796ac492ef9a871da7748d12",
+      "recordedStatus": "applied-unqualified"
+    },
+    {
+      "path": "obj/vulkan-parity/checkpoint-deploy-tools-v2/manifest.json",
+      "sha256": "8740705e03c663d71bcac31399bf18bab20457d66eda1d36c21b0a6b4703ec7f",
+      "recordedStatus": "stage-only-not-executed"
+    },
+    {
+      "path": "obj/vulkan-parity/checkpoint-package-build52-02/manifest.json",
+      "sha256": "d2141f910acf769aea10f189e5df7f4caa9edabbc23e99a47700eb67b7d4793e",
+      "recordedStatus": "qualified-package"
+    },
+    {
+      "path": "obj/vulkan-parity/checkpoint-package-build52-02/deployment-backup-before-vulkan-20260920-000626-696.json",
+      "sha256": "2b0092956f0728a0a16d3ba84612e0849d47c471db466eaef4b00e4592c0a5f8",
+      "recordedStatus": "deployed-verified"
+    }
+  ]
+}

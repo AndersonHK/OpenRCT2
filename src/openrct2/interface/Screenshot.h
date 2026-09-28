@@ -14,6 +14,7 @@
 #include "../world/Weather.h"
 #include "ZoomLevel.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -54,13 +55,16 @@ struct CaptureOptions
 namespace OpenRCT2::Drawing
 {
     struct RenderTarget;
-}
+    struct IRenderServiceFactory;
+} // namespace OpenRCT2::Drawing
 
 void ScreenshotCheck();
 std::string ScreenshotDump();
 std::string ScreenshotDumpPNG(OpenRCT2::Drawing::RenderTarget& rt);
 
 void ScreenshotGiant();
-int32_t CommandLineForScreenshot(const char** argv, int32_t argc, ScreenshotOptions* options);
+int32_t CommandLineForScreenshot(
+    const char** argv, int32_t argc, ScreenshotOptions* options,
+    std::shared_ptr<OpenRCT2::Drawing::IRenderServiceFactory> renderServiceFactory = {});
 
 void CaptureImage(const CaptureOptions& options);

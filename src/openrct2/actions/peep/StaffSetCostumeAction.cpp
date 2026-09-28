@@ -84,6 +84,7 @@ namespace OpenRCT2::GameActions
 
         staff->animationObjectIndex = _costume;
         staff->animationGroup = PeepAnimationGroup::normal;
+        gameState.entities.PublishEntityVisualState(*staff);
 
         auto& objManager = GetContext()->GetObjectManager();
         auto* animObj = objManager.GetLoadedObject<PeepAnimationsObject>(_costume);

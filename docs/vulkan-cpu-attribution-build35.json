@@ -1,0 +1,60 @@
+{
+  "status": "attribution-only-pass",
+  "summary": {
+    "path": "obj/vulkan-parity/perf-vulkan-attribution-build35-01/summary.json",
+    "sha256": "30fc3ce0c22fe547d99a8084e87c43361d0a6e0f6627a999c419d5b4eb415495"
+  },
+  "profile": {
+    "path": "obj/vulkan-parity/perf-vulkan-attribution-build35-01/profile.csv",
+    "sha256": "d6be5207c86bce756e8cd01d32b4aae255cca372904f989cae68cb4c166184ba"
+  },
+  "build": 35,
+  "logicalTicks": 2000,
+  "draws": 2000,
+  "profilerEnabled": true,
+  "structuralWorkCounts": [
+    {
+      "function": "void __cdecl OpenRCT2::ViewportFillColumn(struct PaintSession &)",
+      "calls": 242000,
+      "callsPerDraw": 121.0,
+      "inclusiveMeanMicroseconds": 1187.95288595
+    },
+    {
+      "function": "void __cdecl TileElementPaintSetup(struct PaintSession &,const struct CoordsXY &,bool)",
+      "calls": 70664000,
+      "callsPerDraw": 35332.0,
+      "inclusiveMeanMicroseconds": 1.64992634439
+    },
+    {
+      "function": "void __cdecl EntityPaintSetup(struct PaintSession &,const struct CoordsXY &)",
+      "calls": 141328000,
+      "callsPerDraw": 70664.0,
+      "inclusiveMeanMicroseconds": 0.432138208281
+    },
+    {
+      "function": "void __cdecl PaintSurface(struct PaintSession &,unsigned char,unsigned short,const struct OpenRCT2::SurfaceElement &)",
+      "calls": 45160000,
+      "callsPerDraw": 22580.0,
+      "inclusiveMeanMicroseconds": 1.71452075066
+    },
+    {
+      "function": "void __cdecl PaintSessionArrange(struct PaintSessionCore &)",
+      "calls": 242000,
+      "callsPerDraw": 121.0,
+      "inclusiveMeanMicroseconds": 28.8867549587
+    },
+    {
+      "function": "void __cdecl OpenRCT2::ViewportPaintColumn(struct PaintSession &)",
+      "calls": 242000,
+      "callsPerDraw": 121.0,
+      "inclusiveMeanMicroseconds": 25.4243859504
+    }
+  ],
+  "limitations": [
+    "Instrumented single process; not clean timing or TPS acceptance",
+    "Inclusive scopes nest and run on multiple threads; never sum their durations into wall-time percentages",
+    "Agent staging/visual review was not suspended; no other game process, build, readback or validation ran during measured interval",
+    "No displayed cadence or no-render ceiling measured"
+  ],
+  "finding": "Repeated CPU world traversal remains a required removal target; retained balloon admission addresses only one family."
+}

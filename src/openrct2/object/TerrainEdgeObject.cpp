@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "TerrainEdgeObject.h"
+#include "../world/TerrainPresentation.h"
 
 #include "../Context.h"
 #include "../core/Guard.hpp"
@@ -20,6 +21,7 @@ namespace OpenRCT2
 {
     void TerrainEdgeObject::Load()
     {
+        AdvanceTerrainObjectRevision();
         GetStringTable().Sort();
         NameStringId = LanguageAllocateObjectString(GetName());
         IconImageId = LoadImages();
@@ -30,6 +32,7 @@ namespace OpenRCT2
 
     void TerrainEdgeObject::Unload()
     {
+        AdvanceTerrainObjectRevision();
         LanguageFreeObjectString(NameStringId);
         UnloadImages();
 

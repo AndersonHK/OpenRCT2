@@ -61,8 +61,13 @@ void main()
             if (hintThreshold > 0u)
             {
                 bool solidColour = texel > 180u;
-                texel = texel > hintThreshold ? fColour : 0u;
-                texel = (texel << 8) + (solidColour ? 1u : 0u);
+                // Solid glyph coverage takes precedence over the hinting threshold.
+                if (!solidColour && texel <= hintThreshold)
+                    discard;
+                // Filter rows occupy 0x0000..0x00ff and ordinary text uses low
+                // byte 0/1. Reserve 0x0102/0x0103 for blended/solid index-zero ink.
+                texel = fColour == 0u ? (solidColour ? 0x0103u : 0x0102u)
+                                     : (fColour << 8) + (solidColour ? 1u : 0u);
             }
             else
             {

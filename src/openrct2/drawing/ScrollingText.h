@@ -11,7 +11,9 @@
 
 #include "../core/StringTypes.h"
 
+#include <array>
 #include <cstdint>
+#include <vector>
 
 struct ImageId;
 struct PaintSession;
@@ -31,6 +33,30 @@ namespace OpenRCT2::Drawing::ScrollingText
     constexpr int8_t kMaxModes = 38;
     constexpr auto kParkBannerColourPrefix = "{WHITE}";
     constexpr auto kRideBannerColourPrefix = "{YELLOW}";
+
+    // Immutable glyph columns, compiled only when text or font assets change. Scroll phase
+    // and placement remain GPU work. Sprite fonts retain the original four-repeat bound;
+    // TrueType columns wrap independently of the formatted string's phase width.
+    struct TextColumns
+    {
+        uint32_t phaseWidth{};
+        bool repeat{};
+        std::vector<std::array<uint8_t, 8>> columns;
+        // Optional initial-ink coverage, before any explicit formatting colour.
+        // Bits0..7 are solid pixels, bits8..15 are TTF hint pixels blended with transparent.
+        std::vector<uint16_t> initialInk;
+        bool operator==(const TextColumns&) const = default;
+    };
+    struct ModeColumn
+    {
+        uint16_t sourceColumn{ UINT16_MAX };
+        uint8_t y{};
+    };
+    using ModeColumns = std::array<std::array<ModeColumn, 64>, kMaxModes>;
+
+    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour, bool retainInitialInk = false);
+    const ModeColumns& getModeColumns();
+    uint64_t getAssetRevision() noexcept;
 
     void initialiseBitmaps();
     void invalidate();

@@ -212,6 +212,7 @@ namespace OpenRCT2
 
         void ResetUpdateStates();
         void UpdateRide(const Ride& ride);
+        void UpdateValue(Ride& ride);
         void RecordRiderSample(Ride& ride, const RideRatingAccumulator& sample);
         bool RecordActiveRiderSample(Ride& ride, EntityId sampleEntity);
         bool RecordActiveRiderSamples(Ride& ride, std::span<const EntityId> sampleEntities);

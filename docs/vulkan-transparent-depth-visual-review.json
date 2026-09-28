@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "status": "pass-synthetic-indexed-composition-only",
+  "reviewer": "screenshot_runner independent agent",
+  "cases": [
+    {
+      "fixture": "exact-peel-depth-2047x1439",
+      "extent": [
+        2047,
+        1439
+      ],
+      "groups": 96,
+      "transparentPeels": 3,
+      "differingPixels": 0,
+      "manualImages": [
+        "ordered-remap-oracle.png",
+        "vulkan.png"
+      ],
+      "manualObservation": "Matching96 uniform coloured clipped rectangles over repeating indexed background; no diagonal splits, holes or leaked rectangular edges visible."
+    },
+    {
+      "fixture": "exact-peel-depth-2048x1440",
+      "extent": [
+        2048,
+        1440
+      ],
+      "groups": 96,
+      "transparentPeels": 3,
+      "differingPixels": 0,
+      "manualImages": [
+        "ordered-remap-oracle.png",
+        "vulkan.png"
+      ],
+      "manualObservation": "Matching96 uniform coloured clipped rectangles over repeating indexed background; no diagonal splits, holes or leaked rectangular edges visible."
+    }
+  ],
+  "referenceType": "Independent ordered CPU remap composition, not frozen software scene rendering",
+  "manualImageCount": 4,
+  "exceptions": [],
+  "oldShaderControl": "Both samples also pass with qualified pre-fix shaders; this regression does not reproduce or prove correction of the giant41-pixel defect.",
+  "limits": [
+    "Only indexed composition checked; no standalone finalRGBA qualification.",
+    "Actual giant frozen/current/Vulkan corpus and fresh repeats must independently pass before giant correctness is accepted."
+  ],
+  "sha256": {
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\diff.png": "cead191f622cc40b81e29da451dde6451fa7803006cce71b721965ab693ccc84",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\ordered-remap-oracle.bin": "66e6971eead88e9d75c70c21ec1fba4fec772b84d9c0a59ffbd1492743057ee8",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\ordered-remap-oracle.png": "8b5c5d564b382f5321bd91e940daab66487afaf1920b10154a75bb12f8853fbc",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\report.json": "74cf38e059ccd46540ca4310a8c4260c8e470d81eb82dd14bc3e074fe2d3108b",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\vulkan.bin": "66e6971eead88e9d75c70c21ec1fba4fec772b84d9c0a59ffbd1492743057ee8",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2047x1439\\indexed\\vulkan.png": "8b5c5d564b382f5321bd91e940daab66487afaf1920b10154a75bb12f8853fbc",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\diff.png": "d1bf919e1fdc608745093b3cc6f574a9d8ea9ddd12cad70c87e637725e084d60",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\ordered-remap-oracle.bin": "c3f484b381a6e7babdfb90a81a4196c7f44afeb65ed4ef23158d0582d86e899c",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\ordered-remap-oracle.png": "5b6bdb157600e244da0d56eceeb5f8ec3e89e8e35dfc4fccbfaac7d6d2f7ee0d",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\report.json": "0db7179d225e277b5e6c88635a9dfc3f03254fae6b4ebde328b95865fed8f5c4",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\vulkan.bin": "c3f484b381a6e7babdfb90a81a4196c7f44afeb65ed4ef23158d0582d86e899c",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\samples\\offscreen\\exact-peel-depth-2048x1440\\indexed\\vulkan.png": "5b6bdb157600e244da0d56eceeb5f8ec3e89e8e35dfc4fccbfaac7d6d2f7ee0d",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\summary.json": "f1942ac2df9a6d897900412f58471c3954f3a834402162ae365cb8840adf8782",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\tests.xml": "ace49631eb4055912fbc1be4caa4240d0825d5d5a59c50ef0eeecd5d0e35bcec",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\run-42\\tests.log": "8101bc3de2bde6a8f85e984e0abb674a21a2d880abda199c78053bfa292da750",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-47\\receipt.json": "9e401342a608d57f574b34a3296c75bae93eaf04745739fe7b96c50ef40f4e1b",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\transparent-depth-old-shader-control-01\\summary.json": "ab1e23724ec5de316762973700b0d6f55766141767a5b7740424db099a3acdfa",
+    "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\test\\tests\\VulkanOffscreenRenderTests.cpp": "2111deae323fdb6d383ed4cd2ec3ee80530c9720784aa163b218e3270564a110"
+  }
+}

@@ -49,6 +49,9 @@ namespace OpenRCT2
         int32_t hireDate;
         uint8_t staffOrders;
         uint8_t staffMowingTimeout;
+        CoordsXYZ repairLocation{};
+        ObjectEntryIndex repairAddition{ kObjectEntryIndexNull };
+        uint16_t repairTicksRemaining{};
 
         union // 1st statistic
         {
@@ -94,6 +97,8 @@ namespace OpenRCT2
 
     private:
         void updatePatrolling();
+        bool tryRepairPathAddition();
+        void updateRepairPathAddition();
         void updateMowing();
         void updateSweeping();
         void updateEmptyingBin();

@@ -2025,8 +2025,7 @@ namespace OpenRCT2::Ui::Windows
 
             // If no change in ghost placement
             if ((gSceneryGhostType & SCENERY_GHOST_FLAG_4) && mapTile == gSceneryGhostPosition
-                && z + kPathHeightStep == gSceneryGhostPosition.z
-                && direction == gSceneryPlaceRotation)
+                && z + kPathHeightStep == gSceneryGhostPosition.z && direction == gSceneryPlaceRotation)
             {
                 return;
             }
@@ -2300,7 +2299,7 @@ namespace OpenRCT2::Ui::Windows
                     auto banner = info.Element->asBanner()->getBanner();
                     if (banner != nullptr)
                     {
-                        auto* bannerEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->type);
+                        auto* bannerEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->getType());
                         if (bannerEntry->flags & BANNER_ENTRY_FLAG_HAS_PRIMARY_COLOUR)
                         {
                             auto repaintScenery = GameActions::BannerSetColourAction(
@@ -2372,11 +2371,12 @@ namespace OpenRCT2::Ui::Windows
                     auto banner = info.Element->asBanner()->getBanner();
                     if (banner != nullptr)
                     {
-                        auto sceneryEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->type);
+                        auto sceneryEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->getType());
                         if (sceneryEntry != nullptr)
                         {
                             WindowScenerySetSelectedItem(
-                                { SCENERY_TYPE_BANNER, banner->type }, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+                                { SCENERY_TYPE_BANNER, banner->getType() }, std::nullopt, std::nullopt, std::nullopt,
+                                std::nullopt);
                         }
                     }
                     break;

@@ -25,6 +25,7 @@ enum class TextDarkness : uint8_t;
 namespace OpenRCT2::Drawing
 {
     struct RenderTarget;
+    struct TextGlyphRun;
 
     enum class TextDrawFlag : uint8_t
     {
@@ -46,6 +47,7 @@ namespace OpenRCT2::Drawing
         TextColours palette{};
         FontStyle fontStyle{};
         const int8_t* yOffset{};
+        TextGlyphRun* glyphRun{};
     };
 
     extern Drawing::Colour gCurrentWindowColours[3];

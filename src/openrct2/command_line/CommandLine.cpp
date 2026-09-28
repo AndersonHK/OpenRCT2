@@ -15,12 +15,15 @@
 #include "../platform/Platform.h"
 
 #include <cstring>
+#include <utility>
 
 #pragma region CommandLineArgEnumerator
 
 namespace OpenRCT2
 {
-    CommandLineArgEnumerator::CommandLineArgEnumerator(const char* const* arguments, int32_t count)
+    CommandLineArgEnumerator::CommandLineArgEnumerator(
+        const char* const* arguments, int32_t count, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
+        : _renderServiceFactory(std::move(renderServiceFactory))
     {
         _arguments = arguments;
         _count = count;
@@ -526,9 +529,10 @@ namespace OpenRCT2::CommandLine
 
 namespace OpenRCT2
 {
-    CommandLine::ExitCode CommandLineRun(const char** argv, int32_t argc)
+    CommandLine::ExitCode CommandLineRun(
+        const char** argv, int32_t argc, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
     {
-        auto argEnumerator = CommandLineArgEnumerator(argv, argc);
+        auto argEnumerator = CommandLineArgEnumerator(argv, argc, std::move(renderServiceFactory));
 
         // Pop process path
         argEnumerator.TryPop();

@@ -1,0 +1,66 @@
+#version 450
+// Common-world resident state and stable-ID tile bins; no image/position command upload.
+layout(local_size_x=128) in;
+layout(std430,binding=0) buffer Fields { uint words[]; } fields;
+layout(std430,binding=1) readonly buffer Updates { uint words[]; } updates;
+layout(std430,binding=2) buffer Bins { uint words[]; } bins;
+layout(push_constant) uniform Parameters { uint pass; uint count; uint sourceWord; uint unused; } pc;
+const uint CAP=65535u, MOTION=CAP*2u, APPEARANCE=CAP*12u, ANIMATION=CAP*16u;
+const uint BITS=2048u, IDS=BITS+1024u*2048u;
+void main()
+{
+    uint i=gl_GlobalInvocationID.x;
+    if (i>=pc.count) return;
+    if (pc.pass<4u)
+    {
+        uint width=pc.pass==0u?3u:(pc.pass==1u?12u:(pc.pass==2u?6u:11u));
+        uint source=pc.sourceWord+i*width, id=updates.words[source];
+        if(id>=CAP) { atomicOr(bins.words[0],1u); return; }
+        if(pc.pass==0u)
+        {
+            fields.words[id*2u]=updates.words[source+1u];
+            fields.words[id*2u+1u]=updates.words[source+2u];
+            return;
+        }
+        if(fields.words[id*2u]!=updates.words[source+1u] || (fields.words[id*2u+1u]&1u)==0u)
+        { atomicOr(bins.words[0],2u); return; }
+        uint base=pc.pass==1u?MOTION:(pc.pass==2u?APPEARANCE:ANIMATION);
+        uint payload=width-2u;
+        for(uint w=0u;w<payload;w++) fields.words[base+id*payload+w]=updates.words[source+2u+w];
+        return;
+    }
+    if(pc.pass==4u)
+    {
+        if((fields.words[i*2u+1u]&1u)==0u) return;
+        int x=int(fields.words[MOTION+i*10u]), y=int(fields.words[MOTION+i*10u+1u]);
+        if(x==-32768) return; // Authoritative off-map entity location, including pickup.
+        if(x<0 || y<0 || x>=1024 || y>=1024) { atomicOr(bins.words[0],4u); return; }
+        uint tile=uint(y/32)*32u+uint(x/32);
+        atomicOr(bins.words[BITS+tile*2048u+i/32u],1u<<(i&31u));
+        atomicAdd(bins.words[4u+tile],1u);
+        return;
+    }
+    if(pc.pass==5u)
+    {
+        if(i!=0u) return;
+        uint offset=0u;
+        for(uint tile=0u;tile<1024u;tile++)
+        { uint n=bins.words[4u+tile]; bins.words[4u+tile]=offset; offset+=n; }
+        bins.words[4u+1024u]=offset;
+        if(offset>CAP) atomicOr(bins.words[0],8u);
+        return;
+    }
+    // One tile per invocation: bitset scan emits IDs in ascending order independent of atomic scheduling.
+    uint destination=bins.words[4u+i];
+    for(uint word=0u;word<2048u;word++)
+    {
+        uint bits=bins.words[BITS+i*2048u+word];
+        while(bits!=0u)
+        {
+            uint bit=uint(findLSB(bits)); bits&=bits-1u;
+            if(destination>=CAP) { atomicOr(bins.words[0],8u); return; }
+            bins.words[IDS+destination++]=word*32u+bit;
+        }
+    }
+    if(destination!=bins.words[5u+i]) atomicOr(bins.words[0],16u);
+}

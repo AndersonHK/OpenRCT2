@@ -167,8 +167,7 @@ namespace OpenRCT2
     TileEraseResult EraseTileElement(
         const TileCoordsXY& tile, TileElement* element, TileMutationMode mode = TileMutationMode::immediate);
     TileMutationStatus ReplaceTileElementsAt(
-        const TileCoordsXY& tile, std::vector<TileElement> elements,
-        TileMutationMode mode = TileMutationMode::immediate);
+        const TileCoordsXY& tile, std::vector<TileElement> elements, TileMutationMode mode = TileMutationMode::immediate);
 
     // Simulation-thread structural identity, independent of routing and presentation caches.
     // References must be reacquired after insertion, deletion, replacement or reordering on their tile.
@@ -221,6 +220,8 @@ namespace OpenRCT2
     bool MapLargeScenerySignSetColour(
         const CoordsXYZD& signPos, int32_t sequence, Drawing::Colour mainColour, Drawing::Colour textColour);
 
+    // Coalesced publication only: callers already own the coordinates of an actual tile-state mutation.
+    void MarkMapTilePresentationDirty(const CoordsXY& tilePos);
     void MapInvalidateTile(const CoordsXYRangedZ& tilePos);
     void MapInvalidateTileForRendering(const CoordsXYRangedZ& tilePos);
     void MapInvalidateTileZoom1(const CoordsXYRangedZ& tilePos);

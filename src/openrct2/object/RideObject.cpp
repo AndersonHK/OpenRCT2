@@ -12,6 +12,7 @@
 #include "../audio/Audio.h"
 #include "../core/EnumMap.hpp"
 #include "../core/FlagHolder.hpp"
+#include "../core/GameTime.hpp"
 #include "../core/IStream.hpp"
 #include "../core/Json.hpp"
 #include "../core/Numerics.hpp"
@@ -27,6 +28,7 @@
 #include "../ride/Vehicle.h"
 #include "ObjectRepository.h"
 
+#include <cmath>
 #include <iterator>
 
 namespace OpenRCT2
@@ -808,6 +810,16 @@ namespace OpenRCT2
         {
             car.steamEffect.longitudinal = DefaultSteamSpawnPosition[0];
             car.steamEffect.vertical = DefaultSteamSpawnPosition[1];
+        }
+
+        if (jCar.contains("boardingDuration"))
+        {
+            const auto& duration = jCar["boardingDuration"];
+            const double seconds = duration.is_number() ? duration.get<double>() : -1;
+            if (!std::isfinite(seconds) || seconds < 0 || seconds > 30)
+                context->LogError(ObjectError::invalidProperty, "boardingDuration must be between 0 and 30 seconds");
+            else
+                car.boardingDurationTicks = static_cast<uint16_t>(std::lround(seconds * GameTime::kTicksPerSecond));
         }
 
         auto jLoadingPositions = jCar["loadingPositions"];

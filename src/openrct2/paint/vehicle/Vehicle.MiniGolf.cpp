@@ -11,6 +11,7 @@
 
 #include "../../GameState.h"
 #include "../../entity/EntityRegistry.h"
+#include "../../entity/EntityPresentationSnapshot.h"
 #include "../../entity/Guest.h"
 #include "../../ride/Ride.h"
 #include "../../ride/Vehicle.h"
@@ -117,15 +118,15 @@ namespace OpenRCT2
         if (rideEntry == nullptr)
             return;
 
-        auto* peep = GetEntityForPresentation<Guest>(vehicle->peep[0]);
-        if (peep == nullptr)
+        const auto peep = GetGuestPresentationFacts(vehicle->peep[0]);
+        if (!peep)
             return;
 
         uint8_t frame = MiniGolfPeepAnimationFrames[EnumValue(vehicle->mini_golf_current_animation)][vehicle->animation_frame];
         uint32_t ebx = (frame << 2) + Entity::Yaw::YawTo4(imageDirection);
 
         ImageIndex index = rideEntry->Cars[0].baseImageId + 1 + ebx;
-        auto image = ImageId(index, peep->tShirtColour, peep->trousersColour);
+        auto image = ImageId(index, static_cast<Drawing::Colour>(peep->colours & 0xff), static_cast<Drawing::Colour>((peep->colours >> 8) & 0xff));
         PaintAddImageAsParent(session, image, { 0, 0, z }, { { 0, 0, z + 5 }, { 1, 1, 11 } });
     }
 

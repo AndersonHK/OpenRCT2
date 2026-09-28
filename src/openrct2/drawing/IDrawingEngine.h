@@ -9,23 +9,20 @@
 
 #pragma once
 
+#define OPENRCT2_VULKAN_ONLY 1
+
 #include "../core/FlagHolder.hpp"
 #include "PaletteType.h"
+#include "PresentationGeneration.h"
+#include "RenderUploadTelemetry.h"
 #include "WeatherDrawer.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-
-enum class DrawingEngine : int32_t
-{
-    none = -1,
-    softwareWithHardwareDisplay,
-    vulkan = 2, // Preserve the established vulkan configuration value after retiring openGL.
-    count = 3,
-};
 
 enum DrawingEngineFlag
 {
@@ -48,9 +45,29 @@ namespace OpenRCT2::Ui
 
 namespace OpenRCT2::Drawing
 {
+    // Lifetime counters, independent of the bounded timing-sample queue. Read
+    // before/after an explicit benchmark drain to distinguish late work from
+    // skipped draw attempts. Accepted presentation is not proof of scanout:
+    // MAILBOX/the compositor may replace an accepted image before display.
+    struct FramePresentationCounters
+    {
+        uint64_t publishedVisualPackets = 0;
+        uint64_t supersededVisualPackets = 0;
+        uint64_t unavailableVisualPackets = 0;
+        uint64_t discardedVisualPackets = 0;
+        uint64_t visualFrameSubmissions = 0;
+        uint64_t presentRequests = 0;
+        uint64_t presentAccepted = 0;
+        uint64_t presentOutOfDate = 0;
+        uint64_t fenceCompletedFrames = 0;
+        uint64_t lostTimingSamples = 0;
+    };
+
     struct FrameTimings
     {
         uint64_t frameNumber = 0;
+        std::optional<RenderUploadTelemetry> uploadTelemetry;
+        bool telemetryOnly = false;
         double cpuSubmitMicroseconds = 0.0;
         double cpuPresentMicroseconds = 0.0;
         double gpuMicroseconds = 0.0;
@@ -59,6 +76,9 @@ namespace OpenRCT2::Drawing
         double gpuLightFxMicroseconds = 0.0;
         double gpuCompositeMicroseconds = 0.0;
         double presentCallMicroseconds = 0.0;
+        // steady_clock epoch, sampled immediately after an accepted queue
+        // present. Transported with the existing fence-complete timing sample.
+        std::optional<uint64_t> acceptedPresentNanoseconds;
         bool hasGpuTimestamp = false;
         bool hasGpuPassTimestamps = false;
         bool hasPresentCallMeasurement = false;
@@ -73,7 +93,16 @@ namespace OpenRCT2::Drawing
         {
         }
 
+        // Retained publication is separate from native GPU paint admission; the default preserves bulk software capture.
+        virtual EntityPublicationProfile GetEntityPublicationProfile() const
+        {
+            return EntityPublicationProfile::legacyBulk;
+        }
         virtual void Initialise() = 0;
+        // UI assets are ready; prepare world resources while the owner draws only loading UI.
+        virtual void PrepareWorldRendering(const std::function<void()>&)
+        {
+        }
         virtual void Resize(uint32_t width, uint32_t height) = 0;
         // Display identity changed independently of the logical canvas size.
         virtual void NotifyDisplayChanged()
@@ -99,6 +128,10 @@ namespace OpenRCT2::Drawing
         }
         virtual void BeginDraw() = 0;
         virtual void EndDraw() = 0;
+        // Discard an unsubmitted frame after painting fails. Stateful recorders must release their frame ownership.
+        virtual void AbortDraw()
+        {
+        }
         virtual void PaintWindows() = 0;
         virtual void PaintWeather() = 0;
         virtual void CopyRect(int32_t x, int32_t y, int32_t width, int32_t height, int32_t dx, int32_t dy) = 0;
@@ -131,6 +164,11 @@ namespace OpenRCT2::Drawing
             TakeCompletedFrameTimings(samples);
         }
 
+        [[nodiscard]] virtual std::optional<FramePresentationCounters> GetFramePresentationCounters() const
+        {
+            return std::nullopt;
+        }
+
         virtual void InvalidateImage(uint32_t image) = 0;
     };
 
@@ -139,7 +177,7 @@ namespace OpenRCT2::Drawing
         virtual ~IDrawingEngineFactory()
         {
         }
-        [[nodiscard]] virtual std::unique_ptr<IDrawingEngine> Create(DrawingEngine type, Ui::IUiContext& uiContext) = 0;
+        [[nodiscard]] virtual std::unique_ptr<IDrawingEngine> Create(Ui::IUiContext& uiContext) = 0;
     };
 
     struct IWeatherDrawer

@@ -1,0 +1,360 @@
+{
+  "status": "smoke only; Gate P unqualified",
+  "workload": "EverythingPark, 100 warmup + 400 measured ticks, VSync0, hidden; frozen reference versus ordinary E2a build29; validation/capture/profile off",
+  "limitations": [
+    "Single short run per lane; no sustained performance claim",
+    "No display deadline/refresh/scanout proof",
+    "No attributed CPU copy/upload byte measurements yet",
+    "Do not compare TPS directly with VSync1: draw admission frequency differs"
+  ],
+  "runs": [
+    {
+      "run": "perf-frozen-vsync0-01",
+      "summarySha256": "5f4bb22e3ca5bd570992e2bf40627671b0328124a528d7e01b855b0f77dbefeb",
+      "mode": "frozen-software",
+      "metrics": {
+        "renderer": "software",
+        "vsync": "disabled",
+        "elapsedSeconds": 2.467901,
+        "logicalTicks": 400,
+        "logicalTps": 162.081,
+        "draws": {
+          "count": 402.0,
+          "fps": 162.891
+        },
+        "ui": {
+          "messagePumps": 402.0,
+          "windowUpdates": 402.0,
+          "messageHz": 162.891,
+          "windowHz": 162.891
+        },
+        "simulation": {
+          "seconds": 0.981884,
+          "utilisationPercent": 39.8,
+          "meanMicrosecondsPerTick": 2454.71
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 2454.71,
+          "longestMilliseconds": 3.502,
+          "longestSliceMilliseconds": 3.502
+        },
+        "drawCpu": {
+          "seconds": 0.908807,
+          "utilisationPercent": 36.8,
+          "meanMicroseconds": 2260.715
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 6.112,
+          "p95": 6.931,
+          "p99": 7.468,
+          "max": 8.947
+        },
+        "rendererCpu": null,
+        "presentApi": null,
+        "gpuFrame": null,
+        "gpuPasses": null
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000"
+    },
+    {
+      "run": "perf-e2a-software-vsync0-01",
+      "summarySha256": "6c053d54accc57a66755e9a2656ea7ca8568bf8df12c1ac883a7622899032ba4",
+      "mode": "current-software",
+      "metrics": {
+        "renderer": "software",
+        "vsync": "disabled",
+        "elapsedSeconds": 2.431876,
+        "logicalTicks": 400,
+        "logicalTps": 164.482,
+        "draws": {
+          "count": 403.0,
+          "fps": 165.716
+        },
+        "ui": {
+          "messagePumps": 403.0,
+          "windowUpdates": 403.0,
+          "messageHz": 165.716,
+          "windowHz": 165.716
+        },
+        "simulation": {
+          "seconds": 0.952024,
+          "utilisationPercent": 39.1,
+          "meanMicrosecondsPerTick": 2380.059
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 2380.059,
+          "longestMilliseconds": 3.126,
+          "longestSliceMilliseconds": 3.126
+        },
+        "drawCpu": {
+          "seconds": 0.922649,
+          "utilisationPercent": 37.9,
+          "meanMicroseconds": 2289.451
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 6.009,
+          "p95": 6.569,
+          "p99": 6.911,
+          "max": 7.256
+        },
+        "rendererCpu": null,
+        "presentApi": null,
+        "gpuFrame": null,
+        "gpuPasses": null
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000"
+    },
+    {
+      "run": "perf-e2a-vulkan-vsync0-01",
+      "summarySha256": "667035609a7719ef947aa22703ebee1d5609821732a1f8b64f2e833ca95f3b2a",
+      "mode": "current-vulkan",
+      "metrics": {
+        "renderer": "vulkan",
+        "vsync": "disabled",
+        "elapsedSeconds": 3.43188,
+        "logicalTicks": 400,
+        "logicalTps": 116.554,
+        "draws": {
+          "count": 400.0,
+          "fps": 116.554
+        },
+        "ui": {
+          "messagePumps": 401.0,
+          "windowUpdates": 400.0,
+          "messageHz": 116.846,
+          "windowHz": 116.554
+        },
+        "simulation": {
+          "seconds": 0.893317,
+          "utilisationPercent": 26.0,
+          "meanMicrosecondsPerTick": 2233.293
+        },
+        "simulationBatches": {
+          "count": 400.0,
+          "meanMicroseconds": 2233.293,
+          "longestMilliseconds": 2.989,
+          "longestSliceMilliseconds": 2.989
+        },
+        "drawCpu": {
+          "seconds": 1.982168,
+          "utilisationPercent": 57.8,
+          "meanMicroseconds": 4955.42
+        },
+        "applicationFrameIntervalsMs": {
+          "p50": 8.508,
+          "p95": 9.146,
+          "p99": 9.989,
+          "max": 10.856
+        },
+        "rendererCpu": {
+          "submitMeanUs": 381.339,
+          "presentMeanUs": 162.856,
+          "samples": 400.0
+        },
+        "presentApi": {
+          "meanUs": 122.771,
+          "samples": 400.0
+        },
+        "gpuFrame": {
+          "meanUs": 278.726,
+          "samples": 400.0
+        },
+        "gpuPasses": {
+          "uploadMeanUs": 13.116,
+          "drawMeanUs": 259.856,
+          "lightFxMeanUs": 0.003,
+          "compositeMeanUs": 5.75
+        }
+      },
+      "states": {
+        "initial": {
+          "simulationTick": {
+            "tick": 3133931
+          },
+          "guests": {
+            "total": 13213,
+            "inside": 13212,
+            "outside": 1
+          },
+          "guestStates": {
+            "walking": 6322,
+            "queued": 2672,
+            "onRide": 2889
+          },
+          "transportRoutes": {
+            "active": 2
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        },
+        "final": {
+          "simulationTick": {
+            "tick": 3134331
+          },
+          "guests": {
+            "total": 13434,
+            "inside": 13364,
+            "outside": 70
+          },
+          "guestStates": {
+            "walking": 6751,
+            "queued": 2664,
+            "onRide": 2828
+          },
+          "transportRoutes": {
+            "active": 4
+          },
+          "staffVehicles": {
+            "staff": 2208,
+            "vehicles": 2128
+          },
+          "routeCache": {
+            "nodes": 6663,
+            "targets": 543,
+            "directionEntries": 3611346,
+            "distanceEntries": 3611346,
+            "singleRideTargets": 517,
+            "status": "current"
+          }
+        }
+      },
+      "finalEntityChecksum": "8f6361f8141151c4000000000000000000000000"
+    }
+  ]
+}

@@ -115,6 +115,11 @@ namespace OpenRCT2
             virtual int32_t GetWidth() = 0;
             virtual int32_t GetHeight() = 0;
             virtual uint32_t GetRefreshRate() const = 0;
+            // Physical output pixels, distinct from the scaled game canvas. Zero means unavailable.
+            virtual Resolution GetDrawableSize() const
+            {
+                return {};
+            }
             virtual ScaleQuality GetScaleQuality() = 0;
             virtual void SetFullscreenMode(FullscreenMode mode) = 0;
             virtual const std::vector<Resolution>& GetFullscreenResolutions() = 0;
@@ -175,6 +180,9 @@ namespace OpenRCT2
             virtual ITitleSequencePlayer* GetTitleSequencePlayer() = 0;
         };
 
-        [[nodiscard]] std::unique_ptr<IUiContext> CreateDummyUiContext();
+        // Nongraphical by default. A test may explicitly supply its own display adapter;
+        // production headless image operations use IRenderService instead.
+        [[nodiscard]] std::unique_ptr<IUiContext> CreateDummyUiContext(
+            std::shared_ptr<Drawing::IDrawingEngineFactory> drawingEngineFactory = {});
     } // namespace Ui
 } // namespace OpenRCT2

@@ -27,7 +27,6 @@
 #include "../ride/ted/TrackElementDescriptor.h"
 #include "Location.hpp"
 #include "Map.h"
-#include "MapAnimation.h"
 #include "MapOwnership.h"
 #include "MapTopology.h"
 #include "Wall.h"
@@ -918,8 +917,8 @@ namespace OpenRCT2
             {
                 lastPathElement->asPath()->setHasQueueBanner(true);
                 lastPathElement->asPath()->setQueueBannerDirection(lastPathDirection); // set the ride sign direction
+                MarkMapTilePresentationDirty(lastPath);
 
-                MapAnimations::MarkTileForInvalidation(TileCoordsXY(lastPath));
                 if (!lastPathElement->isGhost())
                 {
                     MapTopology::InvalidateTileAndNeighbours(lastPath);
@@ -964,10 +963,10 @@ namespace OpenRCT2
 
             for (const auto& station : ride->getStations())
             {
-                if (station.entrance.isNull())
+                if (station.getEntrance().isNull())
                     continue;
 
-                TileElement* tileElement = MapGetFirstElementAt(station.entrance);
+                TileElement* tileElement = MapGetFirstElementAt(station.getEntrance());
                 if (tileElement != nullptr)
                 {
                     do
@@ -981,7 +980,8 @@ namespace OpenRCT2
 
                         Direction direction = DirectionReverse(tileElement->getDirection());
                         FootpathChainRideQueue(
-                            rideIndex, ride->getStationIndex(&station), station.entrance.toCoordsXY(), tileElement, direction);
+                            rideIndex, ride->getStationIndex(&station), station.getEntrance().toCoordsXY(), tileElement,
+                            direction);
                     } while (!(tileElement++)->isLastForTile());
                 }
             }
@@ -1413,7 +1413,10 @@ namespace OpenRCT2
         if (!(footpathPos.x & 0xE0) || (!(footpathPos.y & 0xE0)))
         {
             if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+            {
                 MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
+                MarkMapTilePresentationDirty(footpathPos);
+            }
             return;
         }
 
@@ -1592,7 +1595,10 @@ namespace OpenRCT2
         } while (!(tileElement++)->isLastForTile());
 
         if (FootpathWideFlagsChanged(footpathPos, previousWideFlags))
+        {
             MapTopology::InvalidatePathWideTileAndNeighbours(footpathPos);
+            MarkMapTilePresentationDirty(footpathPos);
+        }
     }
 
     bool FootpathIsBlockedByVehicle(const TileCoordsXYZ& position)

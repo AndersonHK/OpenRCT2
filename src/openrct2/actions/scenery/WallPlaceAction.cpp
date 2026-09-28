@@ -25,7 +25,6 @@
 #include "../../world/Banner.h"
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/TileElementsView.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
@@ -341,18 +340,18 @@ namespace OpenRCT2::GameActions
                 return Result(Status::invalidParameters, STR_CANT_BUILD_THIS_HERE, STR_TOO_MANY_BANNERS_IN_GAME);
             }
 
-            banner->text = {};
+            banner->setText({});
             banner->colour = Drawing::Colour::white;
-            banner->textColour = Drawing::TextColour::white;
-            banner->flags = { BannerFlag::isWall };
-            banner->type = 0; // Banner must be deleted after this point in an early return
+            banner->setTextColour(Drawing::TextColour::white);
+            banner->setFlags({ BannerFlag::isWall });
+            banner->setType(0); // Banner must be deleted after this point in an early return
             banner->position = TileCoordsXY(_loc);
 
             RideId rideIndex = BannerGetClosestRideIndex(targetLoc);
             if (!rideIndex.IsNull())
             {
-                banner->rideIndex = rideIndex;
-                banner->flags.set(BannerFlag::linkedToRide);
+                banner->setRideIndex(rideIndex);
+                banner->setFlag(BannerFlag::linkedToRide, true);
             }
         }
 
@@ -374,7 +373,6 @@ namespace OpenRCT2::GameActions
             return Result(Status::noFreeElements, STR_CANT_POSITION_THIS_HERE, STR_TILE_ELEMENT_LIMIT_REACHED);
         }
 
-        MapAnimations::MarkTileForInvalidation(TileCoordsXY(targetLoc));
         MapInvalidateTileFull(_loc);
 
         res.cost = wallEntry->price;

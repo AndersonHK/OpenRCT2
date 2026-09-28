@@ -265,15 +265,15 @@ struct GameStateSnapshots final : public IGameStateSnapshots
     }
 
 #define COMPARE_FIELD(struc, field)                                                                                            \
-    if (std::memcmp(&spriteBase.field, &spriteCmp.field, sizeof(struc::field)) != 0)                                           \
+    if (std::memcmp(&spriteBase.field, &spriteCmp.field, sizeof(spriteBase.field)) != 0)                                           \
     {                                                                                                                          \
         uint64_t valA = 0;                                                                                                     \
         uint64_t valB = 0;                                                                                                     \
-        std::memcpy(&valA, &spriteBase.field, sizeof(struc::field));                                                           \
-        std::memcpy(&valB, &spriteCmp.field, sizeof(struc::field));                                                            \
+        std::memcpy(&valA, &spriteBase.field, sizeof(spriteBase.field));                                                           \
+        std::memcpy(&valB, &spriteCmp.field, sizeof(spriteBase.field));                                                            \
         uintptr_t offset = reinterpret_cast<uintptr_t>(&spriteBase.field) - reinterpret_cast<uintptr_t>(&spriteBase);          \
         changeData.diffs.push_back(                                                                                            \
-            GameStateSpriteChange::Diff{ static_cast<size_t>(offset), sizeof(struc::field), #struc, #field, valA, valB });     \
+            GameStateSpriteChange::Diff{ static_cast<size_t>(offset), sizeof(spriteBase.field), #struc, #field, valA, valB });     \
     }
 
     void CompareSpriteDataCommon(
@@ -305,8 +305,8 @@ struct GameStateSnapshots final : public IGameStateSnapshots
         COMPARE_FIELD(Peep, state);
         COMPARE_FIELD(Peep, subState);
         COMPARE_FIELD(Peep, animationGroup);
-        COMPARE_FIELD(Peep, tShirtColour);
-        COMPARE_FIELD(Peep, trousersColour);
+        COMPARE_FIELD(Peep, getTShirtColour());
+        COMPARE_FIELD(Peep, getTrousersColour());
         COMPARE_FIELD(Peep, destinationX);
         COMPARE_FIELD(Peep, destinationY);
         COMPARE_FIELD(Peep, destinationTolerance);
@@ -415,9 +415,9 @@ struct GameStateSnapshots final : public IGameStateSnapshots
         COMPARE_FIELD(Guest, angriness);
         COMPARE_FIELD(Guest, timeLost);
         COMPARE_FIELD(Guest, daysInQueue);
-        COMPARE_FIELD(Guest, balloonColour);
-        COMPARE_FIELD(Guest, umbrellaColour);
-        COMPARE_FIELD(Guest, hatColour);
+        COMPARE_FIELD(Guest, getBalloonColour());
+        COMPARE_FIELD(Guest, getUmbrellaColour());
+        COMPARE_FIELD(Guest, getHatColour());
         COMPARE_FIELD(Guest, favouriteRide);
         COMPARE_FIELD(Guest, favouriteRideRating);
         COMPARE_FIELD(Guest, itemFlags);

@@ -466,7 +466,7 @@ namespace OpenRCT2
         auto exitPosition = CoordsXYZD{ 0, 0, 0, kInvalidDirection };
         if (!stationIndex.IsNull())
         {
-            auto location = getStation(stationIndex).exit.toCoordsXYZD();
+            auto location = getStation(stationIndex).getExit().toCoordsXYZD();
             if (!location.isNull())
             {
                 auto direction = DirectionReverse(location.direction);
@@ -1396,7 +1396,7 @@ namespace OpenRCT2
             // find the stations of the ride to begin stepping over track elements from
             for (const auto& station : stations)
             {
-                if (station.start.isNull())
+                if (station.getStartXY().isNull())
                     continue;
 
                 CoordsXYZ location = station.getStart();
@@ -1502,16 +1502,16 @@ namespace OpenRCT2
         sfl::static_vector<TileCoordsXYZD, kMaxStationLocations> locations;
         for (auto& station : stations)
         {
-            if (!station.entrance.isNull())
+            if (!station.getEntrance().isNull())
             {
-                locations.push_back(station.entrance);
-                station.entrance.setNull();
+                locations.push_back(station.getEntrance());
+                station.clearEntrance();
             }
 
-            if (!station.exit.isNull())
+            if (!station.getExit().isNull())
             {
-                locations.push_back(station.exit);
-                station.exit.setNull();
+                locations.push_back(station.getExit());
+                station.clearExit();
             }
         }
 
@@ -1608,20 +1608,20 @@ namespace OpenRCT2
                     if (tileElement->asEntrance()->getEntranceType() == EntranceType::rideExit)
                     {
                         // if the location is already set for this station, big problem!
-                        if (!station.exit.isNull())
+                        if (!station.getExit().isNull())
                             break;
                         // set the station's exit location to this one
                         CoordsXYZD loc = { location, station.getBaseZ(), tileElement->getDirection() };
-                        station.exit = TileCoordsXYZD{ loc };
+                        station.setExit(TileCoordsXYZD{ loc });
                     }
                     else
                     {
                         // if the location is already set for this station, big problem!
-                        if (!station.entrance.isNull())
+                        if (!station.getEntrance().isNull())
                             break;
                         // set the station's entrance location to this one
                         CoordsXYZD loc = { location, station.getBaseZ(), tileElement->getDirection() };
-                        station.entrance = TileCoordsXYZD{ loc };
+                        station.setEntrance(TileCoordsXYZD{ loc });
                     }
                     // set the entrance's StationIndex as this station
                     tileElement->asEntrance()->setStationIndex(stationId);
@@ -1704,15 +1704,15 @@ namespace OpenRCT2
 
         for (auto& station : ride.getStations())
         {
-            if (station.start.isNull())
+            if (station.getStartXY().isNull())
             {
                 continue;
             }
-            if (station.entrance.isNull())
+            if (station.getEntrance().isNull())
             {
                 return { false, STR_ENTRANCE_NOT_YET_BUILT };
             }
-            if (station.exit.isNull())
+            if (station.getExit().isNull())
             {
                 return { false, STR_EXIT_NOT_YET_BUILT };
             }

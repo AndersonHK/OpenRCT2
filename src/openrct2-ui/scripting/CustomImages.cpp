@@ -18,7 +18,9 @@
     #include <openrct2/drawing/Image.h>
     #include <openrct2/drawing/ImageImporter.h>
     #include <openrct2/drawing/NewDrawing.h>
-    #include <openrct2/drawing/X8DrawingEngine.h>
+    #include <openrct2/drawing/Palette.h>
+    #include <openrct2/drawing/RenderService.h>
+    #include <limits>
     #include <thirdparty/base64.hpp>
 
 using namespace OpenRCT2::Drawing;
@@ -58,10 +60,19 @@ namespace OpenRCT2::Scripting
         ImageList Range;
     };
 
+    static void FlushCustomImageDrawing();
     static std::vector<AllocatedImageList> _allocatedImages;
+    // Custom image callbacks are synchronous. Keep the destination stable until its owned result is committed.
+    static std::vector<ImageIndex> _drawingImages;
+
+    static bool IsDrawingImage(ImageIndex id)
+    {
+        return std::find(_drawingImages.begin(), _drawingImages.end(), id) != _drawingImages.end();
+    }
 
     static void FreeImages(ImageList range)
     {
+        FlushCustomImageDrawing();
         for (ImageIndex i = 0; i < range.Count; i++)
         {
             auto index = range.BaseId + i;
@@ -74,6 +85,7 @@ namespace OpenRCT2::Scripting
                 // Replace slot with empty element
                 G1Element empty{};
                 GfxSetG1Element(index, &empty);
+                DrawingEngineInvalidateImage(index);
             }
         }
         GfxObjectFreeImages(range.BaseId, range.Count);
@@ -81,6 +93,7 @@ namespace OpenRCT2::Scripting
 
     std::optional<ImageList> AllocateCustomImages(const std::shared_ptr<Plugin>& plugin, uint32_t count)
     {
+        FlushCustomImageDrawing();
         std::vector<G1Element> images;
         images.resize(count);
 
@@ -100,6 +113,8 @@ namespace OpenRCT2::Scripting
 
     bool FreeCustomImages(const std::shared_ptr<Plugin>& plugin, ImageList range)
     {
+        if (std::any_of(_drawingImages.begin(), _drawingImages.end(), [range](ImageIndex id) { return range.Contains(id); }))
+            return false;
         auto it = std::find_if(
             _allocatedImages.begin(), _allocatedImages.end(),
             [&plugin, range](const AllocatedImageList& item) { return item.Owner == plugin && item.Range == range; });
@@ -184,6 +199,7 @@ namespace OpenRCT2::Scripting
 
     JSValue JSGetImagePixelData(JSContext* ctx, ImageIndex id)
     {
+        PrepareCustomImageSource(id);
         auto* g1 = GfxGetG1Element(id);
         if (g1 == nullptr)
         {
@@ -381,6 +397,9 @@ namespace OpenRCT2::Scripting
 
     void JSSetPixelData(JSContext* ctx, ImageIndex id, JSValue jsPixelData)
     {
+        if (IsDrawingImage(id))
+            throw std::runtime_error("Cannot replace an image during its drawing callback");
+        FlushCustomImageDrawing();
         auto pixelData = GetPixelDataFromJS(ctx, jsPixelData);
         try
         {
@@ -395,74 +414,353 @@ namespace OpenRCT2::Scripting
         JS_FreeValue(ctx, pixelData.Data);
     }
 
+    // A callback can enter another draw or read its in-place image. Only one recorder owns the shared service at a time.
+    // Switching recorders materialises indices; resuming imports them without rerunning any script callback.
+    class CustomImageDrawing;
+    static CustomImageDrawing* _activeDrawing{};
+
+    class CustomImageDrawing
+    {
+        std::shared_ptr<Plugin> _plugin;
+        ImageIndex _id;
+        G1Element _image{};
+        bool _inPlace{};
+        OffscreenRenderRequest _request;
+        std::unique_ptr<IRenderSession> _session;
+        RenderTarget* _boundTarget{};
+        ptrdiff_t _clipOffset{};
+        std::exception_ptr _failure;
+
+        void RefreshInPlaceSeed()
+        {
+            if (!_inPlace)
+                return;
+            if (!DoesPluginOwnImage(_plugin, _id))
+                throw std::runtime_error("Custom image owner stopped during its drawing callback");
+            const auto* current = GfxGetG1Element(_id);
+            if (current == nullptr || current->width != static_cast<int32_t>(_request.logicalExtent.width)
+                || current->height != static_cast<int32_t>(_request.logicalExtent.height)
+                || current->flags.has(G1Flag::hasRLECompression) || current->offset == nullptr)
+                throw std::runtime_error("Custom image changed during its drawing callback");
+            _image = *current;
+            std::memcpy(_request.initialIndices.data(), current->offset, _request.initialIndices.size());
+        }
+
+        void Publish(bool final)
+        {
+            if (!DoesPluginOwnImage(_plugin, _id))
+                throw std::runtime_error("Custom image owner stopped during its drawing callback");
+            const auto& bytes = _request.initialIndices;
+            auto pixels = std::make_unique<uint8_t[]>(bytes.size());
+            std::memcpy(pixels.get(), bytes.data(), bytes.size());
+            // Allocations in callbacks can relocate sprite storage. Reacquire rather than retaining a G1 pointer.
+            const auto* previous = GfxGetG1Element(_id);
+            auto* previousPixels = previous == nullptr ? nullptr : previous->offset;
+            auto image = _image;
+            image.offset = pixels.get();
+            if (final)
+            {
+                image.width = static_cast<int16_t>(_request.logicalExtent.width);
+                image.height = static_cast<int16_t>(_request.logicalExtent.height);
+                if (!_inPlace)
+                    image.flags = {};
+                image.flags.set(G1Flag::hasTransparency);
+            }
+            GfxSetG1Element(_id, &image);
+            pixels.release();
+            delete[] previousPixels;
+            DrawingEngineInvalidateImage(_id);
+        }
+
+        void Begin()
+        {
+            if (_failure)
+                std::rethrow_exception(_failure);
+            if (_activeDrawing == this)
+                return;
+            try
+            {
+                FlushCustomImageDrawing();
+                // Nested same-image callbacks publish into the original in-place destination.
+                RefreshInPlaceSeed();
+                _session = GetContext()->GetRenderService().BeginOffscreen(_request);
+                if (!_session)
+                    throw std::runtime_error("Custom image has no render session");
+                auto& rt = _session->GetRenderTarget();
+                if (rt.x != 0 || rt.y != 0 || rt.width != static_cast<int32_t>(_request.logicalExtent.width)
+                    || rt.height != static_cast<int32_t>(_request.logicalExtent.height) || rt.pitch != 0
+                    || rt.bits == nullptr || rt.DrawingEngine == nullptr || rt.zoom_level != ZoomLevel{})
+                    throw std::runtime_error("Custom image render target differs");
+                _activeDrawing = this;
+            }
+            catch (...)
+            {
+                _session.reset();
+                _failure = std::current_exception();
+                throw;
+            }
+        }
+
+    public:
+        CustomImageDrawing(std::shared_ptr<Plugin> plugin, ImageIndex id, ScreenSize size)
+            : _plugin(std::move(plugin)), _id(id)
+        {
+            FlushCustomImageDrawing();
+            const auto* original = GfxGetG1Element(id);
+            _image = original == nullptr ? G1Element{} : *original;
+            _inPlace = original != nullptr && original->width == size.width && original->height == size.height
+                && !original->flags.has(G1Flag::hasRLECompression);
+            _request.name = "script-custom-image";
+            _request.logicalExtent = { static_cast<uint32_t>(size.width), static_cast<uint32_t>(size.height) };
+            _request.outputExtent = _request.logicalExtent;
+            _request.initialContents = RenderInitialContents::ownedIndices;
+            _request.initialIndices.resize(static_cast<size_t>(size.width) * size.height);
+            if (_inPlace && original->offset != nullptr)
+                std::memcpy(_request.initialIndices.data(), original->offset, _request.initialIndices.size());
+            for (size_t i = 0; i < _request.palette.size(); ++i)
+            {
+                const auto colour = gPalette[i];
+                _request.palette[i] = { colour.red, colour.green, colour.blue, colour.alpha };
+            }
+            Begin();
+            try
+            {
+                if (!_inPlace && original != nullptr)
+                    GfxDrawSprite(_session->GetRenderTarget(), ImageId(id), { 0, 0 });
+            }
+            catch (...)
+            {
+                _activeDrawing = nullptr;
+                throw;
+            }
+        }
+        ~CustomImageDrawing()
+        {
+            if (_activeDrawing == this)
+                _activeDrawing = nullptr;
+        }
+        RenderTarget& Target() { return _session->GetRenderTarget(); }
+        void RecordingFailed(std::exception_ptr error) noexcept
+        {
+            if (!_failure)
+                _failure = std::move(error);
+            if (_activeDrawing == this)
+                _activeDrawing = nullptr;
+            if (_session)
+                _session->Cancel();
+            _session.reset();
+            if (_boundTarget != nullptr)
+            {
+                _boundTarget->bits = nullptr;
+                _boundTarget->DrawingEngine = nullptr;
+            }
+        }
+        void Bind(RenderTarget& target)
+        {
+            Begin();
+            const auto& full = _session->GetRenderTarget();
+            if (target.width <= 0 || target.height <= 0)
+                _clipOffset = 0;
+            // Preserve the callback's clip/local coordinates when the recording target is recreated.
+            if (_boundTarget == nullptr || target.DrawingEngine != full.DrawingEngine || target.bits == nullptr)
+            {
+                target.bits = full.bits + _clipOffset;
+                target.DrawingEngine = full.DrawingEngine;
+            }
+            _boundTarget = &target;
+        }
+        void Flush()
+        {
+            if (_failure)
+                std::rethrow_exception(_failure);
+            if (!_session)
+                return;
+            try
+            {
+                if (_boundTarget != nullptr && !_request.orderedAlias)
+                {
+                    _clipOffset = 0;
+                    if (_boundTarget->width > 0 && _boundTarget->height > 0)
+                    {
+                        const auto base = reinterpret_cast<uintptr_t>(_session->GetRenderTarget().bits);
+                        const auto clipped = reinterpret_cast<uintptr_t>(_boundTarget->bits);
+                        if (_boundTarget->bits == nullptr || clipped < base
+                            || clipped - base >= _request.initialIndices.size())
+                            throw std::runtime_error("Custom image clip lies outside its target");
+                        _clipOffset = static_cast<ptrdiff_t>(clipped - base);
+                    }
+                    _boundTarget->bits = nullptr;
+                    _boundTarget->DrawingEngine = nullptr;
+                }
+                auto completion = _session->Submit();
+                if (!completion)
+                    throw std::runtime_error("Custom image has no render completion");
+                const auto outcome = completion->Wait(std::chrono::seconds(120));
+                if (outcome.error)
+                    throw RenderServiceException(*outcome.error);
+                if (!outcome.result)
+                    throw std::runtime_error("Custom image has no owned output");
+                const auto& result = *outcome.result;
+                if (outcome.identity != completion->GetIdentity() || result.identity != outcome.identity
+                    || result.identity.submissionId == 0 || result.identity.targetId == 0 || result.identity.targetGeneration == 0
+                    || result.identity.name != _request.name || result.logicalExtent != _request.logicalExtent
+                    || result.outputExtent != _request.outputExtent || result.palette != _request.palette
+                    || result.indexed.size() != _request.initialIndices.size() || !result.rgba.empty())
+                    throw std::runtime_error("Custom image readback contract differs");
+                _request.initialIndices = result.indexed;
+                _session.reset();
+                _activeDrawing = nullptr;
+                if (_inPlace)
+                    Publish(false);
+            }
+            catch (...)
+            {
+                _session.reset();
+                _activeDrawing = nullptr;
+                _failure = std::current_exception();
+                throw;
+            }
+        }
+        void Finish()
+        {
+            FlushCustomImageDrawing();
+            Flush();
+            RefreshInPlaceSeed();
+            Publish(true);
+        }
+        bool DrawOrderedAlias(RenderTarget& target, ImageId image, ScreenCoordsXY position)
+        {
+            if (!IsInPlaceSource(image.GetIndex()))
+                return false;
+            Bind(target);
+            if (target.width <= 0 || target.height <= 0 || _image.flags.has(G1Flag::one))
+                return true;
+            if (target.zoom_level != ZoomLevel{} || image.IsBlended() || !image.HasTertiary())
+                throw std::runtime_error("Unexpected custom bitmap alias drawing mode");
+            // Preserve the legacy bitmap blitter's signed-16-bit placement before clipping, without signed overflow.
+            const auto narrow = [](int64_t value) -> int32_t {
+                const auto bits = static_cast<uint16_t>(value);
+                return bits < 0x8000u ? bits : static_cast<int32_t>(bits) - 0x10000;
+            };
+            const int32_t left = narrow(static_cast<int64_t>(position.x) + _image.xOffset - target.WorldX());
+            const int32_t top = narrow(static_cast<int64_t>(narrow(static_cast<int64_t>(position.y) + _image.yOffset))
+                - target.WorldY());
+            const int32_t sx = std::max(0, -left), sy = std::max(0, -top);
+            const int32_t dx = std::max(0, left), dy = std::max(0, top);
+            const int32_t width = std::min(static_cast<int32_t>(_image.width) - sx, target.width - dx);
+            const int32_t height = std::min(static_cast<int32_t>(_image.height) - sy, target.height - dy);
+            if (width <= 0 || height <= 0)
+                return true;
+            const auto base = reinterpret_cast<uintptr_t>(_session->GetRenderTarget().bits);
+            const auto clipped = reinterpret_cast<uintptr_t>(target.bits);
+            const auto stride = _request.logicalExtent.width;
+            if (target.bits == nullptr || clipped < base || clipped - base >= _request.initialIndices.size()
+                || target.LineStride() != static_cast<int32_t>(stride))
+                throw std::runtime_error("Invalid custom bitmap alias clip");
+            const auto offset = static_cast<uint32_t>(clipped - base);
+            const auto destinationX = offset % stride + static_cast<uint32_t>(dx);
+            const auto destinationY = offset / stride + static_cast<uint32_t>(dy);
+            // Disjoint and identical-position operations have no cross-pixel recurrence.
+            if ((destinationX == static_cast<uint32_t>(sx) && destinationY == static_cast<uint32_t>(sy))
+                || destinationX >= static_cast<uint32_t>(sx + width) || static_cast<uint32_t>(sx) >= destinationX + width
+                || destinationY >= static_cast<uint32_t>(sy + height) || static_cast<uint32_t>(sy) >= destinationY + height)
+                return false;
+            OrderedImageAlias alias{ .sourceX = static_cast<uint32_t>(sx), .sourceY = static_cast<uint32_t>(sy),
+                .destinationX = destinationX, .destinationY = destinationY,
+                .width = static_cast<uint32_t>(width), .height = static_cast<uint32_t>(height),
+                .skipSourceZero = true, .skipMappedZero = true };
+            // GraphicsContext.image always supplies the legacy three-colour remap, even for default colours.
+            // Copy metadata now: GfxDrawSpriteGetPalette returns a borrowed thread-local table.
+            const auto map = GfxDrawSpriteGetPalette(image).value_or(PaletteMap::GetDefault());
+            for (size_t i = 0; i < alias.remap.size(); ++i)
+                alias.remap[i] = static_cast<uint8_t>(map[i]);
+            Flush();
+            _request.orderedAlias = alias;
+            try
+            {
+                _session = GetContext()->GetRenderService().BeginOffscreen(_request);
+                if (!_session)
+                    throw std::runtime_error("Custom bitmap alias has no render session");
+                _activeDrawing = this;
+                Flush();
+                _request.orderedAlias.reset();
+            }
+            catch (...)
+            {
+                _request.orderedAlias.reset();
+                RecordingFailed(std::current_exception());
+                throw;
+            }
+            return true;
+        }
+        bool IsInPlaceSource(ImageIndex id) const { return id == _id && _inPlace; }
+    };
+
+    static void FlushCustomImageDrawing()
+    {
+        if (_activeDrawing != nullptr)
+            _activeDrawing->Flush();
+    }
+
+    void PrepareCustomImageSource(ImageIndex id)
+    {
+        if (_activeDrawing != nullptr && _activeDrawing->IsInPlaceSource(id))
+            _activeDrawing->Flush();
+    }
+
     void JSDrawCustomImage(
         JSContext* ctx, ScriptEngine& scriptEngine, ImageIndex id, ScreenSize size, const JSCallback& callback)
     {
         auto plugin = scriptEngine.GetExecInfo().GetCurrentPlugin();
-
-        auto drawingEngine = std::make_unique<X8DrawingEngine>(GetContext()->GetUiContext());
-        RenderTarget rt;
-        rt.DrawingEngine = drawingEngine.get();
-        rt.width = size.width;
-        rt.height = size.height;
-
-        auto createNewImage = false;
-        auto g1 = GfxGetG1Element(id);
-        if (g1 == nullptr || g1->width != size.width || g1->height != size.height || g1->flags.has(G1Flag::hasRLECompression))
+        if (size.width <= 0 || size.height <= 0 || size.width > std::numeric_limits<int16_t>::max()
+            || size.height > std::numeric_limits<int16_t>::max())
+            throw std::runtime_error("Invalid custom image dimensions");
+        // Match the configured service's bounded target pool before allocating/copying an owned seed.
+        // Larger historical custom images need single-record tiled execution; do not replay a script callback per tile.
+        constexpr uint64_t kMaxCustomImagePixels = 4 * 1024 * 1024;
+        if (static_cast<uint64_t>(size.width) * size.height > kMaxCustomImagePixels)
+            throw std::runtime_error("Custom image exceeds the 4M-pixel Vulkan target limit");
+        if (IsDrawingImage(id))
         {
-            createNewImage = true;
+            const auto* current = GfxGetG1Element(id);
+            if (current == nullptr || current->width != size.width || current->height != size.height
+                || current->flags.has(G1Flag::hasRLECompression))
+                throw std::runtime_error("Cannot resize or convert an image during its drawing callback");
         }
-
-        if (createNewImage)
+        if (!DoesPluginOwnImage(plugin, id))
+            throw std::runtime_error("This plugin did not allocate the image");
+        _drawingImages.push_back(id);
+        struct DrawingScope
         {
-            auto bufferSize = size.width * size.height;
-            rt.bits = new PaletteIndex[bufferSize];
-            std::memset(rt.bits, 0, bufferSize);
-
-            drawingEngine->BeginDraw();
-
-            // Draw the original image if we are creating a new one
-            GfxDrawSprite(rt, ImageId(id), { 0, 0 });
-
-            drawingEngine->EndDraw();
-        }
-        else
-        {
-            rt.bits = reinterpret_cast<PaletteIndex*>(g1->offset);
-        }
-
+            ~DrawingScope() { _drawingImages.pop_back(); }
+        } drawingScope;
+        CustomImageDrawing drawing(plugin, id, size);
         if (callback.IsValid())
         {
-            drawingEngine->BeginDraw();
-            scriptEngine.ExecutePluginCall(plugin, callback.callback, { gScGraphicsContext.New(ctx, rt) }, false);
-            drawingEngine->EndDraw();
-        }
-
-        if (createNewImage)
-        {
-            G1Element newg1{};
-            if (g1 != nullptr)
+            auto graphics = gScGraphicsContext.New(
+                ctx, drawing.Target(), [&drawing](RenderTarget& rt) { drawing.Bind(rt); },
+                [&drawing](std::exception_ptr error) { drawing.RecordingFailed(std::move(error)); },
+                [&drawing](RenderTarget& rt, ImageId image, ScreenCoordsXY position) {
+                    return drawing.DrawOrderedAlias(rt, image, position);
+                });
+            struct GraphicsScope
             {
-                delete[] g1->offset;
-                newg1 = *g1;
-            }
-            newg1.offset = reinterpret_cast<uint8_t*>(rt.bits);
-            newg1.width = size.width;
-            newg1.height = size.height;
-            newg1.flags = { G1Flag::hasTransparency };
-            GfxSetG1Element(id, &newg1);
+                JSContext* context;
+                JSValue value;
+                ~GraphicsScope()
+                {
+                    gScGraphicsContext.Invalidate(value);
+                    JS_FreeValue(context, value);
+                }
+            } graphicsScope{ ctx, graphics };
+            // Log callback exceptions and retain preceding drawing, as ExecutePluginCall has always done.
+            scriptEngine.ExecutePluginCall(plugin, callback.callback, { graphics }, false, true);
+            // Finish before the graphics object can be freed: Flush retains its target only within this scope.
+            drawing.Finish();
         }
-        else if (!g1->flags.has(G1Flag::hasTransparency))
-        {
-            // A raw upload can be reused at the same size. Drawing/clearing it must use the same transparency as a new image.
-            auto newg1 = *g1;
-            newg1.flags.set(G1Flag::hasTransparency);
-            GfxSetG1Element(id, &newg1);
-        }
-
-        DrawingEngineInvalidateImage(id);
+        else
+            drawing.Finish();
     }
-
 } // namespace OpenRCT2::Scripting
 
 #endif

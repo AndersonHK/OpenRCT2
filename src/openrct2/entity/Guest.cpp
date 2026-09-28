@@ -83,9 +83,17 @@
 
 namespace OpenRCT2
 {
+    void Guest::setAccessoryColours(Drawing::Colour balloon, Drawing::Colour umbrella, Drawing::Colour hat)
+    {
+        if (_balloonColour == balloon && _umbrellaColour == umbrella && _hatColour == hat)
+            return;
+        _balloonColour = balloon;
+        _umbrellaColour = umbrella;
+        _hatColour = hat;
+        notifyAppearanceChanged();
+    }
+
     static const uint8_t kTicksToGoUpSpiralSlide = 30;
-    static constexpr int64_t kGuestRideValueIncomeScaleNumerator = 7;
-    static constexpr int64_t kGuestRideValueIncomeScaleDenominator = 10;
     static constexpr uint8_t kGuestSickNauseaThreshold = 128;
     static constexpr uint8_t kGuestVerySickNauseaThreshold = 170;
     static constexpr uint8_t kGuestVeryVerySickNauseaThreshold = 200;
@@ -534,8 +542,7 @@ namespace OpenRCT2
 
     void Guest::givePassingGuestPurpleClothes(Guest& passingPeep)
     {
-        passingPeep.tShirtColour = Drawing::Colour::brightPurple;
-        passingPeep.trousersColour = Drawing::Colour::brightPurple;
+        passingPeep.setClothingColours(Drawing::Colour::brightPurple, Drawing::Colour::brightPurple);
         passingPeep.invalidate();
     }
 
@@ -1614,16 +1621,17 @@ namespace OpenRCT2
         switch (shopItem)
         {
             case ShopItem::tShirt:
-                guest.tShirtColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setTShirtColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::hat:
-                guest.hatColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setHatColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::balloon:
-                guest.balloonColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setBalloonColour(hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::umbrella:
-                guest.umbrellaColour = hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main;
+                guest.setUmbrellaColour(
+                    hasRandomShopColour ? Drawing::getRandomColourNetworkSafe() : ride.trackColours[0].main);
                 break;
             case ShopItem::map:
                 guest.resetPathfindGoal();
@@ -2353,8 +2361,9 @@ namespace OpenRCT2
             }
 
             // The amount that peeps are willing to pay to use the Toilets scales with their toilet stat.
-            // It effectively has a minimum of $0.10 (due to the check above) and a maximum of $0.60.
-            if ((RideGetPrice(ride) * 40 > guest.toilet) && !getGameState().cheats.ignorePrice)
+            // Runtime money is in cents: each cent requires four points of need. Preserve the legacy
+            // ten-cent price boundaries without discarding precision for manually entered cent prices.
+            if ((RideGetPrice(ride) > guest.toilet / 4) && !getGameState().cheats.ignorePrice)
             {
                 if (peepAtShop)
                 {
@@ -2588,19 +2597,7 @@ namespace OpenRCT2
 
     static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride)
     {
-        auto value = ride.value;
-        if (value == kRideValueUndefined)
-        {
-            return value;
-        }
-
-        // Preserve the vanilla paid-entry reduction, then apply the global income/value debuff.
-        if (guest.peepFlags.has(PeepFlag::hasPaidForParkEntry))
-        {
-            value /= 4;
-        }
-
-        return (value * kGuestRideValueIncomeScaleNumerator) / kGuestRideValueIncomeScaleDenominator;
+        return RideGetPerceivedValue(ride, guest.peepFlags.has(PeepFlag::hasPaidForParkEntry));
     }
 
     static money64 GuestGetExpensiveRideThoughtThreshold(money64 value)
@@ -2703,7 +2700,7 @@ namespace OpenRCT2
         vehicle->next_free_seat++;
 
         vehicle->peep[guest->currentSeat] = guest->id;
-        vehicle->peep_tshirt_colours[guest->currentSeat] = guest->tShirtColour;
+        vehicle->peep_tshirt_colours[guest->currentSeat] = guest->getTShirtColour();
     }
 
     /** Charges the crossing-time fare once; paired-seat retries carry atEntrancePaid back through the same gate. */
@@ -2746,13 +2743,13 @@ namespace OpenRCT2
     {
         const bool admissionPaid = rideSubState == PeepRideSubState::atEntrancePaid;
         const auto& station = ride.getStation(currentRideStation);
-        if (station.entrance.isNull())
+        if (station.getEntrance().isNull())
         {
             removeFromQueue();
             return;
         }
 
-        auto location = station.entrance.toCoordsXYZD().toTileCentre();
+        auto location = station.getEntrance().toCoordsXYZD().toTileCentre();
         int16_t x_shift = DirectionOffsets[location.direction].x;
         int16_t y_shift = DirectionOffsets[location.direction].y;
 
@@ -3450,7 +3447,7 @@ namespace OpenRCT2
             auto* ride = GetRide(rideId);
             if (ride == nullptr)
                 continue;
-            const auto rideLocation = ride->getStation().start;
+            const auto rideLocation = ride->getStation().getStartXY();
             const auto distance = abs(rideLocation.x - guest.x) + abs(rideLocation.y - guest.y);
             if (distance >= closestRideDistance || (maximumWalkingDistance.has_value() && distance > *maximumWalkingDistance))
             {
@@ -3488,7 +3485,7 @@ namespace OpenRCT2
         {
             for (const auto& ride : RideManager(getGameState()))
             {
-                const auto location = ride.getStation().start;
+                const auto location = ride.getStation().getStartXY();
                 const auto distance = abs(location.x - guest.x) + abs(location.y - guest.y);
                 if (predicate(ride) && distance <= *maximumWalkingDistance)
                 {
@@ -3819,7 +3816,7 @@ namespace OpenRCT2
                 if (xy_distance < 16)
                 {
                     const auto& station = ride->getStation(currentRideStation);
-                    auto entrance = station.entrance.toCoordsXYZ();
+                    auto entrance = station.getEntrance().toCoordsXYZ();
                     actionZ = entrance.z + 2;
                 }
                 moveTo({ loc.value(), actionZ });
@@ -3828,6 +3825,7 @@ namespace OpenRCT2
             {
                 destinationTolerance = 0;
                 orientation ^= (1 << 4);
+                getGameState().entities.PublishEntityVisualState(*this);
                 invalidate();
             }
         }
@@ -4007,11 +4005,11 @@ namespace OpenRCT2
     void Guest::updateRideLeaveEntranceWaypoints(const Ride& ride)
     {
         const auto& station = ride.getStation(currentRideStation);
-        if (station.entrance.isNull())
+        if (station.getEntrance().isNull())
         {
             return;
         }
-        uint8_t direction_entrance = station.entrance.direction;
+        uint8_t direction_entrance = station.getEntrance().direction;
 
         TileElement* tile_element = RideGetStationStartTrackElement(ride, currentRideStation);
 
@@ -4118,7 +4116,7 @@ namespace OpenRCT2
         if (ride->getRideTypeDescriptor().flags.has(RtdFlag::noVehicles))
         {
             const auto& station = ride->getStation(currentRideStation);
-            auto entranceLocation = station.entrance.toCoordsXYZD();
+            auto entranceLocation = station.getEntrance().toCoordsXYZD();
             if (entranceLocation.isNull())
             {
                 return;
@@ -4208,7 +4206,7 @@ namespace OpenRCT2
         guest.moveTo({ x, y, z });
 
         Guard::Assert(guest.currentRideStation.ToUnderlying() < Limits::kMaxStationsPerRide);
-        auto exit = ride.getStation(guest.currentRideStation).exit;
+        auto exit = ride.getStation(guest.currentRideStation).getExit();
         x = exit.x;
         y = exit.y;
         x *= 32;
@@ -4305,7 +4303,7 @@ namespace OpenRCT2
      */
     static void PeepUpdateRideNoFreeVehicleRejoinQueue(Guest& guest, Ride& ride)
     {
-        TileCoordsXYZD entranceLocation = ride.getStation(guest.currentRideStation).entrance;
+        TileCoordsXYZD entranceLocation = ride.getStation(guest.currentRideStation).getEntrance();
 
         int32_t x = entranceLocation.x * 32;
         int32_t y = entranceLocation.y * 32;
@@ -4330,18 +4328,18 @@ namespace OpenRCT2
         if (currentRideStation.ToUnderlying() < ride.numStations)
         {
             const auto& station = ride.getStation(currentRideStation);
-            if (preferQueue && !station.entrance.isNull() && station.entrance.direction < kNumOrthogonalDirections)
+            if (preferQueue && !station.getEntrance().isNull() && station.getEntrance().direction < kNumOrthogonalDirections)
             {
                 PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
                 return;
             }
-            if (!station.exit.isNull() && station.exit.direction < kNumOrthogonalDirections)
+            if (!station.getExit().isNull() && station.getExit().direction < kNumOrthogonalDirections)
             {
                 setState(PeepState::leavingRide);
-                PeepGoToRideExit(*this, ride, x, y, station.getBaseZ(), station.exit.direction);
+                PeepGoToRideExit(*this, ride, x, y, station.getBaseZ(), station.getExit().direction);
                 return;
             }
-            if (!station.entrance.isNull() && station.entrance.direction < kNumOrthogonalDirections)
+            if (!station.getEntrance().isNull() && station.getEntrance().direction < kNumOrthogonalDirections)
             {
                 PeepUpdateRideNoFreeVehicleRejoinQueue(*this, ride);
                 return;
@@ -4556,11 +4554,28 @@ namespace OpenRCT2
             moveTo({ loc.value(), z });
             return;
         }
+        beginVehicleBoarding();
+    }
+
+    void Guest::beginVehicleBoarding()
+    {
+        boardingTicksRemaining = 0;
+        if (const auto* ride = GetRide(currentRide); ride != nullptr && currentTrain < ride->numTrains)
+        {
+            const auto* head = getGameState().entities.getEntity<Vehicle>(ride->vehicles[currentTrain]);
+            const auto* car = head == nullptr ? nullptr : head->GetCar(currentCar);
+            const auto* rideEntry = car == nullptr ? nullptr : car->GetRideEntry();
+            const auto* entry = rideEntry == nullptr ? nullptr : &rideEntry->Cars[car->vehicle_type];
+            if (entry != nullptr)
+                boardingTicksRemaining = entry->boardingDurationTicks;
+        }
         rideSubState = PeepRideSubState::enterVehicle;
     }
 
     void Guest::updateRideEnterVehicle()
     {
+        if (boardingTicksRemaining != 0)
+            return;
         auto& gameState = getGameState();
         auto* ride = GetRide(currentRide);
         if (ride != nullptr)
@@ -4586,7 +4601,8 @@ namespace OpenRCT2
                     auto* seatedGuest = pairedSeat < vehicle->next_free_seat
                         ? gameState.entities.getEntity<Guest>(vehicle->peep[pairedSeat])
                         : nullptr;
-                    if (seatedGuest != nullptr && seatedGuest->rideSubState == PeepRideSubState::enterVehicle)
+                    if (seatedGuest != nullptr && seatedGuest->rideSubState == PeepRideSubState::enterVehicle
+                        && seatedGuest->boardingTicksRemaining == 0)
                     {
                         vehicle->num_peeps++;
                         ride->curNumCustomers++;
@@ -4651,6 +4667,7 @@ namespace OpenRCT2
         }
 
         animationImageIdOffset++;
+        getGameState().entities.PublishEntityVisualState(*this);
         if (animationImageIdOffset & 3)
             return;
 
@@ -4684,7 +4701,7 @@ namespace OpenRCT2
 
         if (!carEntry->flags.has(CarEntryFlag::loadingWaypoints))
         {
-            TileCoordsXYZD exitLocation = station.exit;
+            TileCoordsXYZD exitLocation = station.getExit();
             CoordsXYZD platformLocation;
             platformLocation.z = station.getBaseZ();
 
@@ -4801,7 +4818,7 @@ namespace OpenRCT2
             return;
         }
 
-        auto exitLocation = station.exit.toCoordsXYZD();
+        auto exitLocation = station.getExit().toCoordsXYZD();
         if (exitLocation.isNull())
         {
             return;
@@ -4862,7 +4879,7 @@ namespace OpenRCT2
         if (ride == nullptr || currentRideStation.ToUnderlying() >= std::size(ride->getStations()))
             return;
 
-        auto exit = ride->getStation(currentRideStation).exit;
+        auto exit = ride->getStation(currentRideStation).getExit();
         auto newDestination = exit.toCoordsXY().toTileCentre();
 
         auto [xShift, yShift] = [exit]() {
@@ -4955,7 +4972,7 @@ namespace OpenRCT2
 
     CoordsXY GetGuestWaypointLocationDefault(const Vehicle& vehicle, const Ride& ride, const StationIndex& currentRideStation)
     {
-        return ride.getStation(currentRideStation).start.toTileCentre();
+        return ride.getStation(currentRideStation).getStartXY().toTileCentre();
     }
 
     CoordsXY GetGuestWaypointLocationEnterprise(
@@ -4986,7 +5003,7 @@ namespace OpenRCT2
 
         if (waypoint == 2)
         {
-            rideSubState = PeepRideSubState::enterVehicle;
+            beginVehicleBoarding();
             return;
         }
 
@@ -5123,7 +5140,7 @@ namespace OpenRCT2
 
         var37 |= 3;
 
-        auto targetLoc = ride->getStation(currentRideStation).exit.toCoordsXYZD().toTileCentre();
+        auto targetLoc = ride->getStation(currentRideStation).getExit().toCoordsXYZD().toTileCentre();
         uint8_t exit_direction = DirectionReverse(targetLoc.direction);
 
         int16_t x_shift = DirectionOffsets[exit_direction].x;
@@ -5199,7 +5216,7 @@ namespace OpenRCT2
 
             if (lastRide)
             {
-                auto exit = ride->getStation(currentRideStation).exit;
+                auto exit = ride->getStation(currentRideStation).getExit();
                 waypoint = 1;
                 auto directionTemp = exit.direction;
                 if (exit.direction == kInvalidDirection)
@@ -5207,7 +5224,7 @@ namespace OpenRCT2
                     directionTemp = 0;
                 }
                 var37 = (directionTemp * 4) | (var37 & 0x30) | waypoint;
-                CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+                CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
                 assert(rtd.specialType == RtdSpecialType::spiralSlide);
                 targetLoc += kSpiralSlideWalkingPath[var37];
@@ -5222,7 +5239,7 @@ namespace OpenRCT2
         // Actually increment the real peep waypoint
         var37++;
 
-        CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+        CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
         assert(rtd.specialType == RtdSpecialType::spiralSlide);
         targetLoc += kSpiralSlideWalkingPath[var37];
@@ -5277,14 +5294,14 @@ namespace OpenRCT2
 
                     ride->slideInUse = 1;
                     ride->slidePeep = id;
-                    ride->slidePeepTShirtColour = tShirtColour;
+                    ride->slidePeepTShirtColour = getTShirtColour();
                     ride->spiralSlideProgress = 0;
                     spiralSlideSubstate = PeepSpiralSlideSubState::slidingDown;
 
                     return;
                 case PeepSpiralSlideSubState::finishedSliding:
                 {
-                    auto newLocation = ride->getStation(currentRideStation).start;
+                    auto newLocation = ride->getStation(currentRideStation).getStartXY();
                     uint8_t dir = (var37 / 4) & 3;
 
                     // Set the location that the guest walks to go on slide again
@@ -5317,7 +5334,7 @@ namespace OpenRCT2
         uint8_t waypoint = 2;
         var37 = (var37 * 4 & 0x30) + waypoint;
 
-        CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+        CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
         targetLoc += kSpiralSlideWalkingPath[var37];
 
@@ -5356,7 +5373,7 @@ namespace OpenRCT2
             waypoint--;
             // Actually decrement the peep waypoint
             var37--;
-            CoordsXY targetLoc = ride->getStation(currentRideStation).start;
+            CoordsXY targetLoc = ride->getStation(currentRideStation).getStartXY();
 
             [[maybe_unused]] const auto& rtd = ride->getRideTypeDescriptor();
             assert(rtd.specialType == RtdSpecialType::spiralSlide);
@@ -5369,7 +5386,7 @@ namespace OpenRCT2
         // Actually force the final waypoint
         var37 |= 3;
 
-        auto targetLoc = ride->getStation(currentRideStation).exit.toCoordsXYZD().toTileCentre();
+        auto targetLoc = ride->getStation(currentRideStation).getExit().toCoordsXYZD().toTileCentre();
 
         int16_t xShift = DirectionOffsets[DirectionReverse(targetLoc.direction)].x;
         int16_t yShift = DirectionOffsets[DirectionReverse(targetLoc.direction)].y;
@@ -5780,6 +5797,15 @@ namespace OpenRCT2
 
     void Guest::update()
     {
+        // Once per simulation tick, independent of the guest's energy and speed-gated movement updates.
+        if (!peepFlags.has(PeepFlag::positionFrozen) && rideSubState == PeepRideSubState::enterVehicle
+            && state == PeepState::enteringRide && boardingTicksRemaining != 0)
+            boardingTicksRemaining--;
+        if (state != PeepState::walking)
+        {
+            laneForwardSteps = 0;
+            laneChangeCooldown = 0;
+        }
         if (peepFlags.has(PeepFlag::positionFrozen))
         {
             if (!(peepFlags.has(PeepFlag::animationFrozen)))
@@ -7458,7 +7484,7 @@ namespace OpenRCT2
                     isBalloonPopped = true;
                     Audio::Play3D(Audio::SoundId::balloonPop, { x, y, z });
                 }
-                Balloon::create({ x, y, z + 9 }, balloonColour, isBalloonPopped);
+                Balloon::create({ x, y, z + 9 }, getBalloonColour(), isBalloonPopped);
             }
             removeItem(ShopItem::balloon);
             windowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
@@ -7908,10 +7934,10 @@ namespace OpenRCT2
         peep->timeLost = 0;
 
         uint8_t tshirtColour = static_cast<uint8_t>(ScenarioRand() % std::size(kTshirtColours));
-        peep->tShirtColour = kTshirtColours[tshirtColour];
+        peep->setTShirtColour(kTshirtColours[tshirtColour]);
 
         uint8_t trousersColour = static_cast<uint8_t>(ScenarioRand() % std::size(kTrouserColours));
-        peep->trousersColour = kTrouserColours[trousersColour];
+        peep->setTrousersColour(kTrouserColours[trousersColour]);
 
         /* Minimum energy is capped at 32 and maximum at 128, so this initialises
          * a peep with approx 34%-100% energy. (65 - 32) / (128 - 32) ≈ 34% */
@@ -8102,6 +8128,9 @@ namespace OpenRCT2
         if (!isActionWalking())
             return true;
 
+        // performNextAction temporarily changes idle to walking; unchanged queue waiting needs no publication.
+        if (previous_action != PeepActionType::idle || nextAnimationType != PeepAnimationType::watchRide)
+            getGameState().entities.PublishEntityVisualState(*this);
         action = PeepActionType::idle;
         nextAnimationType = PeepAnimationType::watchRide;
         if (previous_action != PeepActionType::idle)
@@ -8328,6 +8357,10 @@ namespace OpenRCT2
         stream << guestHeadingToRideId;
         stream << guestIsLostCountdown;
         stream << guestTimeOnRide;
+        stream << boardingTicksRemaining;
+        stream << laneForwardSteps;
+        stream << laneForwardDirection;
+        stream << laneChangeCooldown;
         stream << paidToEnter;
         stream << paidOnRides;
         stream << paidOnFood;
@@ -8373,9 +8406,14 @@ namespace OpenRCT2
         stream << angriness;
         stream << timeLost;
         stream << daysInQueue;
-        stream << balloonColour;
-        stream << umbrellaColour;
-        stream << hatColour;
+        auto balloon = getBalloonColour();
+        auto umbrella = getUmbrellaColour();
+        auto hat = getHatColour();
+        stream << balloon;
+        stream << umbrella;
+        stream << hat;
+        if (stream.isLoading())
+            setAccessoryColours(balloon, umbrella, hat);
         stream << favouriteRide;
         stream << favouriteRideRating;
         stream << itemFlags;

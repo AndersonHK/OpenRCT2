@@ -1,0 +1,1110 @@
+"""Run a provenance-pinned, no-readback ordinary-UI performance measurement.
+
+Hidden smoke runs are the default. Even --visible does not establish displayed
+cadence: application draw intervals and present API duration are not scanout.
+Use a new workspace output directory for each process; never modify the oracle.
+"""
+
+import argparse
+import configparser
+import datetime
+import hashlib
+import io
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+
+ROOT = Path(__file__).resolve().parents[2]
+NUMBER = r"([0-9]+(?:\.[0-9]+)?)"
+STATE_FIELDS = {
+    "simulationTick": (r"simulation tick:\s+(\d+)", ("tick",)),
+    "guests": (r"guests:\s+(\d+) \((\d+) inside, (\d+) outside\)", ("total", "inside", "outside")),
+    "guestStates": (r"guest states:\s+(\d+) walking, (\d+) queued, (\d+) on ride", ("walking", "queued", "onRide")),
+    "transportRoutes": (r"transport routes:\s+(\d+) active", ("active",)),
+    "staffVehicles": (r"staff / vehicles:\s+(\d+) / (\d+)", ("staff", "vehicles")),
+    "routeCache": (r"shared route cache:\s+(\d+) nodes, (\d+) targets, (\d+) direction / (\d+) distance entries, (\d+) single-ride targets \((current|fallback or stale)\)",
+                   ("nodes", "targets", "directionEntries", "distanceEntries", "singleRideTargets", "status")),
+}
+
+
+def sha256(path):
+    result = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            result.update(block)
+    return result.hexdigest()
+
+
+def json_hash(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def read_json(path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def write_json(path, value):
+    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def checked_file(base, name, expected):
+    path = (base / name).resolve(strict=True)
+    if base.resolve() not in path.parents or sha256(path) != expected:
+        raise ValueError("Changed or out-of-root artifact: " + str(path))
+    return path
+
+
+def file_inventory(directory):
+    return {p.relative_to(directory).as_posix(): sha256(p) for p in sorted(directory.rglob("*")) if p.is_file()}
+
+
+def qualify_reference():
+    receipt_path = ROOT / "docs/vulkan-software-reference.json"
+    receipt = read_json(receipt_path)
+    frozen = (ROOT / receipt["localReference"]).resolve(strict=True)
+    manifest_path = checked_file(frozen, "manifest.json", receipt["manifest"]["sha256"])
+    checked_file(frozen, "source.zip", receipt["sourceArchive"]["sha256"])
+    manifest = read_json(manifest_path)
+    expected = {name: item["sha256"] for name, item in manifest["files"].items()}
+    # Verify the complete accepted package, including objects and external images.
+    for name, digest in expected.items():
+        checked_file(frozen, name, digest)
+    actual_package = file_inventory(frozen / "package")
+    expected_package = {name[len("package/"):]: digest for name, digest in expected.items() if name.startswith("package/")}
+    if actual_package != expected_package:
+        raise ValueError("Frozen package file set/hash differs from the accepted manifest")
+    return frozen, {"receiptPath": str(receipt_path), "receiptSha256": sha256(receipt_path),
+                    "revision": receipt["revision"], "deployedSource": receipt["deployedSource"],
+                    "manifestSha256": sha256(manifest_path), "packageSha256": actual_package}
+
+
+def qualify_current(snapshot_path):
+    snapshot_path = snapshot_path.resolve(strict=True)
+    base = snapshot_path.parent
+    snapshot = read_json(snapshot_path)
+    receipt_path = checked_file(base, "receipt.json", snapshot["sourceBuildReceiptSha256"])
+    receipt = read_json(receipt_path)
+    if receipt["status"] != "pass" or receipt.get("sourceChangesDuringBuild") or receipt.get("missingArtifacts"):
+        raise ValueError("Current ordinary build receipt is incomplete/unstable")
+    artifacts = snapshot["artifactSha256"]
+    if "bin/openrct2.exe" not in artifacts or not any(n.endswith(".spv") for n in artifacts):
+        raise ValueError("Snapshot requires the ordinary UI executable and compiled shaders")
+    for name, digest in artifacts.items():
+        if receipt["artifactSha256"].get(name) != digest:
+            raise ValueError("Snapshot/build receipt artifact disagreement: " + name)
+        checked_file(base, name, digest)
+    return base, {"snapshotPath": str(snapshot_path), "snapshotSha256": sha256(snapshot_path),
+                  "receiptPath": str(receipt_path), "receiptSha256": sha256(receipt_path),
+                  "sourceRevision": receipt["sourceRevision"], "sourceManifestSha256": json_hash(receipt["sourceSha256"]),
+                  "artifactSha256": artifacts}
+
+
+def one(text, pattern, label):
+    matches = re.findall(r"^\s*" + pattern + r"\s*$", text, re.MULTILINE)
+    if len(matches) != 1:
+        raise ValueError("Expected exactly one complete " + label + "; found " + str(len(matches)))
+    return matches[0]
+
+
+def numeric(text, pattern, names, label):
+    values = one(text, pattern, label)
+    if isinstance(values, str):
+        values = (values,)
+    result = dict(zip(names, (float(v) for v in values)))
+    if any(not math.isfinite(v) or v < 0 for v in result.values()):
+        raise ValueError("Invalid numeric metric: " + label)
+    return result
+
+
+def validate_frame_presentation(payload, metrics):
+    if payload.get('schema') != 1 or type(payload.get('available')) is not bool:
+        raise ValueError('Invalid frame presentation report')
+    if payload.get('displayedFramesAvailable') is not False:
+        raise ValueError('Accepted presents must not be represented as measured scanout')
+    if not payload['available']:
+        return
+    seconds = payload.get('elapsedSeconds')
+    if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError('Invalid presentation measurement duration')
+    if abs(seconds - metrics['elapsedSeconds']) > .00000051:
+        raise ValueError('Presentation and simulation measurement intervals differ')
+    if payload.get('drawAttempts') != metrics['draws']['count']:
+        raise ValueError('Presentation report paint attempts differ from the terminal report')
+    counters = ('publishedVisualPackets', 'supersededVisualPackets', 'unavailableVisualPackets',
+                'discardedVisualPackets', 'visualFrameSubmissions', 'presentRequests', 'presentAccepted',
+                'presentOutOfDate', 'fenceCompletedFrames', 'lostTimingSamples')
+    previous = None
+    for key in ('intervalEnd', 'afterDrain'):
+        current = payload.get(key, {})
+        if any(type(current.get(c)) is not int or current[c] < 0 for c in counters):
+            raise ValueError('Missing or invalid presentation counters: ' + key)
+        if previous is not None and any(current[c] < previous[c] for c in counters):
+            raise ValueError('Presentation counters regressed while draining')
+        if (current['presentAccepted'] + current['presentOutOfDate'] > current['presentRequests']
+                or current['presentRequests'] > current['visualFrameSubmissions']
+                or current['fenceCompletedFrames'] > current['visualFrameSubmissions']):
+            raise ValueError('Inconsistent frame submission/presentation/completion accounting')
+        previous = current
+    for field, checkpoint, counter in (
+            ('intervalSubmissionFPS', 'intervalEnd', 'visualFrameSubmissions'),
+            ('intervalAcceptedPresentFPS', 'intervalEnd', 'presentAccepted'),
+            ('drainedSubmissionFPS', 'afterDrain', 'visualFrameSubmissions'),
+            ('drainedAcceptedPresentFPS', 'afterDrain', 'presentAccepted')):
+        value = payload.get(field)
+        if type(value) not in (int, float) or not math.isfinite(value) or abs(value - payload[checkpoint][counter] / seconds) > .001:
+            raise ValueError('Presentation rate differs from its counter/interval: ' + field)
+    pacing = payload.get('acceptedPresentIntervals')
+    if pacing is not None:
+        if type(pacing.get('available')) is not bool:
+            raise ValueError('Invalid accepted-present pacing availability')
+        if pacing['available']:
+            if (pacing.get('cohortTimestampSamples') != payload['afterDrain']['presentAccepted']
+                    or pacing.get('cohortAcceptedPresents') != payload['afterDrain']['presentAccepted']
+                    or pacing.get('timestampSamples', 0) < 2
+                    or pacing.get('intervals') != pacing['timestampSamples'] - 1
+                    or pacing.get('outOfOrderSamples') != 0 or payload['afterDrain']['lostTimingSamples'] != 0
+                    or pacing.get('binWidthMicroseconds') != 100 or pacing.get('percentilesAreUpperBounds') is not True):
+                raise ValueError('Incomplete accepted-present pacing cohort')
+            maximum = pacing.get('maxMs')
+            if type(maximum) not in (int, float) or not math.isfinite(maximum) or maximum < 0:
+                raise ValueError('Invalid accepted-present maximum interval')
+            previous = 0
+            for field in ('p50Ms', 'p95Ms', 'p99Ms'):
+                value = pacing.get(field)
+                if value is None and pacing.get('overflowIntervals', 0) > 0:
+                    continue
+                if (type(value) not in (int, float) or not math.isfinite(value)
+                        or value < previous or value > maximum + 0.100001):
+                    raise ValueError('Invalid accepted-present interval percentile')
+                previous = value
+
+
+def require_present_rate(result, minimum):
+    if minimum is None:
+        return
+    report = result.get('framePresentation', {})
+    if report.get('available') is not True:
+        raise ValueError('Actual presentation evidence is required; CPU paint FPS cannot satisfy this gate')
+    if report['intervalAcceptedPresentFPS'] < minimum:
+        raise ValueError(f"Accepted-present rate {report['intervalAcceptedPresentFPS']:.3f} FPS is below {minimum:.3f}")
+    if report['afterDrain']['presentOutOfDate'] or report['afterDrain']['lostTimingSamples']:
+        raise ValueError('Presentation changed or timing samples were lost during qualification')
+
+
+def parse_simulation_attribution(text):
+    reports = [json.loads(value) for value in re.findall(r'Benchmark simulation attribution v1: (\{[^\r\n]*\})', text)]
+    if not reports:
+        return None
+    if len(reports) != 1:
+        raise ValueError('Duplicate simulation attribution report')
+    report = reports[0]
+    phases = {'tickPrelude', 'logicPrelude', 'map', 'routes', 'peeps', 'restoreProvisional', 'vehicles',
+              'miscEntities', 'rides', 'park', 'researchRatings', 'newsAnimations', 'spatialIndex',
+              'actionsNetworkScripts', 'tickTail'}
+    if (set(report) != {'schema', 'capacityPerPhase', 'phases', 'parallel', 'scope'}
+            or report['schema'] != 1 or report['capacityPerPhase'] != 16
+            or set(report['phases']) != phases or set(report['parallel']) != {'peeps', 'vehicles'}):
+        raise ValueError('Unsupported simulation attribution schema')
+    def number(value):
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    def integer(value):
+        return type(value) is int and value >= 0
+    for parallel, groups in ((False, report['phases']), (True, report['parallel'])):
+        for sample in groups.values():
+            if (set(sample) != {'count', 'wallMs', 'threadCycles', 'threadCycleSamples', 'worst'}
+                    or not all(integer(sample[k]) for k in ('count', 'threadCycles', 'threadCycleSamples'))
+                    or not number(sample['wallMs']) or sample['threadCycleSamples'] > sample['count']
+                    or len(sample['worst']) != min(16, sample['count'])):
+                raise ValueError('Invalid bounded simulation attribution counters')
+            previous = math.inf
+            for event in sample['worst']:
+                expected = {'simulationTick', 'offsetMs', 'wallMs', 'threadCycles', 'threadCyclesAvailable'}
+                if parallel:
+                    expected.add('parallel')
+                if (set(event) != expected or not integer(event['simulationTick']) or event['simulationTick'] > 0xffffffff
+                        or not integer(event['threadCycles']) or type(event['threadCyclesAvailable']) is not bool
+                        or not number(event['offsetMs']) or not number(event['wallMs']) or event['wallMs'] > previous):
+                    raise ValueError('Invalid simulation attribution event')
+                previous = event['wallMs']
+                if not parallel:
+                    continue
+                item = event['parallel']
+                booleans = {'callerCyclesAvailable', 'waitCyclesAvailable', 'workerMaxWorkCyclesAvailable'}
+                integers = {'count', 'grain', 'submittedWorkers', 'callerCycles', 'waitCycles', 'completedWorkers',
+                            'retiredWorkers', 'remainingAtWait', 'workerTotalCycles', 'workerCycleSamples', 'workerMaxWorkCycles'}
+                durations = {'submitMs', 'callerMs', 'retireMs', 'waitMs', 'workerTotalWorkMs', 'workerMaxWorkMs',
+                             'workerMaxStartDelayMs', 'workerMaxCompletionLockMs', 'waitAcquireMutexMs',
+                             'conditionWaitMs', 'readyToResumeMs'}
+                if (set(item) != booleans | integers | durations
+                        or not all(type(item[k]) is bool for k in booleans)
+                        or not all(integer(item[k]) for k in integers) or not all(number(item[k]) for k in durations)
+                        or item['grain'] < 1 or item['count'] < 1
+                        or item['completedWorkers'] + item['retiredWorkers'] != item['submittedWorkers']
+                        or item['workerCycleSamples'] > item['completedWorkers']
+                        or item['remainingAtWait'] > item['completedWorkers']
+                        or item['readyToResumeMs'] > item['conditionWaitMs'] + 0.001
+                        or abs(sum(item[k] for k in ('submitMs', 'callerMs', 'retireMs', 'waitMs')) - event['wallMs']) > 0.001):
+                    raise ValueError('Invalid ParallelFor attribution event')
+    if report['phases']['peeps']['count'] == 0 or report['phases']['vehicles']['count'] == 0:
+        raise ValueError('Simulation attribution did not measure simulation')
+    return report
+
+
+def parse_world_gpu_profile(text):
+    reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_PROFILE (\{[^\r\n]*\})', text)]
+    for report in reports:
+        if report.get('schema') not in (1, 2) or type(report.get('supported')) is not bool:
+            raise ValueError('Invalid world GPU profile schema')
+        for field in ('samples', 'unavailable', 'discarded', 'pending'):
+            if type(report.get(field)) is not int or report[field] < 0:
+                raise ValueError('Invalid world GPU profile counter: ' + field)
+        expected_stages = ({'materialize', 'raster'} if report.get('schema') == 2 else
+                           {'materialize', 'columnCount', 'columnPrefix', 'arrangeEmit', 'finalize', 'raster'})
+        if set(report.get('stages', {})) != expected_stages:
+            raise ValueError('Incomplete world GPU stage profile')
+        for stage in report['stages'].values():
+            if not all(isinstance(stage.get(k), (int, float)) and math.isfinite(stage[k]) and stage[k] >= 0
+                       for k in ('meanUs', 'maxUs')) or stage['meanUs'] > stage['maxUs'] + 0.01:
+                raise ValueError('Invalid world GPU stage duration')
+    return reports
+
+
+def parse_world_bounds_profile(text):
+    reports = [json.loads(value) for value in re.findall(r'VULKAN_WORLD_BOUNDS_PROFILE (\{[^\r\n]*\})', text)]
+    for report in reports:
+        fields = ('samples', 'nodes', 'cachedNodes', 'fallbackNodes', 'comparisons', 'maxColumnNodes',
+                  'columns', 'activeColumns', 'columnsOver512', 'saturatedSamples')
+        if report.get('schema') != 1 or any(type(report.get(k)) is not int or report[k] < 0 for k in fields):
+            raise ValueError('Invalid world bounds profile schema/counters')
+        if (report['cachedNodes'] + report['fallbackNodes'] != report['nodes']
+                or report['columnsOver512'] > report['activeColumns'] or report['activeColumns'] > report['columns']
+                or report['saturatedSamples'] > report['samples']):
+            raise ValueError('Inconsistent world bounds profile accounting')
+    return reports
+
+
+def parse_log(text):
+    # Windows console output may retain ANSI resets even when redirected.
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
+    # Parse only the one terminal report; no ready/progress line may substitute.
+    if text.count("Integrated UI benchmark:\n") != 1:
+        raise ValueError("Missing or duplicate terminal integrated benchmark report")
+    report = text.split("Integrated UI benchmark:\n", 1)[1]
+    initial_header = "Initial simulation state:\n"
+    final_header = "Final simulation state:\n"
+    if report.count(initial_header) != 1 or report.count(final_header) != 1:
+        raise ValueError("Missing or duplicate state checkpoint")
+    metrics_text, states_text = report.split(initial_header)
+    initial_text, final_text = states_text.split(final_header)
+    checksum = one(final_text, r"Completed:\s+([0-9a-fA-F]{40})", "final entity checksum").lower()
+    states = {}
+    for name, section in (("initial", initial_text), ("final", final_text)):
+        state = {}
+        for field, (pattern, names) in STATE_FIELDS.items():
+            values = one(section, pattern, name + " " + field)
+            if isinstance(values, str):
+                values = (values,)
+            state[field] = {key: int(value) if value.isdigit() else value for key, value in zip(names, values)}
+        if state["guests"]["total"] != state["guests"]["inside"] + state["guests"]["outside"]:
+            raise ValueError("Inconsistent guest checkpoint")
+        states[name] = state
+    n = NUMBER
+    metrics = {
+        "renderer": one(metrics_text, r"renderer:\s+(software|vulkan)", "renderer"),
+        "vsync": one(metrics_text, r"VSync:\s+(enabled|disabled)", "VSync"),
+        "elapsedSeconds": float(one(metrics_text, r"elapsed:\s+" + n + r" s", "elapsed")),
+        "logicalTicks": int(one(metrics_text, r"logical ticks:\s+(\d+)", "logical ticks")),
+        "logicalTps": float(one(metrics_text, r"actual logical TPS:\s+" + n, "logical TPS")),
+        "draws": numeric(metrics_text, r"draws / FPS:\s+(\d+) / " + n, ("count", "fps"), "draws/FPS"),
+        "ui": numeric(metrics_text, r"message / window:\s+(\d+) pumps / (\d+) updates \(" + n + " / " + n + r" Hz\)",
+                      ("messagePumps", "windowUpdates", "messageHz", "windowHz"), "UI rates"),
+        "simulation": numeric(metrics_text, r"simulation time:\s+" + n + r" s \(" + n + r"%, " + n + r" us/logical tick\)",
+                              ("seconds", "utilisationPercent", "meanMicrosecondsPerTick"), "simulation time"),
+        "simulationBatches": numeric(metrics_text, r"simulation batches:\s+(\d+) \(" + n + r" us mean, " + n + r" ms longest; " + n + r" ms longest UI-bounded slice\)",
+                                     ("count", "meanMicroseconds", "longestMilliseconds", "longestSliceMilliseconds"), "simulation batches"),
+        "drawCpu": numeric(metrics_text, r"draw time:\s+" + n + r" s \(" + n + r"%, " + n + r" us/draw; includes presentation\)",
+                           ("seconds", "utilisationPercent", "meanMicroseconds"), "draw CPU"),
+    }
+    missing = []
+    display_observation = None
+    if "drawable pixels:" in metrics_text or "monitor refresh:" in metrics_text:
+        extents = tuple(int(v) for v in one(metrics_text,
+            r"drawable pixels:\s+(\d+) x (\d+) initial, (\d+) x (\d+) final", "drawable pixels"))
+        refresh = tuple(int(v) for v in one(metrics_text,
+            r"monitor refresh:\s+(\d+) Hz initial, (\d+) Hz final", "monitor refresh"))
+        display_observation = {"initialExtent": list(extents[:2]), "finalExtent": list(extents[2:]),
+                               "initialRefreshHz": refresh[0], "finalRefreshHz": refresh[1],
+                               "scope": "SDL physical output at measurement boundaries; not a scanout observation"}
+    frame_pattern = r"frame intervals:\s+" + n + " ms p50, " + n + " ms p95, " + n + " ms p99, " + n + " ms max"
+    if "frame intervals:" in metrics_text:
+        metrics["applicationFrameIntervalsMs"] = numeric(metrics_text, frame_pattern, ("p50", "p95", "p99", "max"), "frame intervals")
+    else:
+        metrics["applicationFrameIntervalsMs"] = None
+        missing.append("application frame intervals unavailable (fewer than two draws or unsupported binary)")
+    optional = {
+        "rendererCpu": ("renderer CPU", n + " us submit, " + n + r" us present mean \((\d+) fence-complete samples\)", ("submitMeanUs", "presentMeanUs", "samples")),
+        "presentApi": ("present API call", n + r" us mean \((\d+) samples\)", ("meanUs", "samples")),
+        "gpuFrame": ("GPU frame", n + r" us mean \((\d+) samples\)", ("meanUs", "samples")),
+        "gpuPasses": ("GPU passes", n + " upload, " + n + " draw, " + n + " LightFX, " + n + " composite us mean", ("uploadMeanUs", "drawMeanUs", "lightFxMeanUs", "compositeMeanUs")),
+    }
+    for key, (label, pattern, names) in optional.items():
+        if re.search(r"^\s*" + label + r":\s+unavailable\s*$", metrics_text, re.MULTILINE):
+            one(metrics_text, label + r":\s+(unavailable)", label)
+            metrics[key] = None
+            missing.append(label + " explicitly unavailable")
+        else:
+            metrics[key] = numeric(metrics_text, label + r":\s+" + pattern, names, label)
+    if metrics["elapsedSeconds"] <= 0 or metrics["logicalTicks"] <= 0 or metrics["draws"]["count"] <= 0:
+        raise ValueError("Empty benchmark interval")
+    if (states["final"]["simulationTick"]["tick"] - states["initial"]["simulationTick"]["tick"]) % (2 ** 32) != metrics["logicalTicks"]:
+        raise ValueError("Checkpoint tick delta differs from measured logical ticks")
+    # Printed values are rounded (elapsed 6dp; rates 3dp).
+    for observed, count in ((metrics["logicalTps"], metrics["logicalTicks"]), (metrics["draws"]["fps"], metrics["draws"]["count"])):
+        expected = count / metrics["elapsedSeconds"]
+        tolerance = .00051 + count * .00000051 / (metrics["elapsedSeconds"] ** 2)
+        if abs(observed - expected) > tolerance:
+            raise ValueError("Printed rate inconsistent with elapsed/count")
+    result = {"metrics": metrics, "states": states, "finalEntityChecksum": checksum,
+              "missingMetrics": missing + ["initial entity checksum is not emitted", "actual drawable extent/selected monitor refresh is not emitted",
+                                            "displayed presentation cadence is not measured", "CPU copied/upload byte counters are not emitted"]}
+    if display_observation is not None:
+        result["displayObservation"] = display_observation
+        result["missingMetrics"].remove("actual drawable extent/selected monitor refresh is not emitted")
+    if "Benchmark phase timing v1:" in metrics_text:
+        payload = json.loads(one(metrics_text, r"Benchmark phase timing v1:\s+(\{.*\})", "benchmark phase timing"))
+        validate_phase_timing(payload, metrics["logicalTicks"])
+        result["phaseTiming"] = payload
+    if "Frame presentation v1:" in metrics_text:
+        payload = json.loads(one(metrics_text, r"Frame presentation v1:\s+(\{.*\})", "frame presentation"))
+        validate_frame_presentation(payload, metrics)
+        result['framePresentation'] = payload
+    else:
+        result['missingMetrics'].append('accepted presentation count is unavailable; draws/FPS counts CPU paint attempts')
+    if "Benchmark simulation pacing:" in metrics_text:
+        result["simulationPacing"] = one(metrics_text,
+            r"Benchmark simulation pacing:\s+(ordinary Turbo 360 TPS target|uncapped headroom|normal speed camera stress)", "simulation pacing")
+    if "Upload telemetry v1:" in metrics_text:
+        payload = json.loads(one(metrics_text, r"Upload telemetry v1:\s+(\{.*\})", "upload telemetry"))
+        validate_upload_telemetry(payload)
+        result["uploadTelemetry"] = payload
+        result["missingMetrics"].remove("CPU copied/upload byte counters are not emitted")
+        result["missingMetrics"].append("producer CPU copies, physical bandwidth, flush/high-water and generation age are not measured")
+    return result
+
+
+def expected_simulation_pacing(uncapped=False, camera_stress=False):
+    if camera_stress:
+        return "normal speed camera stress"
+    return "uncapped headroom" if uncapped else "ordinary Turbo 360 TPS target"
+
+
+def declared_diagnostic_screenshots(text, profile, width, height, camera_stress=False):
+    from PIL import Image
+    root = (profile / "screenshot").resolve()
+    startup = re.findall(r'^Vulkan startup: loading UI capture: ([^\r\n]+)$', text, re.M)
+    if len(startup) > 1:
+        raise ValueError("Duplicate startup UI screenshot receipt")
+    captures = [json.loads(line) for line in re.findall(r'^Camera stress capture v1: (\{[^\r\n]*\})$', text, re.M)]
+    if captures and not camera_stress:
+        raise ValueError("Camera stress captures are not ordinary benchmark evidence")
+    steps = set()
+    for capture in captures:
+        if (set(capture) != {"path", "step", "tick", "viewPosition", "zoom"}
+                or type(capture["step"]) is not int or capture["step"] <= 0 or capture["step"] in steps
+                or type(capture["tick"]) is not int or not 0 <= capture["tick"] <= 0xffffffff
+                or type(capture["zoom"]) is not int or not -2 <= capture["zoom"] <= 3
+                or not isinstance(capture["viewPosition"], list) or len(capture["viewPosition"]) != 2
+                or any(type(v) is not int for v in capture["viewPosition"])):
+            raise ValueError("Invalid/duplicate camera stress screenshot receipt")
+        steps.add(capture["step"])
+    declared = set()
+    for value in startup + [capture["path"] for capture in captures]:
+        if not isinstance(value, str):
+            raise ValueError("Invalid diagnostic screenshot path")
+        path = Path(value).resolve(strict=True)
+        if root not in path.parents or path.suffix.lower() != ".png" or path in declared:
+            raise ValueError("Diagnostic screenshot escaped isolated directory or is duplicated")
+        with Image.open(path) as image:
+            image.load()
+            if image.format != "PNG" or image.size != (width, height) or image.mode != "P":
+                raise ValueError("Diagnostic screenshot is not the expected indexed main canvas")
+        declared.add(path)
+    return declared
+
+
+def qualify_secondary_viewport(final_screenshot, requested_ride=None):
+    """Validate an actual selected-train window in the final ordinary UI frame."""
+    from PIL import Image
+    record = final_screenshot['receipt'].get('secondaryViewport')
+    if not isinstance(record, dict) or record.get('followsLiveVehicle') is not True:
+        raise ValueError('Selected-train viewport is absent or does not follow its live vehicle')
+    setup = record.get('setup', {})
+    if (record.get('ride') != setup.get('ride') or record.get('entity') != setup.get('entity')
+            or record.get('tick') != final_screenshot['receipt']['simulationTick']
+            or record.get('viewPosition') != record.get('expectedFollowPosition')
+            or (requested_ride is not None and record.get('ride') != requested_ride)):
+        raise ValueError('Selected-train viewport target or camera metadata is inconsistent')
+    rect = record.get('screenRect')
+    if not isinstance(rect, list) or len(rect) != 4 or any(type(v) is not int for v in rect):
+        raise ValueError('Invalid secondary viewport rectangle')
+    x, y, width, height = rect
+    with Image.open(final_screenshot['path']) as image:
+        if min(x, y) < 0 or min(width, height) <= 0 or x + width > image.width or y + height > image.height:
+            raise ValueError('Secondary viewport is outside the captured main canvas')
+        crop = image.crop((x, y, x + width, y + height))
+        histogram = crop.convert('RGB').getcolors(width * height)
+        colours = len(histogram)
+        nonuniform = width * height - max(count for count, _ in histogram)
+        if colours < 8 or nonuniform < width * height // 20:
+            raise ValueError('Selected-train viewport is blank or lacks surrounding rendered world')
+        path = Path(final_screenshot['path']).with_name('secondary-vehicle-viewport.png')
+        crop.save(path)
+    return {'metadata': record, 'crop': str(path), 'sha256': sha256(path),
+            'colours': colours, 'nonuniformPixels': nonuniform,
+            'scope': 'Actual ordinary ride window and live follow camera; nonblank check requires manual train/world visual inspection'}
+
+
+def qualify_final_screenshot(text, profile, output, result, width, height, camera_stress=False):
+    from PIL import Image
+    clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).replace("\r\n", "\n")
+    record = json.loads(one(clean, r"Final benchmark screenshot v1:\s+(\{.*\})", "final screenshot receipt"))
+    if (record.get("schema") != 1 or record.get("outsideMeasurement") is not True
+            or record.get("authoritativeStateUnchanged") is not True
+            or type(record.get("completedFrameNumber")) is not int or record["completedFrameNumber"] <= 0
+            or record.get("simulationTick") != result["states"]["final"]["simulationTick"]["tick"]
+            or record.get("entityChecksum") != result["finalEntityChecksum"]
+            or type(record.get("partialRender")) is not bool):
+        raise ValueError("Final screenshot state/boundary receipt is inconsistent")
+    if record.get("logicalExtent") != [width, height] or record.get("drawableExtent") != [width, height]:
+        raise ValueError("Final screenshot target extent differs from the measured target")
+    camera = record.get("camera")
+    if (not isinstance(camera, dict) or set(camera) != {"viewPosition", "rotation", "zoom", "flags"}
+            or not isinstance(camera["viewPosition"], list) or len(camera["viewPosition"]) != 2
+            or any(type(v) is not int for v in camera["viewPosition"])
+            or type(camera["rotation"]) is not int or not 0 <= camera["rotation"] <= 3
+            or type(camera["zoom"]) is not int or type(camera["flags"]) is not int):
+        raise ValueError("Final screenshot camera receipt is invalid")
+    source = Path(record["path"]).resolve(strict=True)
+    # PlatformEnvironment owns this exact production directory spelling.
+    roots = [(profile / "screenshot").resolve()]
+    if not any(parent in source.parents for parent in roots) or source.suffix.lower() != ".png":
+        raise ValueError("Final screenshot escaped the isolated screenshot directory")
+    diagnostics = declared_diagnostic_screenshots(clean, profile, width, height, camera_stress)
+    screenshots = {p.resolve() for p in (profile / "screenshot").rglob("*") if p.suffix.lower() == ".png"}
+    if source in diagnostics or screenshots != diagnostics | {source}:
+        raise ValueError("Unexpected PNG or reused final screenshot; only declared captures are permitted")
+    with Image.open(source) as image:
+        image.load()
+        if image.format != "PNG" or image.size != (width, height) or image.mode != "P":
+            raise ValueError("Final screenshot is not the expected indexed main canvas")
+        indices_sha = hashlib.sha256(image.tobytes()).hexdigest()
+        rgba_sha = hashlib.sha256(image.convert("RGBA").tobytes()).hexdigest()
+    target = output / "final-benchmark.png"
+    if target.exists():
+        raise ValueError("Final screenshot destination already exists")
+    shutil.copy2(source, target)
+    if sha256(source) != sha256(target):
+        raise ValueError("Final screenshot changed during copy")
+    return {"receipt": record, "path": str(target), "sha256": sha256(target),
+            "indexedSha256": indices_sha, "rgbaSha256": rgba_sha,
+            "scope": "one new final main-canvas draw and indexed readback after measurement; no measured-loop readback; not scanout or original-renderer parity"}
+
+
+def validate_display_observation(result, width, height):
+    observation = result.get("displayObservation")
+    if observation is None:
+        raise ValueError("Required actual drawable/refresh evidence is unavailable in this executable")
+    if observation["initialExtent"] != [width, height] or observation["finalExtent"] != [width, height]:
+        raise ValueError("Actual physical drawable differs from requested benchmark extent")
+    if observation["initialRefreshHz"] <= 0 or observation["initialRefreshHz"] != observation["finalRefreshHz"]:
+        raise ValueError("Selected monitor refresh is unavailable or changed during measurement")
+
+
+def validate_upload_telemetry(payload):
+    integer_fields = ("schema", "attemptedFrames", "submittedFrames", "auxiliarySamples", "allocatedBytes", "alignmentBytes",
+                      "allocationFailures", "captureRequests", "readbackRequests", "readbackBytes", "lostSamples")
+    optional_fields = {"statusReadbackRequests", "statusReadbackBytes", "worldBufferCopyCalls"}
+    if set(payload) - optional_fields != set(integer_fields) | {"attempted", "submitted", "overflow"}:
+        raise ValueError("Unknown/missing upload telemetry schema fields")
+    if any(type(payload[k]) is not int or not 0 <= payload[k] <= 2**64-1 for k in optional_fields if k in payload):
+        raise ValueError("Invalid native status/copy telemetry integer")
+    # Older receipts omit all three fields. Status transfers are bounded scalar safety checks, not image readbacks.
+    if bool(payload.get("statusReadbackRequests", 0)) != bool(payload.get("statusReadbackBytes", 0)):
+        raise ValueError("Native status request/byte coverage disagrees")
+    if any(type(payload[k]) is not int or not 0 <= payload[k] <= 2**64-1 for k in integer_fields):
+        raise ValueError("Invalid upload telemetry integer")
+    if payload["schema"] != 1 or type(payload["overflow"]) is not bool or payload["overflow"]:
+        raise ValueError("Unsupported/overflowed upload telemetry")
+    if not 0 < payload["submittedFrames"] <= payload["attemptedFrames"]:
+        raise ValueError("Upload telemetry lacks submitted-frame coverage")
+    for name in ("attempted", "submitted"):
+        rows = payload[name]
+        if not isinstance(rows, list) or len(rows) != 6 or any(not isinstance(row, list) or len(row) != 5 for row in rows):
+            raise ValueError("Upload byte matrix must have six categories and five metrics")
+        if any(type(v) is not int or not 0 <= v <= 2**64-1 for row in rows for v in row):
+            raise ValueError("Invalid upload byte matrix integer")
+    for a, b in zip(payload["attempted"], payload["submitted"]):
+        if any(y > x for x, y in zip(a, b)) or a[3] + a[4] > a[0] or b[3] + b[4] > b[0]:
+            raise ValueError("Inconsistent attempted/submitted/direct-host byte accounting")
+    if sum(row[0] for row in payload["attempted"]) > payload["allocatedBytes"]:
+        raise ValueError("Mapped host writes exceed successful ring allocation payload")
+    if any(payload[k] for k in ("allocationFailures", "lostSamples", "captureRequests", "readbackRequests", "readbackBytes")):
+        raise ValueError("Telemetry measurement includes allocation failure, lost samples or capture/readback work")
+
+
+def validate_phase_timing(payload, logical_ticks):
+    phases = {"simulation", "tick", "messages", "ui", "drawBegin", "drawPaint", "drawEnd", "networkUpdate",
+              "networkFlush", "schedulerWait", "drawInterval"}
+    if (set(payload) != {"schema", "capacityPerPhase", "phases", "tickWindowSize", "tickWindowCapacity", "tickWindows", "scope"}
+            or payload["schema"] != 1 or payload["capacityPerPhase"] != 16 or payload["tickWindowSize"] != 3000
+            or payload["tickWindowCapacity"] != 16 or set(payload["phases"]) != phases):
+        raise ValueError("Unsupported benchmark phase timing schema")
+    def nonnegative(value):
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    for sample in payload["phases"].values():
+        if set(sample) != {"count", "wallMs", "threadCycles", "threadCycleSamples", "worst"}:
+            raise ValueError("Invalid phase sample fields")
+        if any(type(sample[k]) is not int or sample[k] < 0 for k in ("count", "threadCycles", "threadCycleSamples")):
+            raise ValueError("Invalid phase sample counters")
+        if not nonnegative(sample["wallMs"]) or sample["threadCycleSamples"] > sample["count"]:
+            raise ValueError("Invalid phase timing totals")
+        if not isinstance(sample["worst"], list) or len(sample["worst"]) != min(sample["count"], 16):
+            raise ValueError("Incomplete bounded worst-phase sample set")
+        previous = math.inf
+        for event in sample["worst"]:
+            if set(event) != {"simulationTick", "offsetMs", "wallMs", "threadCycles", "threadCyclesAvailable", "requestedWaitMs"}:
+                raise ValueError("Invalid phase event fields")
+            if (type(event["simulationTick"]) is not int or not 0 <= event["simulationTick"] < 2**32
+                    or type(event["threadCycles"]) is not int or event["threadCycles"] < 0
+                    or type(event["threadCyclesAvailable"]) is not bool
+                    or any(not nonnegative(event[k]) for k in ("offsetMs", "wallMs", "requestedWaitMs"))
+                    or event["wallMs"] > previous or event["wallMs"] > sample["wallMs"] + 1e-6):
+                raise ValueError("Invalid or unsorted phase event")
+            previous = event["wallMs"]
+    windows = payload["tickWindows"]
+    if not isinstance(windows, list) or len(windows) != min(logical_ticks // 3000, 16):
+        raise ValueError("Incomplete benchmark tick windows")
+    for index, window in enumerate(windows):
+        if (set(window) != {"startLogicalTick", "endLogicalTick", "simulationTick", "elapsedSeconds", "simulationSeconds", "draws", "drawSeconds"}
+                or window["startLogicalTick"] != index * 3000 or window["endLogicalTick"] != (index + 1) * 3000
+                or any(not nonnegative(window[k]) for k in ("elapsedSeconds", "simulationSeconds", "drawSeconds"))
+                or window["elapsedSeconds"] <= 0 or type(window["draws"]) is not int or window["draws"] < 0):
+            raise ValueError("Invalid benchmark tick window")
+
+
+def quote_ini_string(value):
+    # Match Config/IniWriter.cpp::WriteString, not shell or JSON escaping.
+    return '"' + str(value).replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def make_config(args):
+    config = configparser.ConfigParser(interpolation=None, strict=True)
+    if args.config_seed:
+        config.read_string(args.config_seed.read_text(encoding="utf-8-sig"))
+    defaults = {
+        "general": {"landscape_smoothing": "true", "language": "en-US", "uncap_fps": "true", "multithreading": "true",
+                    "day_night_cycle": "false", "enable_light_fx": "false", "enable_light_fx_for_vehicles": "false",
+                    "render_weather_effects": "true", "render_weather_gloom": "true",
+                    "show_fps": "false", "always_show_gridlines": "false", "window_scale": "1.0", "infer_display_dpi": "false"},
+        "interface": {"current_theme": "\"*RCT2\""},
+    }
+    for section, values in defaults.items():
+        if not config.has_section(section):
+            config.add_section(section)
+        for key, value in values.items():
+            if not config.has_option(section, key):
+                config.set(section, key, value)
+    forced = {"window_width": str(args.width), "window_height": str(args.height), "fullscreen_mode": "0", "default_display": str(args.display),
+              "use_vsync": "true" if args.vsync else "false", "enable_hdr10_output": "false",
+              "play_intro": "false", "edge_scrolling": "false", "autosave": "5", "last_version_check_time": "4102444800",
+              # Context reloads configuration after CLI path processing. Both
+              # inputs must agree so RCT1 object images stay linked at load.
+              "rct1_path": quote_ini_string(args.rct1_path.resolve(strict=True)),
+              "game_path": quote_ini_string(args.rct2_path.resolve(strict=True))}
+    for key, value in forced.items():
+        config.set("general", key, value)
+    # Current source has one renderer. The external frozen binary is selected by
+    # its explicit --benchmark-renderer argument; neither lane needs this old key.
+    config.remove_option("general", "drawing_engine")
+    stream = io.StringIO()
+    config.write(stream)
+    return stream.getvalue()
+
+
+def host_info():
+    result = {"platform": platform.platform(), "machine": platform.machine(), "processor": platform.processor(),
+              "logicalCpuCount": os.cpu_count(), "python": platform.python_version()}
+    if os.name == "nt":
+        # This read-only identity remains available when the CIM service is denied.
+        # It supplies neither physical core topology nor selected-display information.
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+                result["registryCpu"] = {
+                    "source": "HKLM/HARDWARE/DESCRIPTION/System/CentralProcessor/0",
+                    "name": winreg.QueryValueEx(key, "ProcessorNameString")[0].strip(),
+                    "vendor": winreg.QueryValueEx(key, "VendorIdentifier")[0].strip()}
+        except OSError as error:
+            result["registryCpu"] = {"unavailable": str(error)}
+    command = "[ordered]@{ cpu=@(Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors); gpu=@(Get-CimInstance Win32_VideoController | Select-Object Name,PNPDeviceID,DriverVersion,CurrentHorizontalResolution,CurrentVerticalResolution,CurrentRefreshRate); power=(powercfg /getactivescheme) } | ConvertTo-Json -Depth 5"
+    try:
+        proc = subprocess.run(["powershell", "-NoProfile", "-Command", command], capture_output=True, text=True, timeout=30,
+                              creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        result["systemReported"] = json.loads(proc.stdout) if proc.returncode == 0 else {"unavailable": proc.stderr.strip()}
+        if proc.stderr.strip():
+            result["collectionDiagnostics"] = proc.stderr.strip()
+        result["missingObservations"] = []
+        for key in ("cpu", "gpu"):
+            if not result["systemReported"].get(key):
+                result["missingObservations"].append(key + " CIM inventory unavailable")
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        result["systemReported"] = {"unavailable": str(error)}
+    return result
+
+
+def junction(source, destination):
+    quote = lambda path: "'" + str(path).replace("'", "''") + "'"
+    subprocess.run(["powershell", "-NoProfile", "-Command", "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path "
+                    + quote(destination) + " -Target " + quote(source) + " | Out-Null"], check=True,
+                   creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+
+
+def compare_summary(reference_dir, candidate):
+    path = reference_dir.resolve(strict=True) / "summary.json"
+    reference = read_json(path)
+    if reference.get("status") != "pass":
+        raise ValueError("Comparison run did not pass")
+    if sha256(path.parent / "benchmark.log") != reference["logSha256"]:
+        raise ValueError("Reference benchmark log changed")
+    for filename, key in (("launch.json", "launchSha256"), ("licensed-assets-before.json", "licensedAssetManifestBeforeSha256"),
+                          ("licensed-assets-after.json", "licensedAssetManifestAfterSha256")):
+        if sha256(path.parent / filename) != reference[key]:
+            raise ValueError("Reference provenance record changed: " + filename)
+    launch = read_json(path.parent / "launch.json")
+    if launch["workload"] != reference["workload"] or launch["command"] != reference["command"]:
+        raise ValueError("Reference launch workload disagrees with summary")
+    if sha256(path.parent / "config-input.ini") != reference["workload"]["configInputSha256"]:
+        raise ValueError("Reference configuration input changed")
+    reparsed = parse_log((path.parent / "benchmark.log").read_text(encoding="utf-8", errors="replace"))
+    # Older immutable reports predate the explicit warning about CPU paint
+    # attempts. Add only that diagnostic to the comparison copy; never invent
+    # presentation evidence or relax equality of any measured value.
+    reference_result = dict(reference['result'])
+    absent_presents = 'accepted presentation count is unavailable; draws/FPS counts CPU paint attempts'
+    if 'framePresentation' not in reference_result and absent_presents not in reference_result.get('missingMetrics', []):
+        reference_result['missingMetrics'] = [*reference_result.get('missingMetrics', []), absent_presents]
+    if reparsed != reference_result:
+        raise ValueError("Reference parsed metrics/state disagree with original log")
+    if reference["workload"] != candidate["workload"]:
+        raise ValueError("Comparison workload/config/asset/visibility/profile inputs differ")
+    if reference["hostBefore"] != candidate["hostBefore"]:
+        raise ValueError("Comparison host/display/driver/power environment differs")
+    if reference["environment"] != candidate["environment"]:
+        raise ValueError("Comparison renderer environment differs")
+    for key in ("states", "finalEntityChecksum"):
+        if reference["result"][key] != candidate["result"][key]:
+            raise ValueError("Comparison simulation " + key + " differs")
+    a, b = reference["result"]["metrics"], candidate["result"]["metrics"]
+    return {"referenceSummary": str(path), "referenceSummarySha256": sha256(path), "stateAndWorkloadMatch": True,
+            "logicalTpsRatio": b["logicalTps"] / a["logicalTps"], "logicalTpsPercentChange": (b["logicalTps"] / a["logicalTps"] - 1) * 100,
+            "referenceMetrics": a, "candidateMetrics": b,
+            "qualification": "Descriptive single-run comparison only; not Gate P acceptance or displayed cadence evidence"}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--mode", choices=("frozen-software", "current-vulkan"), required=True)
+    parser.add_argument("--current-snapshot", type=Path, default=ROOT / "obj/vulkan-parity/performance-baseline-build26/snapshot.json")
+    parser.add_argument("--rct1-path", type=Path, required=True)
+    parser.add_argument("--rct2-path", type=Path, required=True)
+    parser.add_argument("--park", type=Path)
+    parser.add_argument("--config-seed", type=Path)
+    parser.add_argument("--pipeline-cache-seed", type=Path, help="Copy a pinned cache directory into this isolated profile for a warm-start diagnostic")
+    parser.add_argument("--warmup-ticks", type=int, default=100)
+    parser.add_argument("--ticks", type=int, default=3000)
+    parser.add_argument("--vsync", type=int, choices=(0, 1), default=1)
+    parser.add_argument("--width", type=int, default=3840)
+    parser.add_argument("--height", type=int, default=2160)
+    parser.add_argument("--require-display-evidence", action="store_true",
+                        help="Fail unless observed physical extent matches the request and monitor refresh is stable")
+    parser.add_argument("--display", type=int, default=0)
+    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--visible", action="store_true", help="Show the benchmark window; external display trace still required")
+    parser.add_argument("--attribution-profile", choices=("csv", "json"), help="Separate instrumented attribution lane, never clean acceptance")
+    parser.add_argument("--compare-run", type=Path)
+    parser.add_argument("--final-screenshot", action="store_true", help="Current-only one final main-canvas PNG after timing stops; excluded from measured workload")
+    parser.add_argument("--secondary-vehicle", action="store_true", help="Open a real selected-train window before warmup and require its final screenshot; adds ordinary auxiliary viewport work")
+    parser.add_argument("--secondary-ride", type=int, help="Ride ID for --secondary-vehicle; otherwise select the first eligible train")
+    parser.add_argument("--uncapped-simulation", action="store_true", help="Current-only simulation headroom experiment; ordinary gameplay keeps its 360 TPS target")
+    parser.add_argument("--upload-telemetry", action="store_true", help="Opt-in Vulkan API upload payload attribution; not clean TPS acceptance")
+    parser.add_argument("--simulation-wait-profile", action="store_true", help="Separate named simulation/ParallelFor wall-cycle attribution; never clean acceptance")
+    parser.add_argument("--world-gpu-profile", action="store_true", help="Separate GPU stage attribution run; never clean performance acceptance")
+    parser.add_argument("--minimum-present-fps", type=float, help="Require actual successful presentation evidence at this rate; CPU paint attempts do not qualify")
+    parser.add_argument("--camera-stress", action="store_true", help="Normal-speed pan/zoom tour with periodic screenshots and synchronization validation; NOT a performance measurement")
+    parser.add_argument("--track-design-ghost", type=Path, help="Move a real prebuilt-design tool through eight adjacent map tiles; separate construction workload")
+    args = parser.parse_args()
+    if args.secondary_ride is not None and (not args.secondary_vehicle or not 0 <= args.secondary_ride < 65535):
+        parser.error("--secondary-ride requires --secondary-vehicle and a valid ride ID")
+    if args.secondary_vehicle:
+        if args.mode != "current-vulkan" or args.ticks < 3000 or args.warmup_ticks <= 0:
+            parser.error("Secondary vehicle regression requires current Vulkan, positive warmup, and at least 3000 measured ticks")
+        args.final_screenshot = True
+    if args.camera_stress and (args.mode != "current-vulkan" or args.uncapped_simulation or args.compare_run or args.minimum_present_fps):
+        parser.error("Camera stress requires current Vulkan and cannot qualify throughput or compare performance")
+    output = args.output.resolve()
+    if ROOT not in output.parents or output.exists():
+        parser.error("Use a new output directory inside the workspace")
+    if args.warmup_ticks < 0 or args.ticks <= 0 or args.ticks > 2147483647 or args.warmup_ticks > 2147483647:
+        parser.error("Tick counts must fit signed 32-bit; warmup >= 0 and measured ticks > 0")
+    if args.width < 640 or args.height < 480 or args.display < 0 or args.timeout <= 0:
+        parser.error("Require width >= 640, height >= 480, display >= 0, timeout > 0")
+    if args.final_screenshot and args.mode != "current-vulkan":
+        parser.error("--final-screenshot requires a current binary with the post-measurement hook; frozen binaries remain unchanged")
+    if args.uncapped_simulation and args.mode != "current-vulkan":
+        parser.error("--uncapped-simulation requires current-vulkan")
+    if args.upload_telemetry and args.mode != "current-vulkan":
+        parser.error("--upload-telemetry requires current-vulkan; the frozen executable is not instrumented")
+    if (args.simulation_wait_profile or args.world_gpu_profile or args.minimum_present_fps is not None) and args.mode != "current-vulkan":
+        parser.error("World profiling and presentation gates require current-vulkan")
+    if args.minimum_present_fps is not None and not 0 < args.minimum_present_fps < 100000:
+        parser.error("--minimum-present-fps must be positive and finite")
+    output.mkdir(parents=True)
+    summary = {"schema": 1, "status": "fail", "mode": args.mode, "failures": [], "qualification": "No Gate P acceptance claim",
+               "runnerSha256": sha256(Path(__file__)), "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    try:
+        frozen, reference = qualify_reference()
+        current_root, current = (None, None) if args.mode == "frozen-software" else qualify_current(args.current_snapshot)
+        summary["frozenReference"] = reference
+        summary["currentBuild"] = current
+        park = (args.park or frozen / "testdata/parks/EverythingPark.park").resolve(strict=True)
+        park_hash = sha256(park)
+        games = {"rct1": args.rct1_path.resolve(strict=True), "rct2": args.rct2_path.resolve(strict=True)}
+        licensed = {name: file_inventory(path) for name, path in games.items()}
+        for name, required in (("rct1", ("data/csg1.dat", "data/csg1i.dat")), ("rct2", ("data/g1.dat",))):
+            if not set(required).issubset({p.lower() for p in licensed[name]}):
+                raise ValueError("Missing required original-game assets in " + name)
+        write_json(output / "licensed-assets-before.json", licensed)
+        summary["licensedAssetManifestBeforeSha256"] = sha256(output / "licensed-assets-before.json")
+        summary["licensedAssetPaths"] = {name: str(path) for name, path in games.items()}
+        seed_hash = sha256(args.config_seed) if args.config_seed else None
+        config_text = make_config(args)
+        profile = output / "profile"
+        profile.mkdir()
+        if args.pipeline_cache_seed:
+            if args.mode != "current-vulkan":
+                raise ValueError("Pipeline cache seeding requires current-vulkan")
+            cache_source = args.pipeline_cache_seed.resolve(strict=True)
+            if not cache_source.is_dir():
+                raise ValueError("Pipeline cache seed must be a directory")
+            files = sorted(cache_source.glob('*.bin'))
+            if not files or any(not p.is_file() or p.is_symlink() or p.stat().st_size > 64 * 1024 * 1024 + 48 for p in files):
+                raise ValueError("Empty or invalid bounded pipeline cache seed")
+            cache_target = profile / 'vulkan-pipelines'
+            cache_target.mkdir()
+            summary['pipelineCacheSeed'] = {'path': str(cache_source), 'sha256': {p.name: sha256(p) for p in files}}
+            for p in files:
+                shutil.copy2(p, cache_target / p.name)
+                if sha256(cache_target / p.name) != summary['pipelineCacheSeed']['sha256'][p.name]:
+                    raise ValueError("Pipeline cache seed changed during copy")
+        (profile / "config.ini").write_text(config_text, encoding="utf-8")
+        (output / "config-input.ini").write_text(config_text, encoding="utf-8")
+        runtime = output / "runtime"
+        runtime.mkdir()
+        # Runtime dependencies come from the accepted full package, never PATH/bin leftovers.
+        for path in (frozen / "package").iterdir():
+            if path.is_file() and path.suffix.lower() == ".dll":
+                shutil.copy2(path, runtime / path.name)
+        executable_source = frozen / "package/openrct2.exe" if current is None else current_root / "bin/openrct2.exe"
+        shutil.copy2(executable_source, runtime / "openrct2.exe")
+        data = output / "data"
+        data.mkdir()
+        for path in (frozen / "package/data").iterdir():
+            if path.name == "shaders":
+                continue
+            if path.is_dir():
+                junction(path, data / path.name)
+            else:
+                shutil.copy2(path, data / path.name)
+        shaders = data / "shaders"
+        if (frozen / "package/data/shaders").is_dir():
+            shutil.copytree(frozen / "package/data/shaders", shaders)
+        else:
+            shaders.mkdir()
+        if current is not None:
+            target = shaders / "vulkan"
+            target.mkdir(exist_ok=True)
+            for name in current["artifactSha256"]:
+                if name.endswith(".spv"):
+                    shutil.copy2(current_root / name, target / Path(name).name)
+        renderer = {"frozen-software": "software", "current-vulkan": "vulkan"}[args.mode]
+        command = [str(runtime / "openrct2.exe"), str(park), "--benchmark-ui", "--benchmark-renderer", renderer,
+                   "--benchmark-vsync", str(args.vsync), "--benchmark-warmup-ticks", str(args.warmup_ticks), "--benchmark-ticks", str(args.ticks),
+                   "--user-data-path", str(profile), "--openrct2-data-path", str(data),
+                   "--rct1-data-path", str(games["rct1"]), "--rct2-data-path", str(games["rct2"])]
+        if args.final_screenshot:
+            command.append("--benchmark-final-screenshot")
+        if args.secondary_vehicle:
+            command.append("--benchmark-secondary-vehicle")
+            if args.secondary_ride is not None:
+                command += ["--benchmark-secondary-ride", str(args.secondary_ride)]
+        if args.uncapped_simulation:
+            command.append("--benchmark-uncapped-simulation")
+        if args.upload_telemetry:
+            command.append("--benchmark-upload-telemetry")
+        if args.visible:
+            command.append("--benchmark-visible")
+        if args.attribution_profile:
+            command += ["--benchmark-profile", str(output / ("profile." + args.attribution_profile))]
+        env = {key.upper() if os.name == "nt" else key: value for key, value in os.environ.items()}
+        relevant = {k: v for k, v in env.items() if k.startswith(("SDL_", "VK_", "OPENRCT2_", "__GL_", "DRI_", "MESA_"))}
+        if any(any(word in key.upper() for word in ("CAPTURE", "VALIDATION", "LAYER", "PROFILE", "PARITY", "DIAGNOSTIC")) for key in relevant):
+            raise ValueError("Inherited capture/validation/profile environment is not permitted: " + ", ".join(sorted(relevant)))
+        if args.simulation_wait_profile:
+            env['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
+            relevant['OPENRCT2_PROFILE_SIMULATION_WAITS'] = '1'
+        if args.track_design_ghost:
+            if args.mode != 'current-vulkan':
+                raise ValueError('Track ghost diagnostic requires current Vulkan')
+            design = args.track_design_ghost.resolve(strict=True)
+            env['OPENRCT2_BENCHMARK_TRACK_GHOST'] = relevant['OPENRCT2_BENCHMARK_TRACK_GHOST'] = str(design)
+            env['OPENRCT2_LOADING_REPORT'] = relevant['OPENRCT2_LOADING_REPORT'] = '1'
+            summary['trackDesignGhost'] = {'path': str(design), 'sha256': sha256(design)}
+        if args.world_gpu_profile:
+            env['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
+            relevant['OPENRCT2_VULKAN_PROFILE_WORLD'] = '1'
+        if args.camera_stress:
+            for key, value in {'OPENRCT2_CAMERA_STRESS': '1', 'OPENRCT2_LOADING_UI_CAPTURE': '1',
+                               'OPENRCT2_VEHICLE_CATALOG_REPORT': '1',
+                               'VK_INSTANCE_LAYERS': 'VK_LAYER_KHRONOS_validation',
+                               'VK_LAYER_VALIDATE_SYNC': '1'}.items():
+                env[key] = relevant[key] = value
+        summary["environment"] = relevant
+        summary["hostBefore"] = host_info()
+        summary["workload"] = {"parkSha256": park_hash, "warmupTicks": args.warmup_ticks, "measuredTicks": args.ticks,
+                               "vsync": args.vsync, "visible": args.visible, "profileMode": args.attribution_profile,
+                               "configInputSha256": sha256(output / "config-input.ini"), "configSeedSha256": seed_hash,
+                               "acceptedAssetManifestSha256": reference["manifestSha256"], "licensedAssetsSha256": json_hash(licensed),
+                               "simulationSpeed": "ordinary Turbo", "camera": "saved park view; no input events injected"}
+        if args.secondary_vehicle:
+            summary['workload']['secondaryVehicle'] = {'requestedRide': args.secondary_ride, 'selection': 'ordinary vehicle window intent before warmup'}
+        if args.upload_telemetry:
+            summary["workload"]["uploadTelemetry"] = 1
+        if args.uncapped_simulation:
+            summary["workload"]["simulationSpeed"] = "uncapped benchmark headroom (Turbo logical ticks)"
+        if args.camera_stress:
+            summary['workload'].update(simulationSpeed='normal speed', camera='scripted pan/zoom tour; cursor not injected')
+        summary["postMeasurementScreenshotRequested"] = args.final_screenshot
+        summary["command"] = command
+        summary["runtimeBefore"] = file_inventory(runtime)
+        # Non-shader assets are junctions to the fully verified accepted package.
+        summary["shaderBefore"] = file_inventory(shaders)
+        summary["dataRootFilesBefore"] = {p.name: sha256(p) for p in data.iterdir() if p.is_file()}
+        summary["profileBefore"] = file_inventory(profile)
+        summary["configuredDisplay"] = {"width": args.width, "height": args.height, "displayIndex": args.display,
+                                        "actualDrawableExtent": None, "selectedMonitorRefreshHz": None,
+                                        "limitation": "CIM desktop display data, when available, is not an observation of the game's selected drawable"}
+        write_json(output / "launch.json", summary)
+        summary["launchSha256"] = sha256(output / "launch.json")
+        start = time.monotonic()
+        log_path = output / "benchmark.log"
+        with log_path.open("w", encoding="utf-8") as log:
+            try:
+                result = subprocess.run(command, cwd=runtime, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=args.timeout,
+                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+                summary["exitCode"] = result.returncode
+            except subprocess.TimeoutExpired:
+                summary["exitCode"] = "timeout"
+        summary["processElapsedSeconds"] = time.monotonic() - start
+        summary["logSha256"] = sha256(log_path)
+        startup_log = log_path.read_text(encoding='utf-8', errors='replace')
+        summary['graphicsStartup'] = {
+            'pipelinePreparationSeconds': [float(x) for x in re.findall(r'Vulkan startup: graphics pipelines ready in ([0-9.]+) seconds', startup_log)],
+            'worldPipelineSeconds': [float(x) for x in re.findall(r'Vulkan startup: native world pipeline ready in ([0-9.]+) seconds', startup_log)],
+            'cacheMessages': re.findall(r'Vulkan pipeline cache[^\r\n]*', startup_log),
+            'quickCompileApplied': 'Vulkan diagnostic: native world pipeline optimization disabled' in startup_log,
+            'scope': 'Startup outside measured simulation ticks; cold/warm cache provenance is separate from steady-state performance',
+        }
+        if args.mode == 'current-vulkan' and summary['graphicsStartup']['quickCompileApplied'] != (env.get('OPENRCT2_VULKAN_QUICK_COMPILE') == '1'):
+            summary['failures'].append('Requested and observed pipeline optimization mode differ')
+        if args.pipeline_cache_seed and summary['pipelineCacheSeed']['sha256'] != {p.name: sha256(p) for p in files}:
+            raise ValueError("Pipeline cache source changed during run")
+        summary["hostAfter"] = host_info()
+        summary["runtimeAfter"] = file_inventory(runtime)
+        summary["shaderAfter"] = file_inventory(shaders)
+        summary["dataRootFilesAfter"] = {p.name: sha256(p) for p in data.iterdir() if p.is_file()}
+        summary["profileAfter"] = file_inventory(profile)
+        summary["parkSha256After"] = sha256(park)
+        licensed_after = {name: file_inventory(path) for name, path in games.items()}
+        write_json(output / "licensed-assets-after.json", licensed_after)
+        summary["licensedAssetManifestAfterSha256"] = sha256(output / "licensed-assets-after.json")
+        _, reference_after = qualify_reference()
+        summary["acceptedReferenceUnchanged"] = reference_after == reference
+        summary["currentBuildUnchanged"] = current is None or qualify_current(args.current_snapshot)[1] == current
+        if summary["exitCode"] != 0:
+            summary["failures"].append("Executable failed: " + str(summary["exitCode"]))
+        for key in ("runtime", "shader", "dataRootFiles", "host"):
+            if summary[key + "Before"] != summary[key + "After"]:
+                summary["failures"].append(key + " changed during process")
+        if not summary["acceptedReferenceUnchanged"] or not summary["currentBuildUnchanged"] or licensed_after != licensed or sha256(park) != park_hash:
+            summary["failures"].append("Immutable runtime input changed")
+        if sha256(Path(__file__)) != summary["runnerSha256"] or (args.config_seed and sha256(args.config_seed) != seed_hash):
+            summary["failures"].append("Runner/config seed changed during process")
+        if sha256(output / "config-input.ini") != summary["workload"]["configInputSha256"] or sha256(output / "launch.json") != summary["launchSha256"]:
+            summary["failures"].append("Saved runtime input/launch record changed during process")
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        suspicious = [line for line in text.splitlines() if any(token in line.lower() for token in
+                      ("vuid-", "sync-hazard", "validation error", "validation warning", "fallback images", "missing object", "could not", "failed to"))]
+        if suspicious:
+            summary["failures"].append("Runtime diagnostic requires investigation")
+            summary["runtimeDiagnostics"] = suspicious
+        summary["result"] = parse_log(text)
+        if args.track_design_ghost:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            moves, total_ms, worst_ms = one(clean_log, r'Track ghost benchmark v1: moves=(\d+) toolMs=([\d.]+) worstToolMs=([\d.]+)', 'ghost movement timing')
+            placements = re.findall(r'Ghost placement: error=(\d+) present=(\d+)', text)
+            if not placements or any(error != '0' or present != '1' for error, present in placements):
+                raise ValueError('Ghost diagnostic did not confirm successful visible placements')
+            if sha256(design) != summary['trackDesignGhost']['sha256']:
+                raise ValueError('Track design changed during measurement')
+            summary['trackDesignGhost'].update(moves=int(moves), toolMs=float(total_ms),
+                meanToolMs=float(total_ms) / max(1, int(moves)), worstToolMs=float(worst_ms),
+                confirmedPlacements=len(placements), timingScope='Measurement only; tool work is outside drawing CPU timer')
+        if args.secondary_vehicle:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            summary['secondaryVehicleSetup'] = json.loads(one(clean_log, r'Secondary viewport benchmark v2:\s+(\{.*\})', 'secondary vehicle setup'))
+        underground_requested = relevant.get('OPENRCT2_BENCHMARK_UNDERGROUND_VIEW') == '1'
+        underground_logged = 'Underground viewport benchmark v1:' in text
+        if underground_requested != underground_logged:
+            raise ValueError('Requested/actual underground benchmark view differs')
+        if underground_requested:
+            clean_log = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+            values = one(clean_log, r'Underground viewport benchmark v1: tick=(\d+) checksum=([0-9a-f]+) '
+                         r'flagsBefore=(\d+) flagsAfter=(\d+) viewX=(-?\d+) viewY=(-?\d+) '
+                         r'width=(\d+) height=(\d+) zoom=(-?\d+) rotation=(\d+)', 'underground view setup')
+            fields = ('tick', 'checksum', 'flagsBefore', 'flagsAfter', 'viewX', 'viewY', 'width', 'height', 'zoom', 'rotation')
+            setup = {k: v if k == 'checksum' else int(v) for k, v in zip(fields, values)}
+            if setup['flagsAfter'] != setup['flagsBefore'] | 1 or min(setup['width'], setup['height']) <= 0:
+                raise ValueError('Underground setup changed more than the inside-view flag')
+            summary['undergroundViewSetup'] = setup
+        simulation_attribution = parse_simulation_attribution(text)
+        if (simulation_attribution is not None) != args.simulation_wait_profile:
+            raise ValueError('Requested/actual simulation attribution mode differs')
+        if simulation_attribution is not None:
+            summary['simulationAttribution'] = simulation_attribution
+        world_profiles = parse_world_gpu_profile(text)
+        if bool(world_profiles) != args.world_gpu_profile:
+            raise ValueError('Requested/actual world GPU profiling mode differs')
+        if args.world_gpu_profile:
+            if not any(p['supported'] and p['samples'] > 0 for p in world_profiles):
+                raise ValueError('World GPU profiling produced no supported completed samples')
+            summary['worldGpuProfiles'] = world_profiles
+            summary['worldBoundsProfiles'] = parse_world_bounds_profile(startup_log)
+            summary['worldGpuProfileScope'] = 'Pipeline lifetime, including warmup and final capture; instrumented attribution, not clean acceptance'
+        expected_pacing = expected_simulation_pacing(args.uncapped_simulation, args.camera_stress)
+        if summary["result"].get("simulationPacing", "ordinary Turbo 360 TPS target") != expected_pacing:
+            summary["failures"].append("Requested/actual benchmark simulation pacing differs")
+        if "phaseTiming" in summary["result"]:
+            summary["phaseTimingInstrumentation"] = "Fixed top16 per main-thread phase; clock/thread-cycle sampling included in elapsed time; no loop I/O or full profiler; nested phases overlap"
+        if args.final_screenshot:
+            summary["finalScreenshot"] = qualify_final_screenshot(
+                text, profile, output, summary["result"], args.width, args.height, args.camera_stress)
+            if summary["finalScreenshot"]["receipt"]["partialRender"]:
+                summary["qualification"] = "Partial GPU-only rendering throughput; omitted world categories prevent full-render performance acceptance"
+            if underground_requested and not summary['finalScreenshot']['receipt']['camera']['flags'] & 1:
+                raise ValueError('Final capture lost requested underground view')
+            if args.secondary_vehicle:
+                summary['secondaryVehicle'] = qualify_secondary_viewport(summary['finalScreenshot'], args.secondary_ride)
+                if summary['secondaryVehicle']['metadata']['setup'] != summary['secondaryVehicleSetup']:
+                    raise ValueError('Secondary viewport final setup differs from its initial log')
+        elif "Final benchmark screenshot v1:" in text:
+            summary["failures"].append("Unexpected final screenshot in a no-capture process")
+        if args.require_display_evidence:
+            validate_display_observation(summary["result"], args.width, args.height)
+        if "displayObservation" in summary["result"]:
+            summary["observedDisplay"] = summary["result"]["displayObservation"]
+        if ("uploadTelemetry" in summary["result"]) != args.upload_telemetry:
+            summary["failures"].append("Requested/actual upload telemetry mode differs")
+        if args.upload_telemetry and "uploadTelemetry" in summary["result"]:
+            summary["uploadTelemetryDefinitions"] = {
+                "categories": ["palette", "lookup", "atlas", "lightFx", "world", "commands"],
+                "metrics": ["mappedHostWrittenBytes", "recordedBufferTransferBytes", "recordedImageTexelBytes", "directHostVertexPayloadBytes", "directHostStoragePayloadBytes"],
+                "units": "API payload bytes; physical bandwidth is not measured",
+                "statusReadback": "Optional statusReadbackRequests/statusReadbackBytes are scalar asynchronous safety checks, not images; absent legacy fields mean zero",
+                "worldBufferCopyCalls": "Optional batched world vkCmdCopyBuffer call count; absent legacy field means zero",
+                "scope": "backend only; producer CPU copies, full ring flush/high-water and generation age remain unavailable"}
+        m = summary["result"]["metrics"]
+        require_present_rate(summary['result'], args.minimum_present_fps)
+        if m["renderer"] != renderer or m["vsync"] != ("enabled" if args.vsync else "disabled") or m["logicalTicks"] != args.ticks:
+            summary["failures"].append("Actual renderer/VSync/tick count differs from requested workload")
+        ready = "Integrated UI benchmark ready: renderer=" + renderer + ", VSync=" + ("enabled" if args.vsync else "disabled") + ", " + ("visible" if args.visible else "hidden") + " window, " + ("normal speed camera stress" if args.camera_stress else "ordinary Turbo") + "."
+        if text.count(ready) != 1:
+            summary["failures"].append("Actual visibility/ordinary Turbo startup was not confirmed")
+        if args.attribution_profile:
+            p = output / ("profile." + args.attribution_profile)
+            if not p.is_file() or p.stat().st_size == 0:
+                summary["failures"].append("Attribution profiler output missing/empty")
+            else:
+                summary["profilerSha256"] = sha256(p)
+        elif "Integrated profiler enabled" in text:
+            summary["failures"].append("Unexpected profiler activation in clean lane")
+        if args.compare_run:
+            summary["comparison"] = compare_summary(args.compare_run, summary)
+            if summary.get("finalScreenshot", {}).get("receipt", {}).get("partialRender"):
+                summary["comparison"]["qualification"] = "Matched simulation workload, partial candidate world rendering; TPS ratio is not an equivalent full-render gain or Gate P acceptance"
+        summary["measurementLimitations"] = ["Hidden smoke cannot certify displayed pacing" if not args.visible else "Visible run still needs independent displayed-presentation trace",
+                                             "No image readbacks during measurement; optional final image is after metrics freeze" if args.final_screenshot else "No image readbacks or diagnostic capture requests; ordinary main loop",
+                                             "Single-run results do not establish a substantial TPS gain", "Initial checkpoint is a state census; initial entity checksum is unavailable"]
+        if args.secondary_vehicle:
+            summary["measurementLimitations"][1] = "Ordinary selected-train auxiliary viewport readbacks are included during measurement; final main-canvas evidence is captured after metrics freeze"
+            summary["qualification"] += "; selected-train auxiliary workload, not main-viewport-only performance acceptance"
+        if args.uncapped_simulation:
+            summary["qualification"] += "; uncapped benchmark headroom, not ordinary 360 TPS gameplay pacing"
+        if args.simulation_wait_profile:
+            summary["qualification"] += "; instrumented simulation wait attribution, not clean performance acceptance"
+        if args.world_gpu_profile:
+            summary["qualification"] += "; instrumented GPU stage attribution, not clean performance acceptance"
+        if args.camera_stress:
+            from PIL import Image
+            captures = [json.loads(record) for record in re.findall(r'Camera stress capture v1: (\{.*\})', text)]
+            steps = re.findall(r'Camera stress step: (\d+) zoom=(-?\d+) x=(-?\d+) y=(-?\d+)', text)
+            if len(captures) < 8 or len(set(s[1] for s in steps)) < 4:
+                raise ValueError('Camera stress did not exercise enough captures/zoom levels')
+            for capture in captures:
+                path = Path(capture['path']).resolve(strict=True)
+                if (profile / 'screenshot').resolve() not in path.parents:
+                    raise ValueError('Camera stress capture escaped isolated profile')
+                with Image.open(path) as im:
+                    if im.size != (args.width, args.height):
+                        raise ValueError('Camera stress capture dimensions changed')
+                    rgb = im.convert('RGB')
+                    world = rgb.crop((0, 64, im.width, im.height - 64))
+                    colours = world.getcolors(world.width * world.height)
+                    nonblack = sum(count for count, colour in colours if max(colour) > 8)
+                    capture.update(sha256=sha256(path), worldColours=len(colours),
+                                   worldNonblackFraction=nonblack / (world.width * world.height))
+                    if len(colours) < 16 or capture['worldNonblackFraction'] < 0.05:
+                        raise ValueError('Camera stress captured a blank/monochrome world: ' + str(path))
+            summary['cameraStress'] = {'captures': captures, 'steps': len(steps), 'zoomLevels': sorted(set(s[1] for s in steps))}
+            summary['qualification'] = 'Diagnostic normal-speed camera tour; NOT performance acceptance or full pixel parity'
+            summary['measurementLimitations'] += ['Periodic indexed readbacks and validation perturb pacing; screenshots do not validate final GPU colour conversion; cursor input is not exercised']
+        if not summary["failures"]:
+            summary["status"] = "pass"
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        summary["failures"].append(str(error))
+    summary["finishedUtc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    write_json(output / "summary.json", summary)
+    print(json.dumps({"status": summary["status"], "summary": str(output / "summary.json"), "failures": summary["failures"]}))
+    return 0 if summary["status"] == "pass" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

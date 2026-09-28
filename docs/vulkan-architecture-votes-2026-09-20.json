@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "date": "2026-09-20",
+  "method": "Three fresh agents, no conversation history, no author preference, no shared votes. Initial review of neutral A/B documents and optional source. Second independent review after full 1265-line historical reading; originals preserved. Same model family, judgments rather than empirical performance tests.",
+  "plansSha256": {
+    "docs/vulkan-plan-a-geometric-world.md": "da0e33136d6848a14df69b12c40f29bcc26bb66db4ddf6d6cf4bf1515caca268",
+    "docs/vulkan-plan-b-retained-sprites.md": "ed56091960d1dfb26e5a181877e6c895ab336b9eacfa2095183e9a86201c8b69"
+  },
+  "historySha256": "cf925a5690e4958cef77ee93c05853138b032b795813be5b1a7eacaec778a873",
+  "reviewsSha256": {
+    "docs/vulkan-architecture-reviews/reviewer-one.md": "4fb640dee7d0cdfcb60109b7b43f9e388fa415938b2c6dad5b9fd4c12e5fa8b9",
+    "docs/vulkan-architecture-reviews/reviewer-one-history-addendum.md": "4ce5fd6ef1f0555ee80f144563236124d2be7f741676ecb94415e7c84707d5bc",
+    "docs/vulkan-architecture-reviews/reviewer-two.md": "961f960694f037d7bde3f3024144236179b48fb43cfb4ffac0dab51464ec5e17",
+    "docs/vulkan-architecture-reviews/reviewer-two-history-addendum.md": "dab6ed51d2f3c98ff55c1d95b6bce555e73c7fa0dbee3e2b281b158fff226688",
+    "docs/vulkan-architecture-reviews/reviewer-three.md": "da2b861b3e30324643ce16a5c560eb36114d19d05a690a51e4790ccf9df866d2",
+    "docs/vulkan-architecture-reviews/reviewer-three-history-addendum.md": "b609742206eb72ae3f56834f943414615473cc699701f156ce8b305081e32868"
+  },
+  "initialVotes": [
+    {
+      "reviewer": "one",
+      "A": "approve prototype",
+      "B": "approve prototype",
+      "first": "B"
+    },
+    {
+      "reviewer": "two",
+      "A": "reserve",
+      "B": "approve prototype",
+      "first": "B"
+    },
+    {
+      "reviewer": "three",
+      "A": "approve prototype",
+      "B": "approve prototype",
+      "first": "B"
+    }
+  ],
+  "historyReviewChangedVotes": false,
+  "architectureSelected": false,
+  "implementationStarted": false,
+  "originalReviewsSha256": {
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-one.md": "1560a2d1c514b724a04815f8f97f219478af1ebc9652137987bcb70b2a12ecfc",
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-one-history-addendum.md": "039e1403c42fd8522d44c6eca1355e3be184d61e5d8823615c51f07146f3a21e",
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-two.md": "258551bd2bf7e4dc434087eadebd4d85934be90154fc8b7739f341feda9f5ed5",
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-two-history-addendum.md": "209820cc560803b11b4b1a89c87a662da8b8df93e0ff310d3742ed3ab4574b50",
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-three.md": "b7572e08b7010bb74724565d9aa0ef4502ceea2871bcb15a07113bec09158e0e",
+    "obj/vulkan-parity/architecture-votes-20260920/reviewer-three-history-addendum.md": "8a6df0c454a88a9724b37463aa18387411fae2e45b9dd10e2653a9ba3e3bffea"
+  },
+  "trackedCopyEdits": "Only relative source/document hyperlinks adjusted for tracked copy location; original sealed files retained separately."
+}

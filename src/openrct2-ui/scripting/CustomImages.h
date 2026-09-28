@@ -25,6 +25,7 @@ namespace OpenRCT2::Scripting
     bool DoesPluginOwnImage(const std::shared_ptr<Plugin>& plugin, ImageIndex index);
     JSValue JSGetImageInfo(JSContext* ctx, ImageIndex id);
     JSValue JSGetImagePixelData(JSContext* ctx, ImageIndex id);
+    void PrepareCustomImageSource(ImageIndex id);
     void JSSetPixelData(JSContext* ctx, ImageIndex id, JSValue jsPixelData);
     void JSDrawCustomImage(
         JSContext* ctx, ScriptEngine& scriptEngine, ImageIndex id, ScreenSize size, const JSCallback& callback);

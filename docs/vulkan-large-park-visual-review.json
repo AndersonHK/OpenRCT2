@@ -1,0 +1,1001 @@
+{
+  "schema": 1,
+  "reviewer": "/root/decode_assets",
+  "date": "2026-09-19",
+  "acceptedRendererExceptions": [],
+  "runs": [
+    {
+      "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/summary.json",
+      "sha256": "1bf3ceb3de98c73824b254e1256ec0c61702f3ee5b6def147d0c6587cbf9809a",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "inadequate-coverage-despite-old-runner-pass; explicit RCT1 fallback warning and mostly void camera",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-11\\receipt.json",
+        "sha256": "36f031d9ba0b19866b04ecb64752adfd1d9705d475a0eec00c441b8ba69c7ce7"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [],
+      "fallbackWarning": true,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/capture.log",
+        "sha256": "1e55bbe968c5f178992beb1a352d746dfb37dc9416c808d3efd5c718bc4a500d"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/summary.json",
+      "sha256": "7d031ae62ea79abdb7e47c055d0d305831bac3f63b91a3bbbecb5b7021d63a31",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "inadequate-coverage-despite-old-runner-pass; explicit RCT1 fallback warning and mostly void camera",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-14\\receipt.json",
+        "sha256": "6e9af5e39ed72748608e12e85044c6c061d89d70795feee4c062ef709a6f8913"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-r0z0-01",
+          "summarySha256": "1bf3ceb3de98c73824b254e1256ec0c61702f3ee5b6def147d0c6587cbf9809a"
+        }
+      ],
+      "fallbackWarning": true,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/capture.log",
+        "sha256": "6c88be7ea463ed5b58814e5a2bde95dffe0a7fde6bbb92f827f08070abf5604c"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/summary.json",
+      "sha256": "a8276e6bb54c3c220bb28aa85c3f3fbc02b5c9e2fd37878c1554f9c717fac1fa",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "inadequate-coverage-despite-old-runner-pass; explicit RCT1 fallback warning and mostly void camera",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-14\\receipt.json",
+        "sha256": "6e9af5e39ed72748608e12e85044c6c061d89d70795feee4c062ef709a6f8913"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-r0z0-01",
+          "summarySha256": "1bf3ceb3de98c73824b254e1256ec0c61702f3ee5b6def147d0c6587cbf9809a"
+        }
+      ],
+      "fallbackWarning": true,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/capture.log",
+        "sha256": "a98c108aea20ec3f35fc796843a4ff028e84513520a171cb86b4290c7f47a01e"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/summary.json",
+      "sha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact bounded dense saved-camera main-UI coverage; CSG load explicitly verified",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-12\\receipt.json",
+        "sha256": "57c15a0315e9fee2783d550d5f853a909519dc80ceb238ae1fc3581d7b9f08c8"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/capture.log",
+        "sha256": "49d621f0cdab4fb36d28a83582729c88d9871c1907ac95aa34510cec5d929f24"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-everything-saved-02/summary.json",
+      "sha256": "cb2a5b85ebb266b7273ac3b801d5df3ad8cd0719f19807fe0a1f58af873d8b37",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact bounded dense saved-camera main-UI coverage; CSG load explicitly verified",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-15\\receipt.json",
+        "sha256": "845a7d8e77c9785391878e0ea2ccfede75b809b33587251a3fd3abef59d065ed"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-saved-02",
+          "summarySha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419"
+        }
+      ],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/capture.log",
+        "sha256": "55b414c96786733102ccef8e0da76f094c20a701746b900014d297b89a7ceb6b"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/summary.json",
+      "sha256": "2bb815f75f3cca2923870d01114275ec3f9c7bb688172e2ff281924c830e669b",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact bounded dense saved-camera main-UI coverage; CSG load explicitly verified",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-15\\receipt.json",
+        "sha256": "845a7d8e77c9785391878e0ea2ccfede75b809b33587251a3fd3abef59d065ed"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-saved-02",
+          "summarySha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419"
+        }
+      ],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/capture.log",
+        "sha256": "19499a9de5015c501a2618f7bb8abd6135f6dd28b68a6da9f5f64aaada84c366"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/summary.json",
+      "sha256": "4ccd980b6560b0bbd111a1160bff8ba99fd6e54a3c38e0a0e1369a6bd7e97667",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact same-build fresh-process repeat of CSG-verified dense saved-camera main UI",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-12\\receipt.json",
+        "sha256": "57c15a0315e9fee2783d550d5f853a909519dc80ceb238ae1fc3581d7b9f08c8"
+      },
+      "shaderBuildReceipt": null,
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-saved-02",
+          "summarySha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419"
+        }
+      ],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/capture.log",
+        "sha256": "4adb21eb92ba7f7bccfc61011d6a2c51f2a36b49df00edfadda5f68c81ac5f89"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-everything-saved-03/summary.json",
+      "sha256": "66727d9ef46082dd3d220b2c4eff27deee4d9a38c35443cc03299d5d88deca49",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact same-build fresh-process repeat of CSG-verified dense saved-camera main UI",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-15\\receipt.json",
+        "sha256": "845a7d8e77c9785391878e0ea2ccfede75b809b33587251a3fd3abef59d065ed"
+      },
+      "shaderBuildReceipt": null,
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-current-everything-saved-02",
+          "summarySha256": "cb2a5b85ebb266b7273ac3b801d5df3ad8cd0719f19807fe0a1f58af873d8b37"
+        }
+      ],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/capture.log",
+        "sha256": "37401de3bcd968de03b1c494ebb5bcb563f1e548705ee350f47280fe45902826"
+      }
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/summary.json",
+      "sha256": "ae777dd71ee2f07990ec3ec2ec08e2c0c40a29978497d99434a79debdba801fd",
+      "oldOrCurrentRunnerStatus": "pass",
+      "qualification": "exact same-build fresh-process repeat of CSG-verified dense saved-camera main UI",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-15\\receipt.json",
+        "sha256": "845a7d8e77c9785391878e0ea2ccfede75b809b33587251a3fd3abef59d065ed"
+      },
+      "shaderBuildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\build-29\\receipt.json",
+        "sha256": "92a1ad2903f9761d76bf03c1bdda47bd430e192749cb211ebacecc93688851ff"
+      },
+      "parkSha256": "c11bca8296bbf6d0b2673c4c80e3703139360b802e04b363d25cedd605459cf4",
+      "comparisonReferences": [
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-everything-saved-02",
+          "summarySha256": "2bb815f75f3cca2923870d01114275ec3f9c7bb688172e2ff281924c830e669b"
+        }
+      ],
+      "fallbackWarning": false,
+      "captureLog": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/capture.log",
+        "sha256": "dff0ee49b23b47e6200a7e9c67dd9c6fa93e98d7e65029f01bbf929bec31f4bd"
+      }
+    }
+  ],
+  "captures": [
+    {
+      "run": "ui-frozen-everything-r0z0-01",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-0/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-0/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-0/report.json",
+        "sha256": "c0671b27f1d9360ed3e17c6980da3b191aad8ca1e9fda2fc10123f042284b482"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-frozen-everything-r0z0-01",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-1/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-1/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-r0z0-01/captures/baseline-1/report.json",
+        "sha256": "ef924ee74012326a851bb98288c07e7fa03311e3dfd486426a99b6570ee96a27"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-current-everything-r0z0-01",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-0/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-0/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-0/report.json",
+        "sha256": "c0671b27f1d9360ed3e17c6980da3b191aad8ca1e9fda2fc10123f042284b482"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-current-everything-r0z0-01",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-1/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-1/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-r0z0-01/captures/baseline-1/report.json",
+        "sha256": "ef924ee74012326a851bb98288c07e7fa03311e3dfd486426a99b6570ee96a27"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-vulkan-everything-r0z0-01",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-0/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-0/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-0/report.json",
+        "sha256": "9cf385e73a0d26a6e501aa214cb8208904bb49ac08049d55a1afe6dc9b3f5412"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": {
+        "frameNumber": 6,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 173,
+        "opaqueSprites": 2063,
+        "paletteVersion": 11,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 26,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-vulkan-everything-r0z0-01",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-1/screen.indexed",
+        "sha256": "18a5c82084570b58f74c8da5b86562a459193075665ba8428c08bb346282f1dd"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-1/screen.rgba",
+        "sha256": "f694592dc01eb86c263dab56071466502328195920ff50b2c264bcae9522470e"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/captures/baseline-1/report.json",
+        "sha256": "6dd44d1c373fc6ae16b8b80a212e9c03d3e67702461d2baff3ce06259c13ccaf"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": null,
+        "rotation": 0,
+        "zoom": 0,
+        "viewPosition": [
+          2860,
+          349
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": null,
+      "commandCoverage": {
+        "frameNumber": 7,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 173,
+        "opaqueSprites": 2063,
+        "paletteVersion": 12,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 26,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 10,
+      "interiorMostCommonIndexPixels": 537974,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-frozen-everything-saved-02",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-0/report.json",
+        "sha256": "3df5d754e3908caa235d65551ebe6b78a78c14b428f08a5c6ea4083a149f6c5a"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-frozen-everything-saved-02",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-02/captures/baseline-1/report.json",
+        "sha256": "7d6bb5fa2b3fb601ffa3e2ef58c87edf981613593e773ebe9b5b5b9760431aa9"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-current-everything-saved-02",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-0/report.json",
+        "sha256": "3df5d754e3908caa235d65551ebe6b78a78c14b428f08a5c6ea4083a149f6c5a"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-current-everything-saved-02",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-02/captures/baseline-1/report.json",
+        "sha256": "7d6bb5fa2b3fb601ffa3e2ef58c87edf981613593e773ebe9b5b5b9760431aa9"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-vulkan-everything-saved-02",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-0/report.json",
+        "sha256": "dd9d59ab6f1c8e33ff8d037b10cdb0193e5df32e382c06442e568567d45ee3a3"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": {
+        "frameNumber": 6,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 55,
+        "opaqueSprites": 62651,
+        "paletteVersion": 11,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 454,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-vulkan-everything-saved-02",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/captures/baseline-1/report.json",
+        "sha256": "d9b66fff9ee27e671802a9976b1d4aed2c360f62b8c0e58e5adec6186aab76b8"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": {
+        "frameNumber": 7,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 55,
+        "opaqueSprites": 62651,
+        "paletteVersion": 12,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 454,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800
+    },
+    {
+      "run": "ui-frozen-everything-saved-03",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-0/report.json",
+        "sha256": "3df5d754e3908caa235d65551ebe6b78a78c14b428f08a5c6ea4083a149f6c5a"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    },
+    {
+      "run": "ui-frozen-everything-saved-03",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-frozen-everything-saved-03/captures/baseline-1/report.json",
+        "sha256": "7d6bb5fa2b3fb601ffa3e2ef58c87edf981613593e773ebe9b5b5b9760431aa9"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    },
+    {
+      "run": "ui-current-everything-saved-03",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-0/report.json",
+        "sha256": "3df5d754e3908caa235d65551ebe6b78a78c14b428f08a5c6ea4083a149f6c5a"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    },
+    {
+      "run": "ui-current-everything-saved-03",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-current-everything-saved-03/captures/baseline-1/report.json",
+        "sha256": "7d6bb5fa2b3fb601ffa3e2ef58c87edf981613593e773ebe9b5b5b9760431aa9"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": null,
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    },
+    {
+      "run": "ui-vulkan-everything-saved-03",
+      "step": "baseline-0",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-0/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-0/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-0/report.json",
+        "sha256": "dd9d59ab6f1c8e33ff8d037b10cdb0193e5df32e382c06442e568567d45ee3a3"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": {
+        "frameNumber": 6,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 55,
+        "opaqueSprites": 62651,
+        "paletteVersion": 11,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 454,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    },
+    {
+      "run": "ui-vulkan-everything-saved-03",
+      "step": "baseline-1",
+      "indexed": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-1/screen.indexed",
+        "sha256": "d36c5d03cc9ee3759580520467ab463e99ad7e49c90acb51d121aa9fb683cf50"
+      },
+      "physical": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-1/screen.rgba",
+        "sha256": "1d4ae782b83e47b7d1a0b115646d35d31da92b22da8ebdf0d816f696b9e38cd1"
+      },
+      "metadata": {
+        "path": "obj/vulkan-parity/ui-vulkan-everything-saved-03/captures/baseline-1/report.json",
+        "sha256": "d9b66fff9ee27e671802a9976b1d4aed2c360f62b8c0e58e5adec6186aab76b8"
+      },
+      "equalToSameInputFrozen": true,
+      "camera": {
+        "cameraMode": "saved",
+        "rotation": 3,
+        "zoom": 2,
+        "viewPosition": [
+          6218,
+          -1330
+        ],
+        "simulationTicks": 3133831
+      },
+      "assetState": {
+        "rct1CsgLoaded": true,
+        "rct1Required": true
+      },
+      "commandCoverage": {
+        "frameNumber": 7,
+        "graphicsLookupTablesVersion": 1,
+        "lines": 0,
+        "opaqueRectangles": 55,
+        "opaqueSprites": 62651,
+        "paletteVersion": 12,
+        "resizeVersion": 1,
+        "surfaceFormatVersion": 0,
+        "transparentRectangles": 454,
+        "weather": 0,
+        "worldEpoch": 0,
+        "worldSurfaceRecordCount": 0,
+        "worldSurfaces": false
+      },
+      "interiorMostCommonIndex": 73,
+      "interiorMostCommonIndexPixels": 159034,
+      "interiorPixels": 556800,
+      "equalToSameRendererFreshProcessReference": true
+    }
+  ],
+  "manuallyViewedImages": [
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/reference.png",
+      "sha256": "53eb29e4d5f0a7f57d385ec0661f85cbb8966d7f65df7b34cda69af6d20461c6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/candidate.png",
+      "sha256": "53eb29e4d5f0a7f57d385ec0661f85cbb8966d7f65df7b34cda69af6d20461c6"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/indexed/reference.png",
+      "sha256": "9637df348e875f5aeaf2d964cf4e34c5d87759d3ff53a203943e9089be4fdf15"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/indexed/candidate.png",
+      "sha256": "9637df348e875f5aeaf2d964cf4e34c5d87759d3ff53a203943e9089be4fdf15"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-r0z0-01/comparisons/baseline-0/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/reference.png",
+      "sha256": "576331d5a23931e38e004853a705b21ee34e241ae1e699ffe5d9a886d3b36d5a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/candidate.png",
+      "sha256": "576331d5a23931e38e004853a705b21ee34e241ae1e699ffe5d9a886d3b36d5a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/indexed/reference.png",
+      "sha256": "389e89b37de5e35e68ac756f86ceb2485035c23844fc48769def1a200efd3e2e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/indexed/candidate.png",
+      "sha256": "389e89b37de5e35e68ac756f86ceb2485035c23844fc48769def1a200efd3e2e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-0/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/reference.png",
+      "sha256": "576331d5a23931e38e004853a705b21ee34e241ae1e699ffe5d9a886d3b36d5a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/candidate.png",
+      "sha256": "576331d5a23931e38e004853a705b21ee34e241ae1e699ffe5d9a886d3b36d5a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/indexed/reference.png",
+      "sha256": "389e89b37de5e35e68ac756f86ceb2485035c23844fc48769def1a200efd3e2e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/indexed/candidate.png",
+      "sha256": "389e89b37de5e35e68ac756f86ceb2485035c23844fc48769def1a200efd3e2e"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-everything-saved-02/comparisons/baseline-1/indexed/diff.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    }
+  ],
+  "manuallyViewedSheets": [
+    {
+      "path": "obj/vulkan-parity/large-park-manual-review/ui-vulkan-everything-r0z0-01-baseline-0.png",
+      "sha256": "1a146009b1d73672b47d08561a3e53b3a0e38123853ccd774b8fb91f9e1c16dd"
+    },
+    {
+      "path": "obj/vulkan-parity/large-park-manual-review/ui-vulkan-everything-saved-02-baseline-0.png",
+      "sha256": "9aa466a009421d19de1ba1d88b215b2a5c750426644e1b510db3527a15d86700"
+    },
+    {
+      "path": "obj/vulkan-parity/large-park-manual-review/ui-vulkan-everything-saved-02-baseline-1.png",
+      "sha256": "583379f18311918864493129ebc995e463f9584eb77c3f11f5072b836c211212"
+    }
+  ],
+  "qualification": {
+    "r0z0-01": "inadequate-coverage-despite-old-runner-pass; explicit RCT1 fallback warning and mostly void camera",
+    "saved-02": "exact bounded dense saved-camera main-UI coverage; CSG load explicitly verified",
+    "saved-03": "exact same-build independent fresh-process repeats of each saved-02 renderer; broader camera and temporal coverage remains open"
+  },
+  "priorUiAssetScope": "Before current UI build15/frozen12, input RCT1 file hashes did not establish that CSG assets were loaded. Earlier small-park/native/weather samples remain evidence for their captured inputs only; loaded-asset fresh references and repeats are still required.",
+  "freshRepeat03Status": "qualified: all three same-build fresh processes pass; all six captures independently reread and byte-identical to their run02 lane and frozen run02 in indexed/physical RGBA; CSG loading asserted true; no fallback warning"
+}

@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "status": "pass-bounded-device-checkpoint",
+  "scope": "Retained GPU mixed-height terrain column order and indexed drawing for accepted input02; no runtime admission",
+  "fixture": "nonuniform-terrain-input-02",
+  "samples": 32,
+  "referenceProcesses": 96,
+  "fullSuiteTests": 781,
+  "indexedExtent": [
+    960,
+    640
+  ],
+  "pixelExceptions": [],
+  "initialWorldUploadBytes": 46080,
+  "subsequentWorldUploadBytes": 0,
+  "evidence": {
+    "ordinaryBuild": {
+      "path": "obj/vulkan-parity/build-46/receipt.json",
+      "sha256": "49a41232c1e7873b3c52a46be24c98d7e5611692895326810e14356d6f841c42"
+    },
+    "fullSuite": {
+      "path": "obj/vulkan-parity/run-41/summary.json",
+      "sha256": "1e3a623927046b7c24a31f14c8b3c4091e24b940d56806f257ce805a008fc80f"
+    },
+    "noWindowBuild": {
+      "path": "obj/vulkan-parity/terrain-draw-no-window-01/receipt.json",
+      "sha256": "477e605d59a79b22d0b19b7fb45c4b49cd54cb861c6398af741b906f8bb82c27"
+    },
+    "gpuDrawing": {
+      "path": "obj/vulkan-parity/terrain-draw-probe-01/summary.json",
+      "sha256": "a66345949aa0f26784a15ef776d72c7a9ceb311a31fcc21b21f3075189809271"
+    },
+    "columnShader": {
+      "path": "obj/vulkan-parity/terrain-column-probe-build-01/receipt.json",
+      "sha256": "7812b52bd75c2e65cd0fa0c0dd0d40cfcdcde4a34a5d8747ad52fa4dd04f1cd8"
+    },
+    "emissionShader": {
+      "path": "obj/vulkan-parity/terrain-emission-probe-build-01/receipt.json",
+      "sha256": "db5b42dfa34f82f02d96b2eaee78ea080cc185f886e2746c907ea56ce059d6e2"
+    },
+    "frozenTraceBuild": {
+      "path": "obj/vulkan-parity/terrain-trace-frozen-build-01/receipt.json",
+      "sha256": "e88b73a642cc401905e293b1aee3272a4505a9df228bc8dfdfde378d92efbb27"
+    },
+    "currentTraceBuild": {
+      "path": "obj/vulkan-parity/terrain-trace-current-build-01/receipt.json",
+      "sha256": "e3fbd2241d09bccdbe43dd7989a4ac51664f987053192a9360007d07a16dc3de"
+    },
+    "frozenCorpus": {
+      "path": "obj/vulkan-parity/terrain-column-corpus-01/summary.json",
+      "sha256": "674e74efa7e27303871250ee8e79d8a7a5bc1e3a8b4ebf67591b9bacea02f24f"
+    },
+    "currentLibraries": {
+      "path": "obj/vulkan-parity/ui-cache-build-02/receipt.json",
+      "sha256": "86b5a365af0fae5a772109038b01e24538833d0dbf68d22aaca87590dc846db5"
+    },
+    "unchangedCacheRepeat": {
+      "path": "obj/vulkan-parity/ui-cache-build-03/receipt.json",
+      "sha256": "fc41dbc7203d2a4063931879b972960b9b250b1a6271a103754c0f89e194933b"
+    },
+    "manualReview": {
+      "path": "docs/vulkan-retained-terrain-drawing-review.json",
+      "sha256": "c0a6728db25214d28b1ce84f832148d2e0b865bcd2b0ed6c43c1ebea15e4c378"
+    },
+    "gpuDrawingFreshRepeat": {
+      "path": "obj/vulkan-parity/terrain-draw-probe-02/summary.json",
+      "sha256": "b442c6c46a7b5f25e24283b37e924d99df8c50f1b99dc05f654fbd22b4268ad0"
+    }
+  },
+  "manualReviewMarkdown": {
+    "path": "docs/vulkan-retained-terrain-drawing-review.md",
+    "sha256": "889dc6b921fb0b3f1bec263c427566c29133bfc5e97abf8969e2179ade77b7b9"
+  },
+  "preservedFailures": {
+    "obj/vulkan-parity/run-40/summary.json": "2b093786d51a79cd5a683bd7f0373caed8b48c6bb1804660929ee89ff0162346",
+    "obj/vulkan-parity/ui-cache-build-01/receipt.json": "f834ea2ad2c1cf987abee4cfe7be88ca39e619425254a461f60cde7f97eb100f"
+  },
+  "remaining": [
+    "GPU rejection/poison guards",
+    "changed-world raster and concurrent in-flight generations",
+    "production map/material/atlas publication",
+    "broader terrain/camera domain",
+    "actual UI indexed and physical RGBA plus fresh repeats",
+    "auxiliary use of the same retained component",
+    "large-park Gate P performance",
+    "Vulkan default/exclusive removal gates"
+  ],
+  "deviceSamplesIncludingFreshRepeat": 64,
+  "freshRepeat": "All32 indexed/frozen/first-run outputs and parent/command/column buffers exactly repeat; independent agent hash audit and nine representative manual inspections. Scope and closed admission unchanged.",
+  "supersedes": {
+    "path": "obj/vulkan-parity/terrain-drawing-repeat-review/original-qualification.json",
+    "sha256": "957abff29a804950c73635fb7edc90b3da90405ad799adea7e0096d050302488",
+    "originalReview": "obj/vulkan-parity/terrain-drawing-repeat-review/original-review.json"
+  }
+}

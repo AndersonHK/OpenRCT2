@@ -12,9 +12,13 @@
 #include "command_line/ExitCode.h"
 #include "core/StringTypes.h"
 
+#include <memory>
 #include <optional>
 
-enum class DrawingEngine : int32_t;
+namespace OpenRCT2::Drawing
+{
+    struct IRenderServiceFactory;
+}
 
 enum class StartupAction
 {
@@ -40,12 +44,16 @@ struct IntegratedBenchmarkConfig
 {
     bool enabled{};
     bool visible{};
+    bool uploadTelemetry{};
+    bool finalScreenshot{};
+    bool secondaryVehicle{};
+    int32_t secondaryRide{ -1 };
+    bool uncappedSimulation{};
     int32_t warmupSeconds{ 5 };
     int32_t measurementSeconds{ 30 };
     int32_t warmupTicks{ -1 };
     int32_t measurementTicks{ -1 };
     u8string profilePath;
-    std::optional<DrawingEngine> drawingEngine;
     std::optional<bool> useVSync;
 };
 
@@ -86,7 +94,8 @@ namespace OpenRCT2
 {
     enum class PromptMode : uint8_t;
 
-    CommandLine::ExitCode CommandLineRun(const char** argv, int32_t argc);
+    CommandLine::ExitCode CommandLineRun(
+        const char** argv, int32_t argc, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory = {});
 
     extern PromptMode gSavePromptMode;
 } // namespace OpenRCT2

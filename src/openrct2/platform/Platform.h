@@ -14,6 +14,7 @@
 #include "../core/StringTypes.h"
 
 #include <bit>
+#include <chrono>
 #include <ctime>
 #include <optional>
 #include <sfl/static_vector.hpp>
@@ -225,6 +226,8 @@ namespace OpenRCT2::Platform
     uint32_t GetTicks();
 
     void Sleep(uint32_t ms);
+    // A bounded scheduler wait. Expired deadlines return without yielding; positive waits may overshoot if descheduled.
+    void SleepUntil(std::chrono::steady_clock::time_point deadline);
 
     bool SSE41Available();
     bool AVX2Available();

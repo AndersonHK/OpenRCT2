@@ -889,12 +889,12 @@ namespace OpenRCT2::RCT1
                 auto& dstStation = dst->getStation(StationIndex::FromUnderlying(i));
                 if (src->stationStarts[i].IsNull())
                 {
-                    dstStation.start.setNull();
+                    dstStation.clearStart();
                 }
                 else
                 {
                     auto tileStartLoc = TileCoordsXY{ src->stationStarts[i].x, src->stationStarts[i].y };
-                    dstStation.start = tileStartLoc.toCoordsXY();
+                    dstStation.setStart(tileStartLoc.toCoordsXY());
                 }
                 dstStation.setBaseZ(src->stationHeights[i] * Limits::kCoordsZStep);
                 dstStation.length = src->stationLengths[i];
@@ -904,14 +904,14 @@ namespace OpenRCT2::RCT1
 
                 // Direction is fixed later.
                 if (src->entrances[i].IsNull())
-                    dstStation.entrance.setNull();
+                    dstStation.clearEntrance();
                 else
-                    dstStation.entrance = { src->entrances[i].x, src->entrances[i].y, src->stationHeights[i] / 2, 0 };
+                    dstStation.setEntrance({ src->entrances[i].x, src->entrances[i].y, src->stationHeights[i] / 2, 0 });
 
                 if (src->exits[i].IsNull())
-                    dstStation.exit.setNull();
+                    dstStation.clearExit();
                 else
-                    dstStation.exit = { src->exits[i].x, src->exits[i].y, src->stationHeights[i] / 2, 0 };
+                    dstStation.setExit({ src->exits[i].x, src->exits[i].y, src->stationHeights[i] / 2, 0 });
 
                 dstStation.queueTime = src->queueTime[i];
                 dstStation.lastPeepInQueue = EntityId::FromUnderlying(src->lastPeepInQueue[i]);
@@ -924,10 +924,10 @@ namespace OpenRCT2::RCT1
             for (int32_t i = Limits::kMaxStationsPerRide; i < OpenRCT2::Limits::kMaxStationsPerRide; i++)
             {
                 auto& dstStation = dst->getStation(StationIndex::FromUnderlying(i));
-                dstStation.start.setNull();
+                dstStation.clearStart();
                 dstStation.trainAtStation = RideStation::kNoTrain;
-                dstStation.entrance.setNull();
-                dstStation.exit.setNull();
+                dstStation.clearEntrance();
+                dstStation.clearExit();
                 dstStation.lastPeepInQueue = EntityId::GetNull();
             }
 
@@ -1364,8 +1364,7 @@ namespace OpenRCT2::RCT1
             dst->nextFlags = src->NextFlags;
             dst->var37 = src->Var37;
             dst->stepProgress = src->StepProgress;
-            dst->tShirtColour = GetColour(src->TshirtColour);
-            dst->trousersColour = GetColour(src->TrousersColour);
+            dst->setClothingColours(GetColour(src->TshirtColour), GetColour(src->TrousersColour));
             dst->destinationX = src->DestinationX;
             dst->destinationY = src->DestinationY;
             dst->destinationTolerance = src->DestinationTolerance;
@@ -2511,21 +2510,21 @@ namespace OpenRCT2::RCT1
                 type = _bannerTypeToEntryMap[type];
             else
                 type = kObjectEntryIndexNull;
-            dst->type = type;
+            dst->setType(type);
 
-            dst->flags = {};
+            dst->setFlags({});
             if (src->flags.has(BannerFlag::noEntry))
             {
-                dst->flags.set(BannerFlag::noEntry);
+                dst->setFlag(BannerFlag::noEntry, true);
             }
 
             if (IsUserStringID(src->StringID))
             {
-                dst->text = GetUserString(src->StringID);
+                dst->setText(GetUserString(src->StringID));
             }
 
             dst->colour = GetColour(src->Colour);
-            dst->textColour = src->textColour;
+            dst->setTextColour(src->textColour);
             dst->position.x = src->x;
             dst->position.y = src->y;
         }
@@ -2934,15 +2933,15 @@ namespace OpenRCT2::RCT1
         // Balloons were always blue in RCT1 without AA/LL, umbrellas always red
         if (_gameVersion == FILE_VERSION_RCT1)
         {
-            dst->umbrellaColour = Drawing::Colour::brightRed;
-            dst->balloonColour = Drawing::Colour::lightBlue;
+            dst->setUmbrellaColour(Drawing::Colour::brightRed);
+            dst->setBalloonColour(Drawing::Colour::lightBlue);
         }
         else
         {
-            dst->umbrellaColour = GetColour(src->UmbrellaColour);
-            dst->balloonColour = GetColour(src->BalloonColour);
+            dst->setUmbrellaColour(GetColour(src->UmbrellaColour));
+            dst->setBalloonColour(GetColour(src->BalloonColour));
         }
-        dst->hatColour = GetColour(src->HatColour);
+        dst->setHatColour(GetColour(src->HatColour));
 
         dst->happiness = src->Happiness;
         dst->happinessTarget = src->HappinessTarget;

@@ -7,6 +7,7 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <openrct2-renderer/RenderServiceFactory.h>
 #include <openrct2/Context.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/command_line/CommandLine.hpp>
@@ -21,7 +22,7 @@ using namespace OpenRCT2::CommandLine;
 int main(int argc, const char** argv)
 {
     int32_t rc = EXIT_SUCCESS;
-    auto runGame = CommandLineRun(argv, argc);
+    auto runGame = CommandLineRun(argv, argc, Renderer::CreateConfiguredRenderServiceFactory());
     if (runGame == ExitCode::launch)
     {
         if (gIntegratedBenchmark.enabled)

@@ -20,6 +20,14 @@ void main()
     if (opaqueDepth <= transparentDepth)
         transparent = 0u;
 
+    // Explicit zero-ink text codes cannot collide with filter rows (0..255)
+    // or ordinary hinted text (nonzero high byte, low byte 0/1).
+    if (transparent == 0x0102u || transparent == 0x0103u)
+    {
+        oColour = transparent == 0x0103u ? 0u : texelFetch(uBlendPalette, ivec2(int(opaque), 0), 0).r;
+        return;
+    }
+
     uint blendColour = (transparent & 0xff00u) >> 8;
     if (blendColour > 0u)
     {

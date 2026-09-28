@@ -1649,14 +1649,27 @@ namespace OpenRCT2
             {
                 cs.readWrite(banner.id);
             }
-            cs.readWrite(banner.type);
-            cs.readWrite(banner.flags.holder);
-            cs.readWrite(banner.text);
+            auto type = banner.getType();
+            auto flags = banner.getFlags();
+            auto text = banner.getRawText();
+            auto rideIndex = banner.getRideIndex();
+            auto textColour = banner.getTextColour();
+            cs.readWrite(type);
+            cs.readWrite(flags.holder);
+            cs.readWrite(text);
             cs.readWrite(banner.colour);
-            cs.readWrite(banner.rideIndex);
-            cs.readWrite(banner.textColour);
+            cs.readWrite(rideIndex);
+            cs.readWrite(textColour);
             cs.readWrite(banner.position.x);
             cs.readWrite(banner.position.y);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+            {
+                banner.setType(type);
+                banner.setFlags(flags);
+                banner.setText(std::move(text));
+                banner.setRideIndex(rideIndex);
+                banner.setTextColour(textColour);
+            }
         }
 
         void ReadWriteRidesChunk(GameState_t& gameState, OrcaStream& os)
@@ -1773,13 +1786,24 @@ namespace OpenRCT2
                     // Stations
                     cs.readWrite(ride.numStations);
                     cs.readWriteArray(ride.getStations(), [&cs, version](RideStation& station) {
-                        cs.readWrite(station.start);
-                        cs.readWrite(station.height);
+                        auto start = station.getStartXY();
+                        auto height = station.getHeight();
+                        auto entrance = station.getEntrance();
+                        auto exit = station.getExit();
+                        cs.readWrite(start);
+                        cs.readWrite(height);
                         cs.readWrite(station.length);
                         cs.readWrite(station.depart);
                         cs.readWrite(station.trainAtStation);
-                        cs.readWrite(station.entrance);
-                        cs.readWrite(station.exit);
+                        cs.readWrite(entrance);
+                        cs.readWrite(exit);
+                        if (cs.getMode() == OrcaStream::Mode::reading)
+                        {
+                            station.setStart(start);
+                            station.setHeight(height);
+                            station.setEntrance(entrance);
+                            station.setExit(exit);
+                        }
                         cs.readWrite(station.segmentLength);
                         MigrateLegacyRideLength(cs, station.segmentLength, version);
                         cs.readWrite(station.segmentTime);
@@ -1972,6 +1996,10 @@ namespace OpenRCT2
                     {
                         ReadWriteParkMoney64(cs, ride.value, version);
                     }
+                    if (version >= kGuestServicesVersion)
+                        cs.readWrite(ride.valueFraction);
+                    else if (cs.getMode() == OrcaStream::Mode::reading)
+                        ride.valueFraction = 0;
 
                     ReadWriteFields(cs, ride.numRiders, ride.buildDate);
 
@@ -2121,6 +2149,13 @@ namespace OpenRCT2
 
             auto state = entity.state;
             auto subState = entity.subState;
+            if (cs.getMode() == OrcaStream::Mode::writing && version < kGuestServicesVersion
+                && state == PeepState::repairingPathAddition)
+            {
+                // An older engine cannot execute the new repair state. Resume ordinary path placement instead.
+                state = PeepState::one;
+                subState = 0;
+            }
             const Ride* platformRide = nullptr;
             if (cs.getMode() == OrcaStream::Mode::writing && guest != nullptr)
             {
@@ -2166,7 +2201,11 @@ namespace OpenRCT2
                 }
             }
 
-            ReadWriteFields(cs, entity.tShirtColour, entity.trousersColour);
+            auto shirtColour = entity.getTShirtColour();
+            auto trousersColour = entity.getTrousersColour();
+            ReadWriteFields(cs, shirtColour, trousersColour);
+            if (cs.getMode() == OrcaStream::Mode::reading)
+                entity.setClothingColours(shirtColour, trousersColour);
             auto destinationX = entity.destinationX;
             auto destinationY = entity.destinationY;
             auto destinationTolerance = entity.destinationTolerance;
@@ -2175,7 +2214,7 @@ namespace OpenRCT2
                 if (const auto* ride = GetRide(guest->currentRide);
                     ride != nullptr && guest->currentRideStation.ToUnderlying() < ride->numStations)
                 {
-                    const auto exit = ride->getStation(guest->currentRideStation).exit;
+                    const auto exit = ride->getStation(guest->currentRideStation).getExit();
                     if (!exit.isNull() && exit.direction < kNumOrthogonalDirections)
                     {
                         destinationX = static_cast<uint16_t>(
@@ -2425,11 +2464,16 @@ namespace OpenRCT2
                     guest->paidOnFood = ToMoney64(expenditures[2]);
                     guest->paidOnSouvenirs = ToMoney64(expenditures[3]);
 
+                    auto balloon = guest->getBalloonColour();
+                    auto umbrella = guest->getUmbrellaColour();
+                    auto hat = guest->getHatColour();
                     ReadWriteFields(
                         cs, guest->amountOfFood, guest->amountOfDrinks, guest->amountOfSouvenirs, guest->vandalismSeen,
                         guest->voucherType, guest->voucherRideId, guest->surroundingsThoughtTimeout, guest->angriness,
-                        guest->timeLost, guest->daysInQueue, guest->balloonColour, guest->umbrellaColour, guest->hatColour,
-                        guest->favouriteRide, guest->favouriteRideRating);
+                        guest->timeLost, guest->daysInQueue, balloon, umbrella, hat, guest->favouriteRide,
+                        guest->favouriteRideRating);
+                    if (cs.getMode() == OrcaStream::Mode::reading)
+                        guest->setAccessoryColours(balloon, umbrella, hat);
                 }
                 else
                 {
@@ -2638,6 +2682,16 @@ namespace OpenRCT2
         cs.readWrite(guest.guestHeadingToRideId);
         cs.readWrite(guest.guestIsLostCountdown);
         cs.readWrite(guest.guestTimeOnRide);
+        if (os.getHeader().targetVersion >= kGuestServicesVersion)
+            ReadWriteFields(
+                cs, guest.boardingTicksRemaining, guest.laneForwardSteps, guest.laneForwardDirection, guest.laneChangeCooldown);
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            guest.boardingTicksRemaining = 0;
+            guest.laneForwardSteps = 0;
+            guest.laneForwardDirection = kInvalidDirection;
+            guest.laneChangeCooldown = 0;
+        }
 
         if (version <= 18)
         {
@@ -2765,11 +2819,16 @@ namespace OpenRCT2
             cs.readWrite(thought.fresh_timeout);
             return true;
         });
+        auto balloon = guest.getBalloonColour();
+        auto umbrella = guest.getUmbrellaColour();
+        auto hat = guest.getHatColour();
         ReadWriteFields(
             cs, guest.litterCount, guest.disgustingCount, guest.amountOfFood, guest.amountOfDrinks, guest.amountOfSouvenirs,
             guest.vandalismSeen, guest.voucherType, guest.voucherRideId, guest.surroundingsThoughtTimeout, guest.angriness,
-            guest.timeLost, guest.daysInQueue, guest.balloonColour, guest.umbrellaColour, guest.hatColour, guest.favouriteRide,
-            guest.favouriteRideRating, guest.itemFlags);
+            guest.timeLost, guest.daysInQueue, balloon, umbrella, hat, guest.favouriteRide, guest.favouriteRideRating,
+            guest.itemFlags);
+        if (cs.getMode() == OrcaStream::Mode::reading)
+            guest.setAccessoryColours(balloon, umbrella, hat);
     }
 
     template<>
@@ -2812,6 +2871,16 @@ namespace OpenRCT2
         ReadWriteFields(
             cs, entity.staffOrders, entity.staffMowingTimeout, entity.staffLawnsMown, entity.staffGardensWatered,
             entity.staffLitterSwept, entity.staffBinsEmptied);
+        if (os.getHeader().targetVersion >= kGuestServicesVersion)
+            ReadWriteFields(
+                cs, entity.repairLocation.x, entity.repairLocation.y, entity.repairLocation.z, entity.repairAddition,
+                entity.repairTicksRemaining);
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            entity.repairLocation = {};
+            entity.repairAddition = kObjectEntryIndexNull;
+            entity.repairTicksRemaining = 0;
+        }
     }
 
     template<>

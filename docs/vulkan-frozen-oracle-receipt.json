@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "referenceRevision": "9a092745f38a714cf33629aaa005d078d473e48b",
+  "sourceDirectory": "obj/vulkan-parity/oracle-source-9a092745f3",
+  "sourceReceiptSha256": "6d0f1356de45547a2a42af497f80aba439fa18f6131bda65e069d283cf00652b",
+  "originalSourceFilesVerified": 12008,
+  "modifiedSourceFiles": [
+    "src/openrct2-cli/Cli.cpp"
+  ],
+  "modification": "Only read four OPENRCT2_ORACLE_* path environment variables before command dispatch; all renderer/paint/scene/screenshot code unchanged. Separate extracted tree; accepted original package and archive untouched.",
+  "binarySha256": "dfbcf45079d1ee1263eb77c2be860d8621e3babae01965d78996cef4f46b899a",
+  "buildLog": {
+    "path": "obj/vulkan-parity/oracle-build.log",
+    "sha256": "e8303d14eca6d62ec30e81b9f940dd268047a54e48e0de494b94017556cde48d",
+    "warnings": 0,
+    "errors": 0
+  },
+  "buildProperties": {
+    "Configuration": "Release",
+    "Platform": "x64",
+    "VCToolsVersion": "14.44.35207",
+    "EnableVulkan": false,
+    "IsSolutionBuild": true
+  },
+  "captureReceipt": {
+    "path": "obj/vulkan-parity/frozen-scenes-02/summary.json",
+    "sha256": "00daeac7c7aa66a8c7596f8969d4e17ea47919e20e9b974f1ee06bca7b4da0d1"
+  },
+  "limitation": "Frozen-source CLI auxiliary viewport oracle, not original accepted executable or main UI/physical screen proof.",
+  "verification": {
+    "fixtureCount": 8,
+    "currentRenderers": [
+      "software",
+      "vulkan"
+    ],
+    "layers": [
+      "indexed",
+      "opaque-rgba"
+    ],
+    "differingPixels": 0,
+    "candidateRun": "obj/vulkan-parity/run-08",
+    "flags": "TRANSPARENT_BACKGROUND; CLI --transparent"
+  }
+}

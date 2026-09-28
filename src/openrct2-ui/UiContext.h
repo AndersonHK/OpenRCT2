@@ -20,6 +20,11 @@ namespace OpenRCT2
     struct IPlatformEnvironment;
 } // namespace OpenRCT2
 
+namespace OpenRCT2::Drawing
+{
+    struct IDrawingEngineFactory;
+}
+
 namespace OpenRCT2::Ui
 {
     struct FileDialogDesc;
@@ -49,7 +54,8 @@ namespace OpenRCT2::Ui
         virtual bool HasFilePicker() const = 0;
     };
 
-    [[nodiscard]] std::unique_ptr<IUiContext> CreateUiContext(IPlatformEnvironment& env);
+    [[nodiscard]] std::unique_ptr<IUiContext> CreateUiContext(
+        IPlatformEnvironment& env, std::shared_ptr<Drawing::IDrawingEngineFactory> drawingEngineFactory = {});
     [[nodiscard]] std::unique_ptr<IPlatformUiContext> CreatePlatformUiContext();
 
     [[nodiscard]] InGameConsole& GetInGameConsole();

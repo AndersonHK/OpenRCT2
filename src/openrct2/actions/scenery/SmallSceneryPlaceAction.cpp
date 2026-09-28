@@ -444,10 +444,6 @@ namespace OpenRCT2::GameActions
         {
             MapAnimations::MarkTileForUpdate(TileCoordsXY(_loc));
         }
-        else if (sceneryEntry->flags.has(SmallSceneryFlag::isAnimated))
-        {
-            MapAnimations::MarkTileForInvalidation(TileCoordsXY(_loc));
-        }
 
         return res;
     }

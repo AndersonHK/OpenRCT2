@@ -625,7 +625,7 @@ void Vehicle::Loc6DCE02(const Ride& curRide)
 
     for (const auto& station : curRide.getStations())
     {
-        if (TrackLocation != station.start)
+        if (TrackLocation != station.getStartXY())
         {
             continue;
         }

@@ -9,17 +9,17 @@
 
 #include "EntityPresentationSnapshot.h"
 
-#include "Guest.h"
+#include "../GameState.h"
+#include "../profiling/Profiling.h"
+#include "../ride/Vehicle.h"
 #include "Balloon.h"
 #include "Duck.h"
+#include "Guest.h"
 #include "JumpingFountain.h"
 #include "Litter.h"
 #include "MoneyEffect.h"
 #include "Particle.h"
 #include "Staff.h"
-#include "../GameState.h"
-#include "../profiling/Profiling.h"
-#include "../ride/Vehicle.h"
 
 #include <algorithm>
 #include <bit>
@@ -76,10 +76,7 @@ namespace OpenRCT2
         }
     } // namespace
 
-    EntityPresentationSnapshot::EntityPresentationSnapshot()
-        : _bulkSpatialBucketIndex(kSpatialIndexSize, UINT16_MAX)
-    {
-    }
+    EntityPresentationSnapshot::EntityPresentationSnapshot() = default;
 
     std::shared_ptr<const EntityPresentationSnapshot> EntityPresentationSnapshot::Capture(
         EntityRegistry& registry, const std::span<const CoordsXY> tileLocations, const std::span<const EntityId> lookupRoots)
@@ -173,11 +170,17 @@ namespace OpenRCT2
     {
         PROFILED_FUNCTION();
         _bulkMode = false;
+        _nativeOnly = false;
+        _unsupportedEntityCount = 0;
+        _retainedBalloons.reset();
+        _retainedPeeps.reset();
+        _peepAnimations.reset();
+        _balloonMetrics = {};
 
-        if (batch.reset || _epoch != batch.epoch)
+        if (batch.reset || _epoch != batch.epoch || _entityChunks.empty())
         {
-            _entityChunks.fill(nullptr);
-            _spatialChunks.fill(nullptr);
+            _entityChunks.assign(kEntityChunkCount, nullptr);
+            _spatialChunks.assign(kSpatialChunkCount, nullptr);
             _entityCount = 0;
         }
 
@@ -187,8 +190,9 @@ namespace OpenRCT2
             auto& mutableChunk = mutableSpatialChunks[chunkIndex];
             if (mutableChunk == nullptr)
             {
-                mutableChunk = _spatialChunks[chunkIndex] == nullptr ? std::make_shared<SpatialChunk>()
-                                                                     : std::make_shared<SpatialChunk>(*_spatialChunks[chunkIndex]);
+                mutableChunk = _spatialChunks[chunkIndex] == nullptr
+                    ? std::make_shared<SpatialChunk>()
+                    : std::make_shared<SpatialChunk>(*_spatialChunks[chunkIndex]);
                 _spatialChunks[chunkIndex] = mutableChunk;
             }
             return (*mutableChunk)[bucket % kSpatialChunkWidth];
@@ -257,17 +261,85 @@ namespace OpenRCT2
         _epoch = batch.epoch;
     }
 
-    void EntityPresentationSnapshot::CaptureStorage(EntityRegistry& registry)
+    void EntityPresentationSnapshot::CaptureStorage(
+        EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons,
+        Drawing::BalloonPublicationMetrics metrics, std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> peepAnimations)
     {
         PROFILED_FUNCTION();
+        _nativeOnly = false;
+        _unsupportedEntityCount = 0;
+        _vehicles.reset();
+        _effects.reset();
+        _money.reset();
+        _retainedBalloons = std::move(balloons);
+        _balloonMetrics = metrics;
+        _retainedPeeps = std::move(peeps);
+        _peepAnimations = std::move(peepAnimations);
+        _epoch = registry.GetEntityVisualEpoch();
         registry.CaptureEntityPresentationStorage(*this);
+        _sourceTick = getGameState().currentTicks;
+    }
+
+    void EntityPresentationSnapshot::CaptureNativeStorage(
+        EntityRegistry& registry, std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
+        std::shared_ptr<const Drawing::RetainedPeepAnimationCatalog> catalog,
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons,
+        std::shared_ptr<const Drawing::VehiclePresentationSnapshot> vehicles,
+        std::shared_ptr<const Drawing::WorldEffectSnapshot> effects,
+        std::shared_ptr<const Drawing::MoneyPresentationSnapshot> money)
+    {
+        if (!_nativeOnly)
+        {
+            // A recycled legacy snapshot must relinquish concrete object clones and CPU indexing storage.
+            decltype(_entityChunks){}.swap(_entityChunks);
+            decltype(_spatialChunks){}.swap(_spatialChunks);
+            decltype(_bulkPages){}.swap(_bulkPages);
+            decltype(_bulkEntityIndex){}.swap(_bulkEntityIndex);
+            decltype(_bulkSpatialBucketIndex){}.swap(_bulkSpatialBucketIndex);
+            decltype(_bulkSpatialBuckets){}.swap(_bulkSpatialBuckets);
+            _bulkPageCount = _bulkSpatialBucketCount = 0;
+        }
+        _nativeOnly = true;
+        _bulkMode = false;
+        _vehicles = std::move(vehicles);
+        _effects = std::move(effects);
+        _money = std::move(money);
+        _retainedBalloons = std::move(balloons);
+        _balloonMetrics = {};
+        _retainedPeeps = std::move(peeps);
+        _peepAnimations = std::move(catalog);
+        _epoch = registry.GetEntityVisualEpoch();
+        _sourceTick = getGameState().currentTicks;
+        _unsupportedEntityCount = 0;
+        for (uint8_t index = 0; index < static_cast<uint8_t>(EntityType::count); ++index)
+        {
+            const auto type = static_cast<EntityType>(index);
+            if (type != EntityType::guest && type != EntityType::staff)
+                _unsupportedEntityCount += registry.GetEntityExecutionList(type).size();
+        }
+        _entityCount = _unsupportedEntityCount;
+    }
+
+    void EntityPresentationSnapshot::CompleteNativeRetainedStorage(
+        std::shared_ptr<const Drawing::RetainedPeepSnapshot> peeps,
+        std::shared_ptr<const Drawing::RetainedBalloonSnapshot> balloons, uint64_t sourceEpoch, uint32_t sourceTick)
+    {
+        if (!_nativeOnly || _epoch != sourceEpoch || _sourceTick != sourceTick || !peeps || !balloons
+            || peeps->epoch != balloons->epoch || peeps->sequence != balloons->sequence)
+            throw std::logic_error("Native publication completion requires matching owned retained generations");
+        _retainedPeeps = std::move(peeps);
+        _retainedBalloons = std::move(balloons);
     }
 
     void EntityPresentationSnapshot::BuildCapturedStorage()
     {
         PROFILED_FUNCTION();
 
-        _bulkEntityIndex.fill(nullptr);
+        if (_nativeOnly)
+            return;
+        _bulkEntityIndex.assign(kMaxEntities, nullptr);
+        _bulkSpatialBucketIndex.resize(kSpatialIndexSize);
         std::ranges::fill(_bulkSpatialBucketIndex, UINT16_MAX);
         for (size_t index = 0; index < _bulkSpatialBucketCount; index++)
             _bulkSpatialBuckets[index].entities.clear();
@@ -310,6 +382,36 @@ namespace OpenRCT2
             }
         }
 
+        if (_retainedBalloons != nullptr)
+        {
+            for (const auto& chunk : _retainedBalloons->chunks)
+            {
+                if (chunk == nullptr)
+                    continue;
+                for (size_t offset = 0; offset < Drawing::kRetainedBalloonChunkWidth; ++offset)
+                {
+                    ++_balloonMetrics.fallbackSlotVisits;
+                    if (chunk->records[offset].present == 0)
+                        continue;
+                    const auto* entity = &chunk->compatibility[offset];
+                    _bulkEntityIndex[entity->id.ToUnderlying()] = entity;
+                    ++_entityCount;
+                    ++_balloonMetrics.fallbackIndexedBalloons;
+                    const auto bucketIndex = EntityRegistry::ComputeSpatialIndex(entity->getLocation());
+                    auto bucketSlot = _bulkSpatialBucketIndex[bucketIndex];
+                    if (bucketSlot == UINT16_MAX)
+                    {
+                        bucketSlot = static_cast<uint16_t>(_bulkSpatialBucketCount++);
+                        _bulkSpatialBucketIndex[bucketIndex] = bucketSlot;
+                        if (bucketSlot == _bulkSpatialBuckets.size())
+                            _bulkSpatialBuckets.emplace_back();
+                        _bulkSpatialBuckets[bucketSlot].index = bucketIndex;
+                        _bulkSpatialBuckets[bucketSlot].entities.clear();
+                    }
+                    _bulkSpatialBuckets[bucketSlot].entities.push_back(entity->id);
+                }
+            }
+        }
         for (size_t index = 0; index < _bulkSpatialBucketCount; index++)
             std::ranges::sort(_bulkSpatialBuckets[index].entities);
         _bulkMode = true;
@@ -317,11 +419,15 @@ namespace OpenRCT2
 
     const EntityBase* EntityPresentationSnapshot::TryGetEntity(const EntityId id) const noexcept
     {
+        if (_nativeOnly)
+            return nullptr;
         const auto idIndex = id.ToUnderlying();
         if (idIndex >= kMaxEntities)
             return nullptr;
         if (_bulkMode)
             return _bulkEntityIndex[idIndex];
+        if (idIndex / kEntityChunkWidth >= _entityChunks.size())
+            return nullptr;
         const auto& chunk = _entityChunks[idIndex / kEntityChunkWidth];
         const auto offset = idIndex % kEntityChunkWidth;
         return chunk != nullptr && chunk->present.test(offset) ? &chunk->entities[offset].base : nullptr;
@@ -329,18 +435,50 @@ namespace OpenRCT2
 
     const std::vector<EntityId>& EntityPresentationSnapshot::GetEntityTileList(const CoordsXY& location) const noexcept
     {
+        if (_nativeOnly)
+            return _emptySpatialList;
         const auto bucket = EntityRegistry::ComputeSpatialIndex(location);
         if (_bulkMode)
         {
             const auto index = _bulkSpatialBucketIndex[bucket];
             return index == UINT16_MAX ? _emptySpatialList : _bulkSpatialBuckets[index].entities;
         }
+        if (bucket / kSpatialChunkWidth >= _spatialChunks.size())
+            return _emptySpatialList;
         const auto& chunk = _spatialChunks[bucket / kSpatialChunkWidth];
         return chunk == nullptr ? _emptySpatialList : (*chunk)[bucket % kSpatialChunkWidth];
     }
 
-    ScopedEntityPresentationSnapshot::ScopedEntityPresentationSnapshot(
-        const EntityPresentationSnapshot* snapshot) noexcept
+    std::optional<GuestPresentationFacts> GetGuestPresentationFacts(EntityId id) noexcept
+    {
+        const auto* snapshot = GetCurrentEntityPresentationSnapshot();
+        if (snapshot != nullptr && snapshot->GetRetainedPeeps() != nullptr)
+        {
+            const size_t index = id.ToUnderlying();
+            if (index >= kMaxEntities)
+                return std::nullopt;
+            const auto& chunk = snapshot->GetRetainedPeeps()->chunks[index / Drawing::kRetainedPeepChunkWidth];
+            const auto offset = index % Drawing::kRetainedPeepChunkWidth;
+            if (!chunk || !chunk->lifecycle)
+                return std::nullopt;
+            const auto flags = chunk->lifecycle->values[offset].flags;
+            if (!(flags & Drawing::kRetainedPeepPresent) || (flags & Drawing::kRetainedPeepStaff))
+                return std::nullopt;
+            // Ride paint needs colours/state only; it never reconstructs motion or borrows simulation storage.
+            return GuestPresentationFacts{ chunk->appearance->values[offset].colours,
+                                           static_cast<uint8_t>(
+                                               (chunk->animation->values[offset].flags & Drawing::kRetainedPeepStateMask)
+                                               >> Drawing::kRetainedPeepStateShift) };
+        }
+        const auto* guest = GetEntityForPresentation<Guest>(id);
+        if (guest == nullptr)
+            return std::nullopt;
+        return GuestPresentationFacts{ static_cast<uint32_t>(guest->getTShirtColour())
+                                           | (static_cast<uint32_t>(guest->getTrousersColour()) << 8),
+                                       static_cast<uint8_t>(guest->state) };
+    }
+
+    ScopedEntityPresentationSnapshot::ScopedEntityPresentationSnapshot(const EntityPresentationSnapshot* snapshot) noexcept
         : _previous(std::exchange(_currentSnapshot, snapshot))
     {
     }

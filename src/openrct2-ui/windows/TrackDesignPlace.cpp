@@ -23,6 +23,7 @@
 #include <openrct2/actions/track/TrackDesignAction.h>
 #include <openrct2/audio/Audio.h>
 #include <openrct2/config/Config.h>
+#include <openrct2/core/Console.hpp>
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/drawing/NewDrawing.h>
@@ -42,6 +43,7 @@
 #include <openrct2/world/Map.h>
 #include <openrct2/world/MapSelection.h>
 #include <openrct2/world/tile_element/SurfaceElement.h>
+#include <cstdlib>
 #include <vector>
 
 using namespace OpenRCT2::Numerics;
@@ -228,6 +230,15 @@ namespace OpenRCT2::Ui::Windows
                 clearProvisional();
                 CoordsXYZD ghostTrackLoc = trackLoc;
                 auto res = findValidTrackDesignPlaceHeight(ghostTrackLoc, { CommandFlag::noSpend, CommandFlag::ghost });
+                if (std::getenv("OPENRCT2_BENCHMARK_TRACK_GHOST") != nullptr)
+                {
+                    static uint32_t reported = 0;
+                    if (reported++ < 12)
+                        Console::WriteLine(
+                            "Ghost query: xyz=%d,%d,%d direction=%d error=%d message=%s", ghostTrackLoc.x, ghostTrackLoc.y,
+                            ghostTrackLoc.z, ghostTrackLoc.direction, static_cast<int>(res.error),
+                            res.getErrorMessage().c_str());
+                }
 
                 if (res.error == GameActions::Status::ok)
                 {
@@ -245,6 +256,13 @@ namespace OpenRCT2::Ui::Windows
                         }
                     });
                     res = GameActions::Execute(&tdAction, getGameState());
+                    if (std::getenv("OPENRCT2_BENCHMARK_TRACK_GHOST") != nullptr)
+                    {
+                        static uint32_t reportedPlacements = 0;
+                        if (reportedPlacements++ < 12)
+                            Console::WriteLine(
+                                "Ghost placement: error=%d present=%d", static_cast<int>(res.error), _hasPlacementGhost ? 1 : 0);
+                    }
                     cost = res.error == GameActions::Status::ok ? res.cost : kMoney64Undefined;
 
                     VirtualFloorSetHeight(ghostTrackLoc.z);

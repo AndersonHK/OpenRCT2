@@ -1,0 +1,331 @@
+{
+  "run": "run-12",
+  "fixtureVersion": 2,
+  "classification": "Vulkan solid glyph coverage incorrectly suppressed by hinting threshold",
+  "reports": [
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "267A9F537E0A8C1907E1DE64BA890835D8199F6B3669775FE469047B9C2A6353",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F0",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "267A9F537E0A8C1907E1DE64BA890835D8199F6B3669775FE469047B9C2A6353",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "BB4306E7545B8681C96512D2FB432BCF215E5E4962B23BC33B90627C8657EC7F",
+        "diff": "90D1B8903820607A9C5740E23A764B472555BC91D80205209AEFF0812701B80A"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F1",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "BB4306E7545B8681C96512D2FB432BCF215E5E4962B23BC33B90627C8657EC7F",
+        "diff": "90D1B8903820607A9C5740E23A764B472555BC91D80205209AEFF0812701B80A"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "BB4306E7545B8681C96512D2FB432BCF215E5E4962B23BC33B90627C8657EC7F",
+        "diff": "90D1B8903820607A9C5740E23A764B472555BC91D80205209AEFF0812701B80A"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfCacheReplacement_F2",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "703C62860AA15C7DA3E1FAD658947D72AFC723C38D9142A17818465F4249461C",
+        "vulkan": "BB4306E7545B8681C96512D2FB432BCF215E5E4962B23BC33B90627C8657EC7F",
+        "diff": "90D1B8903820607A9C5740E23A764B472555BC91D80205209AEFF0812701B80A"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "B3C5BB50B7FACBD3F9A5BBDF510B7F5F9BF02FDF4F00D9366AAA465F32B2F21A",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfClipping",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "66CB507CD64871C0E6C21FA2933BF02B17384795D02B0170934ED269767761FE",
+        "vulkan": "B3C5BB50B7FACBD3F9A5BBDF510B7F5F9BF02FDF4F00D9366AAA465F32B2F21A",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "03A58765DC866505593B857E9D955A92161D47BFBF5128493D382E0AA7278ED2",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfInset",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "B248D3A99CEC4B811606FA8D97519349711063CDAB939C1D1006400A2791ADA7",
+        "vulkan": "03A58765DC866505593B857E9D955A92161D47BFBF5128493D382E0AA7278ED2",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "CD4E31C4AAB759726036721012918A7843AD1AE250DB2B5FFDE9DC3B96D3910C",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOrdering",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "92E3C95DAAB6539A6B050A5D4AF62E0C12C24F2744D6AB49CE6CC7771AAB1C8D",
+        "vulkan": "CD4E31C4AAB759726036721012918A7843AD1AE250DB2B5FFDE9DC3B96D3910C",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "F4BBA3086346899FB5DC1A97237D9953167BD916756E4DAD7CF2E22B3CE1A803",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutline",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "B7FE84F8CBFF26086A14C91926A84AE0C16A6E5825E28663EF886AB91625738C",
+        "vulkan": "F4BBA3086346899FB5DC1A97237D9953167BD916756E4DAD7CF2E22B3CE1A803",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "92F1B3CE1E43F88468783ED00E800011CE63E2D3BB1E3BF95BD8C83B9D043062",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfOutlineInset",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "A801D53F39CAE20B93F212C2448CE1B19535A2D8C2D10F81E827687FBC7A034E",
+        "vulkan": "92F1B3CE1E43F88468783ED00E800011CE63E2D3BB1E3BF95BD8C83B9D043062",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "indexed",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "267A9F537E0A8C1907E1DE64BA890835D8199F6B3669775FE469047B9C2A6353",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    },
+    {
+      "fixture": "TtfThresholds",
+      "layer": "rgba",
+      "differingPixels": 70,
+      "boundsInclusive": [
+        4,
+        51,
+        43,
+        69
+      ],
+      "pngSha256": {
+        "software": "25BCA6AF8AB72A0E05082185640F2BC1750559C4BA761378E39BD3AAB05FDFF3",
+        "vulkan": "267A9F537E0A8C1907E1DE64BA890835D8199F6B3669775FE469047B9C2A6353",
+        "diff": "6352EBBEA8DDC402D570299611DA3EB3CBAA440F1D0CFA6369A548D0D83604A7"
+      },
+      "reviewer": "decode_assets",
+      "manuallyInspected": true
+    }
+  ]
+}

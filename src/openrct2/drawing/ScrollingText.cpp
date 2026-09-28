@@ -23,10 +23,13 @@
 #include "Drawing.Sprite.h"
 #include "Drawing.String.h"
 #include "NewDrawing.h"
+#include "SpriteAssetDecoder.h"
 #include "TTF.h"
 
+#include <atomic>
 #include <cassert>
 #include <mutex>
+#include <stdexcept>
 
 using namespace OpenRCT2;
 
@@ -46,6 +49,7 @@ namespace OpenRCT2::Drawing::ScrollingText
     static uint8_t _characterBitmaps[SPR_FONTS_GLYPH_COUNT][8];
     static uint32_t _drawScrollNextIndex = 0;
     static std::mutex _mutex;
+    static std::atomic<uint64_t> _assetRevision{ 1 };
 
     static void setBitmapForSprite(
         std::string_view text, int32_t scroll, PaletteIndex* bitmap, const int16_t* scrollPositionOffsets, PaletteIndex colour);
@@ -54,31 +58,11 @@ namespace OpenRCT2::Drawing::ScrollingText
 
     static void initialiseCharacterBitmaps(uint32_t glyphStart, uint16_t count)
     {
-        PaletteIndex drawingSurface[64];
-        RenderTarget rt;
-        rt.bits = drawingSurface;
-        rt.width = 8;
-        rt.height = 8;
-
         for (int32_t i = 0; i < count; i++)
         {
-            std::fill_n(drawingSurface, sizeof(drawingSurface), PaletteIndex::transparent);
-            GfxDrawSpriteSoftware(rt, ImageId(glyphStart + (EnumValue(FontStyle::tiny) * count) + i), { -1, 0 });
-
-            for (int32_t x = 0; x < 8; x++)
-            {
-                uint8_t val = 0;
-                for (int32_t y = 0; y < 8; y++)
-                {
-                    val >>= 1;
-                    PaletteIndex pixel = rt.bits[x + y * 8];
-                    if (pixel == PaletteIndex::fontFill)
-                    {
-                        val |= 0x80;
-                    }
-                }
-                _characterBitmaps[i][x] = val;
-            }
+            const auto* glyph = GfxGetG1Element(glyphStart + (EnumValue(FontStyle::tiny) * count) + i);
+            const auto columns = glyph == nullptr ? std::array<uint8_t, 8>{} : ExtractScrollingGlyphMask(*glyph);
+            std::copy(columns.begin(), columns.end(), _characterBitmaps[i]);
         }
     }
 
@@ -111,6 +95,7 @@ namespace OpenRCT2::Drawing::ScrollingText
     {
         initialiseCharacterBitmaps(SPR_FONTS_BEGIN, SPR_FONTS_GLYPH_COUNT);
         initialiseScrollingText();
+        _assetRevision.fetch_add(1, std::memory_order_relaxed);
     }
 
     static uint8_t* FontSpriteGetCodepointBitmap(int32_t codepoint)
@@ -1414,10 +1399,138 @@ static constexpr const int16_t* kScrollPositions[kMaxModes] = {
 
     void invalidate()
     {
+        _assetRevision.fetch_add(1, std::memory_order_relaxed);
         for (auto& scrollText : _drawScrollTextList)
         {
             scrollText.string.clear();
         }
+    }
+
+    uint64_t getAssetRevision() noexcept
+    {
+        return _assetRevision.load(std::memory_order_relaxed);
+    }
+
+    const ModeColumns& getModeColumns()
+    {
+        static const auto result = [] {
+            ModeColumns modes{};
+            for (size_t mode = 0; mode < modes.size(); ++mode)
+            {
+                const auto* positions = kScrollPositions[mode];
+                for (uint16_t column = 0; positions[column] != -1; ++column)
+                {
+                    const auto position = positions[column];
+                    if (position < 0)
+                        continue;
+                    const auto x = position % 64;
+                    const auto y = position / 64;
+                    if (y + 8 > 40 || modes[mode][x].sourceColumn != UINT16_MAX)
+                        throw std::logic_error("Scrolling text mode has overlapping or invalid columns");
+                    modes[mode][x] = { column, static_cast<uint8_t>(y) };
+                }
+            }
+            return modes;
+        }();
+        return result;
+    }
+
+    TextColumns compileTextColumns(u8string_view string, PaletteIndex colour, bool retainInitialInk)
+    {
+        auto formatted = FormatStringID(STR_BANNER_TEXT_FORMAT, string);
+        if (Config::Get().general.upperCaseBanners)
+            formatted = String::toUpper(formatted);
+        TextColumns result;
+        bool initialInk = retainInitialInk;
+        result.phaseWidth = static_cast<uint32_t>(std::max(0, getStringWidth(formatted, FontStyle::tiny)));
+#ifndef DISABLE_TTF
+        if (LocalisationService_UseTrueTypeFont())
+        {
+            const auto* font = TTFGetFontFromSpriteBase(FontStyle::tiny);
+            if (font->font != nullptr)
+            {
+                std::string literal;
+                for (const auto& token : FmtString(formatted))
+                {
+                    if (token.IsLiteral())
+                        literal.append(token.text);
+                    else if (FormatTokenIsColour(token.kind))
+                    {
+                        colour = getTextColourMapping(FormatTokenToTextColour(token.kind)).fill;
+                        initialInk = false;
+                    }
+                }
+                const auto* surface = TTFSurfaceCacheGetOrAdd(font->font, literal.c_str());
+                result.repeat = true;
+                if (surface == nullptr || surface->w <= 0)
+                    return result;
+                result.columns.resize(surface->w);
+                if (retainInitialInk)
+                    result.initialInk.resize(surface->w);
+                const auto* pixels = static_cast<const uint8_t*>(surface->pixels) + 2 * surface->w;
+                const auto firstRow = -font->offset_y;
+                const auto lastRow = std::min(surface->h - 2, firstRow + 7);
+                const bool hinting = Config::Get().fonts.enableHinting && font->hinting_threshold > 0;
+                // Each original mode has a unique destination X per source column. Thus
+                // hinting blends against the cleared transparent bitmap, never another glyph.
+                static_cast<void>(getModeColumns());
+                for (int32_t x = 0; x < surface->w; ++x)
+                {
+                    for (auto y = firstRow; y < lastRow; ++y)
+                    {
+                        const auto pixel = pixels[y * surface->w + x];
+                        auto& out = result.columns[x][y - firstRow];
+                        if ((!hinting && pixel != 0) || pixel > 140)
+                        {
+                            out = EnumValue(colour);
+                            if (initialInk)
+                                result.initialInk[x] |= uint16_t(1u << (y - firstRow));
+                        }
+                        else if (hinting && pixel > font->hinting_threshold)
+                        {
+                            out = EnumValue(BlendColours(colour, PaletteIndex::transparent));
+                            if (initialInk)
+                                result.initialInk[x] |= uint16_t(1u << (y - firstRow + 8));
+                        }
+                    }
+                }
+                return result;
+            }
+        }
+#endif
+        auto characterColour = colour;
+        for (auto repeat = 0; repeat < 4; ++repeat)
+        {
+            for (const auto& token : FmtString(formatted))
+            {
+                if (token.IsLiteral())
+                {
+                    for (auto codepoint : CodepointView(token.text))
+                    {
+                        const auto width = FontSpriteGetCodepointWidth(FontStyle::tiny, codepoint);
+                        const auto* bitmap = FontSpriteGetCodepointBitmap(codepoint);
+                        for (auto x = 0; x < width; ++x)
+                        {
+                            std::array<uint8_t, 8> column{};
+                            for (auto y = 0; y < 8; ++y)
+                            {
+                                if ((bitmap[x] & (1u << y)) != 0)
+                                    column[y] = EnumValue(characterColour);
+                            }
+                            result.columns.push_back(column);
+                            if (retainInitialInk)
+                                result.initialInk.push_back(initialInk ? bitmap[x] : 0);
+                        }
+                    }
+                }
+                else if (FormatTokenIsColour(token.kind))
+                {
+                    characterColour = getTextColourMapping(FormatTokenToTextColour(token.kind)).fill;
+                    initialInk = false;
+                }
+            }
+        }
+        return result;
     }
 
     ImageId setup(PaintSession& session, u8string_view string, uint16_t scrollingMode, PaletteIndex colour)

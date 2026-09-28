@@ -397,7 +397,7 @@ namespace OpenRCT2::Ui
                     stationIndex = tileElement->asTrack()->getStationIndex().ToUnderlying();
 
                 for (int32_t i = stationIndex; i >= 0; i--)
-                    if (ride->getStations()[i].start.isNull())
+                    if (ride->getStations()[i].getStartXY().isNull())
                         stationIndex--;
                 stationIndex++;
                 ft.Add<uint16_t>(stationIndex);
@@ -447,7 +447,7 @@ namespace OpenRCT2::Ui
                 auto banner = tileElement->asBanner()->getBanner();
                 if (banner != nullptr)
                 {
-                    auto* bannerEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->type);
+                    auto* bannerEntry = ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->getType());
 
                     auto ft = Formatter();
                     ft.Add<StringId>(STR_MAP_TOOLTIP_BANNER_STRINGID_STRINGID);

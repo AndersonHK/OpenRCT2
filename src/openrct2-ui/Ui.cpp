@@ -13,6 +13,8 @@
 #include "UiContext.h"
 #include "audio/AudioContext.h"
 #include "drawing/BitmapReader.h"
+#include "drawing/engines/DrawingEngineFactory.hpp"
+#include <openrct2-renderer/RenderServiceFactory.h>
 
 #include <memory>
 #include <string>
@@ -20,6 +22,7 @@
 #include <openrct2/Diagnostic.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/PlatformEnvironment.h>
+#include <openrct2/TitleLoadingDiagnostic.h>
 #include <openrct2/audio/AudioContext.h>
 #include <openrct2/command_line/ExitCode.h>
 #include <openrct2/ui/UiContext.h>
@@ -54,7 +57,7 @@ int main(int argc, const char** argv)
     });
 #endif
     int32_t rc = EXIT_SUCCESS;
-    auto runGame = CommandLineRun(argv, argc);
+    auto runGame = CommandLineRun(argv, argc, Renderer::CreateConfiguredRenderServiceFactory());
     RegisterBitmapReader();
     if (runGame == OpenRCT2::CommandLine::ExitCode::launch)
     {
@@ -71,7 +74,7 @@ int main(int argc, const char** argv)
                 // Run OpenRCT2 with a UI context
                 auto env = CreatePlatformEnvironment();
                 std::unique_ptr<IAudioContext> audioContext;
-                if (gIntegratedBenchmark.enabled)
+                if (gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic())
                 {
                     // The integrated benchmark exercises the full renderer without producing meeting-disrupting park audio.
                     audioContext = CreateDummyAudioContext();
@@ -89,8 +92,16 @@ int main(int argc, const char** argv)
                         audioContext = CreateDummyAudioContext();
                     }
                 }
+#ifdef ENABLE_VULKAN
+                auto deviceOwner = std::make_shared<Vulkan::DeviceContextOwner>(true);
+                auto uiContext = CreateUiContext(*env, std::make_shared<DrawingEngineFactory>(deviceOwner));
+                auto renderFactory = Renderer::CreateConfiguredRenderServiceFactory(std::move(deviceOwner));
+#else
                 auto uiContext = CreateUiContext(*env);
-                context = CreateContext(std::move(env), std::move(audioContext), std::move(uiContext));
+                auto renderFactory = Renderer::CreateConfiguredRenderServiceFactory();
+#endif
+                context = CreateContext(
+                    std::move(env), std::move(audioContext), std::move(uiContext), std::move(renderFactory));
             }
             rc = context->RunOpenRCT2(argc, argv);
         }
@@ -98,7 +109,7 @@ int main(int argc, const char** argv)
         {
             const std::string message = std::string("OpenRCT2 could not continue:\n\n") + e.what();
             LOG_ERROR("Unhandled startup or runtime error: %s", e.what());
-            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
             {
                 try
                 {
@@ -114,7 +125,7 @@ int main(int argc, const char** argv)
         catch (...)
         {
             LOG_ERROR("Unhandled non-standard startup or runtime error.");
-            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled)
+            if (context != nullptr && !gOpenRCT2Headless && !gIntegratedBenchmark.enabled && !IsTitleLoadingDiagnostic())
             {
                 try
                 {

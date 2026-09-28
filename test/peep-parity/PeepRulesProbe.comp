@@ -1,0 +1,47 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "../../data/shaders/vulkan/peep_rules.glsl"
+
+// Diagnostic entry point only. Uses a real separate immutable fact SSBO, so the
+// range/generation check executes before any dynamic catalog read.
+layout(local_size_x = 64) in;
+struct PeepRuleQuery
+{
+    PeepFields fields;
+    PeepAnimationDescriptor table;
+    uint rotation; int zoom; uint availableFacts; uint bodyAllocated;
+    uint accessoryAllocated; uint reserved0; uint reserved1; uint reserved2;
+};
+struct PeepRuleResult
+{
+    PeepSelection selection;
+    PeepProjection projection;
+    uint factAddress; uint accessoryRelation; uint reserved0; uint reserved1;
+};
+layout(std430, set = 0, binding = 0) readonly buffer Inputs { PeepRuleQuery records[]; } uInput;
+layout(std430, set = 0, binding = 1) writeonly buffer Outputs { PeepRuleResult records[]; } uOutput;
+layout(std430, set = 0, binding = 2) readonly buffer Facts { PeepAnimationFact records[]; } uFacts;
+layout(push_constant) uniform QueryCount { uint count; } uQueries;
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= uQueries.count || index >= uint(uInput.records.length()) || index >= uint(uOutput.records.length()))
+        return;
+    PeepRuleQuery q = uInput.records[index];
+    PeepRaw raw = peepJoinFields(q.fields);
+    // Never trust a record-supplied capacity beyond the actual descriptor range.
+    uint available = min(q.availableFacts, uint(uFacts.records.length()));
+    uint address = peepFactAddress(raw, q.table, available);
+    PeepAnimationFact fact = PeepAnimationFact(0u, 0u, 0u, 0u);
+    if (address != 0xffffffffu)
+        fact = uFacts.records[address];
+    PeepSelection selection = peepSelect(raw, q.table, fact, q.rotation, available);
+    uOutput.records[index].selection = selection;
+    uOutput.records[index].projection = peepProject(raw, q.rotation, q.zoom);
+    uOutput.records[index].factAddress = address;
+    uOutput.records[index].accessoryRelation = peepAccessoryRelation(
+        selection.childPresent, q.bodyAllocated, q.accessoryAllocated);
+    uOutput.records[index].reserved0 = 0u;
+    uOutput.records[index].reserved1 = 0u;
+}

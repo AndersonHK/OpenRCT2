@@ -111,8 +111,8 @@ namespace OpenRCT2
 
     class ReplayManager final : public IReplayManager
     {
-        static constexpr uint16_t kReplayVersion = 12;
-        static constexpr uint16_t kReplayMinCompatVersion = 10;
+        static constexpr uint16_t kReplayVersion = 13;
+        static constexpr uint16_t kReplayMinCompatVersion = 13;
         static constexpr uint16_t kReplayCentMoneyVersion = 12;
         static constexpr uint32_t kReplayMagic = 0x5243524F; // ORCR.
         static constexpr int kReplayCompressionLevel = 18;

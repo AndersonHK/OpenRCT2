@@ -78,7 +78,7 @@ static void ride_remove_station(Ride& ride, const CoordsXYZ& location)
         auto stationStart = station.getStart();
         if (stationStart == location)
         {
-            station.start.setNull();
+            station.clearStart();
             ride.numStations--;
             break;
         }
@@ -111,9 +111,8 @@ ResultWithMessage TrackAddStationElement(CoordsXYZD loc, RideId rideIndex, Comma
             assert(!stationIndex.IsNull());
 
             auto& station = ride->getStation(stationIndex);
-            station.start.x = loc.x;
-            station.start.y = loc.y;
-            station.height = loc.z / kCoordsZStep;
+            station.setStart({ loc.x, loc.y });
+            station.setBaseZ(loc.z);
             station.depart = 1;
             station.length = 0;
             ride->numStations++;
@@ -203,8 +202,8 @@ ResultWithMessage TrackAddStationElement(CoordsXYZD loc, RideId rideIndex, Comma
                     else
                     {
                         auto& station = ride->getStation(stationIndex);
-                        station.start = loc;
-                        station.height = loc.z / kCoordsZStep;
+                        station.setStart(loc);
+                        station.setBaseZ(loc.z);
                         station.depart = 1;
                         station.length = stationLength;
                         ride->numStations++;
@@ -337,8 +336,8 @@ ResultWithMessage TrackRemoveStationElement(const CoordsXYZD& loc, RideId rideIn
                     else
                     {
                         auto& station = ride->getStation(stationIndex);
-                        station.start = currentLoc;
-                        station.height = currentLoc.z / kCoordsZStep;
+                        station.setStart(currentLoc);
+                        station.setBaseZ(currentLoc.z);
                         station.depart = 1;
                         station.length = stationLength != 0 ? stationLength : ByteF441D1;
                         ride->numStations++;

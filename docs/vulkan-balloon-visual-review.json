@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "review": "Manual image inspection; compatibility passes but fixture includes three invalid popped animation states",
+  "gpuNativeAdmission": false,
+  "rendererExceptions": [],
+  "images": [
+    {
+      "path": "obj/vulkan-parity/ui-frozen-balloon-baseline-01/captures/baseline-0/screen.png",
+      "sha256": "a713b313c47f6ef476b2e51c33340083b148b384d5ab5c48bbe09971685508d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-current-balloon-baseline-01/captures/baseline-0/screen.png",
+      "sha256": "a713b313c47f6ef476b2e51c33340083b148b384d5ab5c48bbe09971685508d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/captures/baseline-0/screen.png",
+      "sha256": "a713b313c47f6ef476b2e51c33340083b148b384d5ab5c48bbe09971685508d9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-0/indexed/diff-mask.png",
+      "sha256": "afe49af36eb233dec89887af7122e1ddb56eccaf5e909b63c7df78f83930830a"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-0/indexed/reference.png",
+      "sha256": "b2ec704a0e8028662a82c8adf4b9ed8bb697e87943b2fb22de8e8aa727d1803d"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-0/indexed/candidate.png",
+      "sha256": "b2ec704a0e8028662a82c8adf4b9ed8bb697e87943b2fb22de8e8aa727d1803d"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-0/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-1/reference.png",
+      "sha256": "5536f1bb8bd762777406e473f2ac8f057d9d3b51fffabcceafa43d983ddb7b92"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-1/candidate.png",
+      "sha256": "5536f1bb8bd762777406e473f2ac8f057d9d3b51fffabcceafa43d983ddb7b92"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/comparisons/baseline-1/diff.png",
+      "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+    }
+  ],
+  "runs": {
+    "frozen": {
+      "summary": "obj/vulkan-parity/ui-frozen-balloon-baseline-01/summary.json",
+      "summarySha256": "238d405a60871365e055afeebd04cdbcefbcf240d02a64279e46d680201e3d47",
+      "status": "pass",
+      "parkSha256": "23a0790d5fd073254683f424b91f3e2ea5916cddfd7e06171ddb1fa16b9edfd8",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-frozen-build-17\\receipt.json",
+        "sha256": "d2d6e79f81f09ecd99ecc8f1b3c69c8d397196c28c14e85a9d7c8e5981076836"
+      },
+      "samples": {
+        "baseline-0": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        },
+        "baseline-1": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        }
+      },
+      "comparisonCounts": []
+    },
+    "current": {
+      "summary": "obj/vulkan-parity/ui-current-balloon-baseline-01/summary.json",
+      "summarySha256": "0eecaedcb8b156f481c502aa29dbf505159d11fa788c8d97b25ed047fd28291a",
+      "status": "pass",
+      "parkSha256": "23a0790d5fd073254683f424b91f3e2ea5916cddfd7e06171ddb1fa16b9edfd8",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-23\\receipt.json",
+        "sha256": "655c708717d47ad3231ca9bd4bce73b25f1a2148bc642bdb56f7959381a4efd0"
+      },
+      "samples": {
+        "baseline-0": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        },
+        "baseline-1": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        }
+      },
+      "comparisonCounts": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "vulkan": {
+      "summary": "obj/vulkan-parity/ui-vulkan-balloon-baseline-01/summary.json",
+      "summarySha256": "d187fc7200e824b395bdb7e8eb60746ec57a3bc8a5c0e824df16c8727f166a30",
+      "status": "pass",
+      "parkSha256": "23a0790d5fd073254683f424b91f3e2ea5916cddfd7e06171ddb1fa16b9edfd8",
+      "buildReceipt": {
+        "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-build-23\\receipt.json",
+        "sha256": "655c708717d47ad3231ca9bd4bce73b25f1a2148bc642bdb56f7959381a4efd0"
+      },
+      "samples": {
+        "baseline-0": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        },
+        "baseline-1": {
+          "rgbaSha256": "b306eb103418c8bcac24eecafd289081c8168521207e9d3d298b00ab6dbe1c32",
+          "indexedSha256": "88e3cab34449113b5a0457bc580580a60569677fb54a935bcb5217251f970219"
+        }
+      },
+      "comparisonCounts": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "findings": [
+    "Eight intact animation positions, five valid popped states and the central overlapping cluster are visible in the real main park viewport.",
+    "Three additional lower-grid structures are unrelated sprites selected by impossible popped frames5,6,7. These are identical in frozen/current software and Vulkan; this is a fixture validity problem, not a Vulkan pixel divergence.",
+    "Main toolbar, pause controls, bottom guest/status panels and grass map boundaries are present; scene is nonblank.",
+    "Inspected physical and indexed differences are black. Both repetitions have identical layer hashes.",
+    "Do not qualify16 balloon variants. Keep input02 as an invalid-state compatibility sample, replace three invalid records in a new immutable recipe, then inspect and qualify13 legitimate variants plus additional colour/order samples."
+  ],
+  "v2": {
+    "status": "manual-review-complete-retained-publication-only",
+    "fixture": "balloon-static-v2",
+    "inputManifest": {
+      "path": "obj/vulkan-parity/balloon-static-input-03/manifest.json",
+      "sha256": "bef19eb9ee0370d47bc608d5dbb59ea38dc61e95ffceaf81b5612d6cfdf8e8f3"
+    },
+    "runs": [
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-baseline-01",
+        "summarySha256": "3a419cc5c189ddc55752fc5c88d0a9ed225424a5a9379b4092462879d6c7ddc9",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-baseline-01",
+        "summarySha256": "a15f079bac2dd31ff760e17967ad2db334aa74db8ab39af51c06381a49f7136b",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-baseline-01",
+        "summarySha256": "5cfb028017337cfa3d7c560eb1a41486d0d6dd7a241065e44eb93c2968e841f2",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-01",
+        "summarySha256": "d93cef9c90ee200f45bf9795c60cecb2d679ee37418c4661d1aeabb219daa5b0",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-01",
+        "summarySha256": "5f6958d0ab7b3b722f0503c7d7432b071c3a75d7fc6afc1950afae36039e8afd",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-01",
+        "summarySha256": "dd085edb34d61d74e144ded75ea6bcf86877d28101583d04eee47681668e1d6a",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-incremental-01",
+        "summarySha256": "3db67ebdffa211c39c715c07ed60482dcf9c91777230402d48760cd866c09fc3",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-incremental-01",
+        "summarySha256": "0a25a01473cb757026a458030836be45c425d34a20d39c132b953da6d3140528",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-incremental-01",
+        "summarySha256": "e12848cf5f9a2d2a991e9fa760d29c903efa9330e8ab77cfa2dd63dee88c7277",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-baseline-02",
+        "summarySha256": "a4d6740b89cb4686993bf931107c711fcea2dfad73c7cd31b414808e714e5996",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-baseline-02",
+        "summarySha256": "b9fc33dd77b98732f3d0c9b853cb751b5e10f2d9ba47d0d0f3c688207495e212",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-baseline-02",
+        "summarySha256": "33585bbbcaadca053b7a3faeb831d764f1b139332a1c24fe9ad39997a3ff2720",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-02",
+        "summarySha256": "73d704c449446b68a3bec3b96d4446771564292ab216ae4ab7ee838f89bc51f4",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-02",
+        "summarySha256": "cd69e71f8bf7e0745d4159515e9a7890c7cb9115508919a389a251305ef11fdd",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-02",
+        "summarySha256": "8d891d9100642d4d49eef095c4eafcf927ee60520aabe413b51e473c94a3e686",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-incremental-02",
+        "summarySha256": "3c15391c332c5f5ca5d905dd604136bb0cd9f8ae1a51a4d629224e5fd811e522",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-incremental-02",
+        "summarySha256": "a25db33d697b56ea531111ecf2a27e23db14b940ca35844604a63abd65a73188",
+        "status": "pass"
+      },
+      {
+        "path": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-incremental-02",
+        "summarySha256": "cef3ec925d990e67ba83b6a7b6f78af4887828c8007924cc99d43cf21c7882a1",
+        "status": "pass"
+      }
+    ],
+    "deduplicatedImageReceipt": {
+      "path": "obj/vulkan-parity/balloon-v2-visual-review/dedup.json",
+      "sha256": "9eed1adead4342c2d728ec182d2e0adcfbd05268f173a269e3e26a3a46fba6cb",
+      "pngCount": 1484,
+      "uniqueDecodedRgbaImages": 11
+    },
+    "manualImages": [
+      {
+        "pixelsSha256": "cc4c166a3db1fe7c60860db35e7d53d37bc345d7c9691c16774c895c1762a895",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-frozen-balloon-v2-baseline-01/captures/baseline-0/screen.png",
+          "sha256": "5b5099cf01be3b7fcbd5a711c739afe99ef0ee2ff1aea870ac2615abc91ede7e"
+        },
+        "identicalDecodedImageCount": 184,
+        "observation": "Main grass terrain and full toolbars/status are nonblank. Eight intact states and five popped states appear in the central grid; three replacement intact balloons are visible below, without former building sprites. Cluster remains partially occluded around x480/y365."
+      },
+      {
+        "pixelsSha256": "405f558ac0203a93f701f5bf89c6dcf771d838b4438b300168f2262f3d2801a4",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-baseline-01/comparisons/baseline-0/diff-amplified.png",
+          "sha256": "5ce1f4587212f357140ed9163e971c04c1a4c643e6a86a2a6c6f807fc02b2b1f"
+        },
+        "identicalDecodedImageCount": 664,
+        "observation": "All 664 corresponding masks/diff images are black."
+      },
+      {
+        "pixelsSha256": "82908952966143bdc9cddf0ed9040960505b8edb4de53cb0ebffb2d64c2fdfde",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-baseline-01/comparisons/baseline-0/indexed/candidate.png",
+          "sha256": "4eea1c6bf395e8819e608f365ff513544292f94badc1821b3898fad190f9465c"
+        },
+        "identicalDecodedImageCount": 124,
+        "observation": "Indexed view resolves all same footprints including faint popped debris."
+      },
+      {
+        "pixelsSha256": "1f0a6ddf6a37f51046f19c7bf67ce9ae564ac6647c5578ef892c5399c57b8748",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-01/captures/finances-front-0/screen.png",
+          "sha256": "a99662428ab75bf2cf1be4b761b4b1db8077b6082f50f9d2b4d8e6c51f144535"
+        },
+        "identicalDecodedImageCount": 76,
+        "observation": "Finances covers the upper/central balloon positions; lower and right variants remain visible."
+      },
+      {
+        "pixelsSha256": "c7d6bbce4f7aed5a3481e48c8d50a22b4e8e7adcf0d593e776542e367791b2b4",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-01/captures/partially-clipped-0/screen.png",
+          "sha256": "ff9e468d8f6f54f1273e4ca9c3853f76151b1dc0ceeb73049649f26b61870e06"
+        },
+        "identicalDecodedImageCount": 76,
+        "observation": "Negative-x Finances clips its title/body at the left screen edge; Research edge remains behind, visible balloons/debris remain on right and below."
+      },
+      {
+        "pixelsSha256": "35d301db4e4870a81babae3ad7c8bf617da37ff119033a86022eec1b89f5e013",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-01/captures/research-front-0/screen.png",
+          "sha256": "71f745bee0171a496b7988505e4018cb5bba6e34af0996798d89f437753c4514"
+        },
+        "identicalDecodedImageCount": 76,
+        "observation": "Research is in front of Finances; correct frame/title occlusion and underlying balloon hiding."
+      },
+      {
+        "pixelsSha256": "3242f843d41238e1cbc8115f29708bc2759d1f26b1c4d0cca4453967d4805edc",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-frozen-balloon-v2-overlap-01/captures/research-only-0/screen.png",
+          "sha256": "c0ac92342a3bd90ec253e028d0b75043d18a44470ea82f7fcbce2e3b1ec7cdc3"
+        },
+        "identicalDecodedImageCount": 76,
+        "observation": "Research-only restores balloons previously behind Finances; upper balloons remain correctly hidden."
+      },
+      {
+        "pixelsSha256": "26bcd2f36ec063e84af6d886a1dc349378b7ab154bebb2dd0ad01c00c085104e",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-01/comparisons/finances-front-0/indexed/candidate.png",
+          "sha256": "97cd30ac6da0e39e4130d76b4953665d3a9f5213e278c076d08fce7e3a6e8d15"
+        },
+        "identicalDecodedImageCount": 52,
+        "observation": "Indexed Finances view has identical occlusion boundaries."
+      },
+      {
+        "pixelsSha256": "3ab64074fa9d0a43cb65996f8b99928c31d1877d5a66013f1c9732cd035f1c86",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-01/comparisons/partially-clipped-0/indexed/candidate.png",
+          "sha256": "f35e97a11f93f8b944ac6440833bed000fef857afe31747e6e370e1bb140f19e"
+        },
+        "identicalDecodedImageCount": 52,
+        "observation": "Indexed partially clipped view preserves negative-x crop and debris to right."
+      },
+      {
+        "pixelsSha256": "9cf881d72b18278812e05629abdd23f82d0d13f267991e5e436ed4401a314bb5",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-01/comparisons/research-front-0/indexed/candidate.png",
+          "sha256": "ea6a9f4fe4b9428f7541d43855ea02b3b94c027220d59f4eaa2b55f8dd9bb88a"
+        },
+        "identicalDecodedImageCount": 52,
+        "observation": "Indexed Research-front view preserves window order."
+      },
+      {
+        "pixelsSha256": "76d81c26cbd53d36cf527e5fa709ad6e166eb0dbcf68d310fd8e9e5bd6f1c0ad",
+        "representative": {
+          "path": "obj/vulkan-parity/ui-current-balloon-v2-overlap-01/comparisons/research-only-0/indexed/candidate.png",
+          "sha256": "eb2024e0f896fe499424b586e37886ec8a2711d87c284277431fe5629f62b329"
+        },
+        "identicalDecodedImageCount": 52,
+        "observation": "Indexed Research-only view restores same balloon silhouettes."
+      }
+    ],
+    "publicationChecks": [
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-baseline-01",
+        "captureCount": 2,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-baseline-01",
+            "summarySha256": "3a419cc5c189ddc55752fc5c88d0a9ed225424a5a9379b4092462879d6c7ddc9"
+          }
+        ]
+      },
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-01",
+        "captureCount": 12,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-overlap-01",
+            "summarySha256": "d93cef9c90ee200f45bf9795c60cecb2d679ee37418c4661d1aeabb219daa5b0"
+          }
+        ]
+      },
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-incremental-01",
+        "captureCount": 12,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-overlap-incremental-01",
+            "summarySha256": "3db67ebdffa211c39c715c07ed60482dcf9c91777230402d48760cd866c09fc3"
+          }
+        ]
+      },
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-baseline-02",
+        "captureCount": 2,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-vulkan-balloon-v2-baseline-01",
+            "summarySha256": "5cfb028017337cfa3d7c560eb1a41486d0d6dd7a241065e44eb93c2968e841f2"
+          }
+        ]
+      },
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-02",
+        "captureCount": 12,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-vulkan-balloon-v2-overlap-01",
+            "summarySha256": "dd085edb34d61d74e144ded75ea6bcf86877d28101583d04eee47681668e1d6a"
+          }
+        ]
+      },
+      {
+        "run": "obj/vulkan-parity/ui-vulkan-balloon-v2-overlap-incremental-02",
+        "captureCount": 12,
+        "zeroSteadyPublicationCopies": true,
+        "comparisonReferences": [
+          {
+            "path": "obj\\vulkan-parity\\ui-vulkan-balloon-v2-overlap-incremental-01",
+            "summarySha256": "e12848cf5f9a2d2a991e9fa760d29c903efa9330e8ab77cfa2dd63dee88c7277"
+          },
+          {
+            "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-overlap-01",
+            "summarySha256": "d93cef9c90ee200f45bf9795c60cecb2d679ee37418c4661d1aeabb219daa5b0"
+          }
+        ]
+      }
+    ],
+    "gpuNativeAdmission": false,
+    "rendererExceptions": []
+  }
+}

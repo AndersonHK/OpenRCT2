@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "TerrainSurfaceObject.h"
+#include "../world/TerrainPresentation.h"
 
 #include "../Context.h"
 #include "../core/Guard.hpp"
@@ -21,6 +22,7 @@ namespace OpenRCT2
 {
     void TerrainSurfaceObject::Load()
     {
+        AdvanceTerrainObjectRevision();
         GetStringTable().Sort();
         NameStringId = LanguageAllocateObjectString(GetName());
         IconImageId = LoadImages();
@@ -38,6 +40,7 @@ namespace OpenRCT2
 
     void TerrainSurfaceObject::Unload()
     {
+        AdvanceTerrainObjectRevision();
         LanguageFreeObjectString(NameStringId);
         UnloadImages();
 

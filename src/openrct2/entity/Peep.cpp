@@ -180,6 +180,7 @@ namespace OpenRCT2
             case PeepState::emptyingBin:
             case PeepState::usingBin:
             case PeepState::watering:
+            case PeepState::repairingPathAddition:
             case PeepState::headingToInspection:
                 return true;
         }
@@ -407,6 +408,10 @@ namespace OpenRCT2
      */
     void Peep::updateCurrentAnimationType()
     {
+        // Callers may have changed action/frame/group even when the resulting animation type is unchanged.
+        notifyAnimationChanged();
+        // Action-entry callers also set facing directly (for example watering and repairing).
+        getGameState().entities.PublishEntityVisualState(*this, EntityVisualDirty::transform);
         PeepAnimationType newAnimationType = getAnimationType();
         if (animationType == newAnimationType)
         {
@@ -429,6 +434,7 @@ namespace OpenRCT2
         spriteData.width = spriteBounds.spriteWidth;
         spriteData.heightMin = spriteBounds.spriteHeightNegative;
         spriteData.heightMax = spriteBounds.spriteHeightPositive;
+        notifyAnimationChanged();
     }
 
     /* rct2: 0x00693BE5 */
@@ -480,6 +486,7 @@ namespace OpenRCT2
         if (action == PeepActionType::idle)
         {
             action = PeepActionType::walking;
+            notifyAnimationChanged();
         }
 
         CoordsXY differenceLoc = getLocation();
@@ -531,6 +538,7 @@ namespace OpenRCT2
         }
 
         animationImageIdOffset = peepAnimation.frameOffsets[animationFrameNum];
+        notifyAnimationChanged();
         return true;
     }
 
@@ -561,6 +569,7 @@ namespace OpenRCT2
         }
 
         orientation = nextDirection * 8;
+        getGameState().entities.PublishEntityVisualState(*this, EntityVisualDirty::transform);
 
         CoordsXY loc = { x, y };
         loc += kWalkingOffsetByDirection[nextDirection];
@@ -582,6 +591,7 @@ namespace OpenRCT2
             walkingAnimationFrameNum = 0;
         }
         animationImageIdOffset = peepAnimation.frameOffsets[walkingAnimationFrameNum];
+        notifyAnimationChanged();
     }
 
     /**
@@ -924,6 +934,7 @@ namespace OpenRCT2
     {
         PeepDecrementNumRiders(this);
         state = new_state;
+        getGameState().entities.PublishEntityVisualState(*this);
         PeepWindowStateUpdate(this);
     }
 
@@ -1208,7 +1219,7 @@ namespace OpenRCT2
             const auto peepWeight = peep->state == PeepState::queuing ? 1.0f : 2.0f;
             visiblePeeps += static_cast<int32_t>(peepWeight);
 
-            const auto spatial = CalculateSpatialAudioParams(*listener, peep->getLocation());
+            const auto spatial = CalculateSpatialAudioAngles(*listener, peep->getLocation());
             auto sector = static_cast<int32_t>(std::lround(spatial.Azimuth / kSectorAngle));
             sector %= static_cast<int32_t>(kCrowdSpatialSectorCount);
             if (sector < 0)
@@ -1420,6 +1431,8 @@ namespace OpenRCT2
                 return { PeepActionDescriptionType::wateringGardens };
             case PeepState::emptyingBin:
                 return { PeepActionDescriptionType::emptyingBin };
+            case PeepState::repairingPathAddition:
+                return { PeepActionDescriptionType::repairingPathAddition };
             case PeepState::answering:
                 if (subState == 0)
                 {
@@ -1573,6 +1586,10 @@ namespace OpenRCT2
      */
     void Peep::switchNextAnimationType()
     {
+        // Idle selection reads nextAnimationType directly, including when no type switch is necessary.
+        notifyAnimationChanged();
+        // Entering a sitting/watching pose can also change facing without moving.
+        getGameState().entities.PublishEntityVisualState(*this, EntityVisualDirty::transform);
         // TBD: Add nextAnimationType as function parameter and make peep->NextAnimationType obsolete?
         if (nextAnimationType != animationType)
         {
@@ -1792,6 +1809,7 @@ namespace OpenRCT2
             if (!gameState.park.flags.has(ParkFlag::parkOpen))
             {
                 guest->state = PeepState::leavingPark;
+                getGameState().entities.PublishEntityVisualState(*guest);
                 guest->var37 = 1;
                 DecrementGuestsHeadingForPark();
                 PeepWindowStateUpdate(guest);
@@ -1855,6 +1873,7 @@ namespace OpenRCT2
             if (!found)
             {
                 guest->state = PeepState::leavingPark;
+                getGameState().entities.PublishEntityVisualState(*guest);
                 guest->var37 = 1;
                 DecrementGuestsHeadingForPark();
                 PeepWindowStateUpdate(guest);
@@ -1883,6 +1902,7 @@ namespace OpenRCT2
                 if (entranceFee > guest->cashInPocket)
                 {
                     guest->state = PeepState::leavingPark;
+                    getGameState().entities.PublishEntityVisualState(*guest);
                     guest->var37 = 1;
                     DecrementGuestsHeadingForPark();
                     PeepWindowStateUpdate(guest);
@@ -2154,6 +2174,7 @@ namespace OpenRCT2
                         guest->currentRide = rideIndex;
                         guest->currentRideStation = stationNum;
                         guest->state = PeepState::queuing;
+                        getGameState().entities.PublishEntityVisualState(*guest);
                         guest->daysInQueue = 0;
                         PeepWindowStateUpdate(guest);
 
@@ -2325,6 +2346,10 @@ namespace OpenRCT2
                 return { pathingResult, tileResult };
             }
         }
+
+        // Queue waiting may have restored the idle pose and returned above without changing any raw facts.
+        if (previousAction == PeepActionType::idle)
+            notifyAnimationChanged();
 
         std::optional<CoordsXY> loc;
         if (loc = updateAction(); !loc.has_value())
@@ -2630,7 +2655,7 @@ namespace OpenRCT2
 
             if (peep->animationGroup == PeepAnimationGroup::balloon && peep->x != kLocationNull)
             {
-                Balloon::create({ peep->x, peep->y, spawn_height }, peep->balloonColour, false);
+                Balloon::create({ peep->x, peep->y, spawn_height }, peep->getBalloonColour(), false);
                 peep->windowInvalidateFlags |= PEEP_INVALIDATE_PEEP_INVENTORY;
                 peep->updateAnimationGroup();
             }
@@ -2680,6 +2705,27 @@ namespace OpenRCT2
         return CoordsXY{ destinationX, destinationY };
     }
 
+    void Peep::notifyAppearanceChanged()
+    {
+        if (GetContext() != nullptr)
+            getGameState().entities.PublishEntityVisualState(*this, EntityVisualDirty::appearance);
+    }
+
+    void Peep::notifyAnimationChanged()
+    {
+        if (GetContext() != nullptr)
+            getGameState().entities.PublishEntityVisualState(*this, EntityVisualDirty::animation | EntityVisualDirty::bounds);
+    }
+
+    void Peep::setClothingColours(Drawing::Colour shirt, Drawing::Colour trousers)
+    {
+        if (_tShirtColour == shirt && _trousersColour == trousers)
+            return;
+        _tShirtColour = shirt;
+        _trousersColour = trousers;
+        notifyAppearanceChanged();
+    }
+
     void Peep::serialise(DataSerialiser& stream)
     {
         EntityBase::serialise(stream);
@@ -2692,8 +2738,12 @@ namespace OpenRCT2
         stream << state;
         stream << subState;
         stream << animationGroup;
-        stream << tShirtColour;
-        stream << trousersColour;
+        auto shirt = getTShirtColour();
+        auto trousers = getTrousersColour();
+        stream << shirt;
+        stream << trousers;
+        if (stream.isLoading())
+            setClothingColours(shirt, trousers);
         stream << destinationX;
         stream << destinationY;
         stream << destinationTolerance;

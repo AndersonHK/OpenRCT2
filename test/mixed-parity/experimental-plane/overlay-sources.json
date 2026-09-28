@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "model": "plane-envelope-v1",
+  "baseShaderSha256": {
+    "mixed_fixture_emit.comp": "f6f866700ee150010e1a7e26da70d97828f3d3fa96cf8ac1bbd2c7f8ee83e134",
+    "indexed_sprite.vert": "654576dfe17cb02d7846cdac3fc30d4e83f36a7311e25ba2669551dfc824b617",
+    "indexed_rect.vert": "9f1effd476b4204bfaf7252df0030ab62c301cce90d37ae6ab1dd83dc2f88a16",
+    "indexed_rect.frag": "5c30bf68032350436f394a65171d4c8f61e249f91e5f6ec89b6287c6c9fe0b34"
+  },
+  "overlaySha256": {
+    "mixed_fixture_emit.comp": "2617047ddc16ff4b8be46b03be0ec5611c105b299b322c2766ad6ae1410b8621",
+    "indexed_sprite.vert": "55ac52124e12118ba14549930e64afb0aa0e50b65994bd4d952980dad1191fdb",
+    "indexed_rect.vert": "b9451941f1ff6da0ebf844b59e67dc6eb08e3a01a75cc9d0858b5d5831c85219",
+    "indexed_rect.frag": "a96c15e0b3160e667efbfc9aedeb8f65e657e9cd2bf22b8317f21155eda7a26a"
+  },
+  "generatorSha256": "e2e487b9250113067b518a2f647a3f5d2810db63d2a8434add22ca319ccd2131"
+}

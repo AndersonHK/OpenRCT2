@@ -1,0 +1,13 @@
+# Giant CLI screenshot parity review
+
+The corrected tiled Vulkan CLI screenshot path passes this bounded fixture with **zero pixel exceptions**. All 20 camera/background cases match the frozen software output in indexed pixels, palette, alpha and RGBA. A fresh Vulkan process produces identical results.
+
+The qualified lanes are frozen01/02, current software01/02 and corrected Vulkan04/05: 120 PNGs independently decoded and checked against their raw buffers. The independent audit verifies 22,341 distinct input/artifact pins, immutable build artifacts, actual tile rows and extents, serial session retirement, and activated clean Vulkan validation. The JSON binds the exact six summary receipts.
+
+Agent `balloon_visual` manually inspected all 20 frozen/Vulkan full-scene pairs, every part of all 88 seam, junction and final-edge samples, and enlarged detail/context for both formerly divergent water regions. Fifty viewed comparison sheets are pinned. No new divergence or exception was found. Agent `screenshot_runner` independently audited the receipts, complete images, raw buffers and every prior mismatch coordinate.
+
+The original Vulkan01/03 runs differed at 41 pixels in each r2z0 background policy, within [2210,2080,2241,2111) on a water diagonal. Software tile subdivision reproduced exactly those values, establishing that tile generation boundaries were sufficient to produce the defect. The correction generates and arranges columns against the full viewport height, then restores the actual tile target for rasterization. The ordinary software path retains its original target-clip behavior. Corrected software control02 and Vulkan04/05 now match every former mismatch coordinate and every full-frame pixel. Prior failed captures and reviews remain preserved; they are not accepted exceptions.
+
+Qualification covers the pinned 96-by-96 terrain fixture with 800 balloons, ordinary/transparent backgrounds, rotations 0–3 at zooms 0–1, and rotation 0 at zooms 2–3. Auxiliary targets remain bounded to 2048-by-2048 with sequential owned readbacks. This establishes this CLI screenshot corpus only: interactive giant screenshots, arbitrary parks, retained main-window terrain, universal parity, exclusive Vulkan readiness and performance/TPS remain separate gates. Screenshot readback/composition is intentional and does not demonstrate interactive VRAM residency. Historical source receipts are not hermetic compiler provenance.
+
+Machine-readable receipt: [vulkan-giant-cli-visual-review.json](vulkan-giant-cli-visual-review.json). Preserved audit and visual artifacts: `obj/vulkan-parity/giant-corrected-final-review/`.

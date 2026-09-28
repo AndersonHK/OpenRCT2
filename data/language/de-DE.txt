@@ -2917,11 +2917,6 @@ STR_5871    :Pflanzenverwelkung deaktivieren
 STR_5872    :Deaktiviert das Altern von Pflanzen,{NEWLINE}sodass sie nicht verwelken
 STR_5873    :Kettenlifte auf allen Streckenst. erlauben
 STR_5874    :Erlaubt es jedes Streckenstück{NEWLINE}als Kettenlift zu verwenden
-STR_5875    :Grafikschnittstelle:
-STR_5876    :Die Grafikschnittstelle, die zur Darstellung{NEWLINE}des Spiels verwendet wird
-STR_5877    :Software
-STR_5878    :Software (Hardwareanzeige)
-STR_5879    :OpenGL (experimentell)
 STR_5880    :Ausgewählte
 STR_5881    :Nicht ausgewählte
 STR_5882    :Benutzerdef. Währung

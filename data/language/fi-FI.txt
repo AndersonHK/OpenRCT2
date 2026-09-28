@@ -2924,11 +2924,6 @@ STR_5871    :Estä kasvien kuihtuminen
 STR_5872    :Estää kasveja ikääntymästä jotta ne eivät kuihdu.
 STR_5873    :Salli nostomäki kaikissa rataosissa
 STR_5874    :Sallii minkä tahansa rataosan asettamisen nostomäeksi
-STR_5875    :Piirtomoottori:
-STR_5876    :Pelin piirtoon käytetty moottori
-STR_5877    :Ohjelmisto
-STR_5878    :Ohjelmisto (laitteistopiirto)
-STR_5879    :OpenGL (kokeellinen)
 STR_5880    :Vain valitut
 STR_5881    :Vain ei-valitut
 STR_5882    :Mukautettu valuutta

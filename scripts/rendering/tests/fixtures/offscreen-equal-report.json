@@ -1,0 +1,22 @@
+{
+    "acceptedExceptions": [],
+    "alphaPolicy": 0,
+    "boundsInclusive": null,
+    "differingPixels": 0,
+    "firstMismatch": null,
+    "fixture": "clear-0",
+    "fixtureVersion": 1,
+    "height": 48,
+    "layer": "indexed",
+    "maxChannelError": [
+        0,
+        0,
+        0,
+        0
+    ],
+    "offscreen": true,
+    "submissionId": 1,
+    "targetGeneration": 1,
+    "visualReview": "not-required",
+    "width": 64
+}

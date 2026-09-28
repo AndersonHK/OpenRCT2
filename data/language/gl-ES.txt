@@ -2921,11 +2921,6 @@ STR_5871    :As plantas non se murchan
 STR_5872    :Desactiva o envellecemento das plantas para que non murchen.
 STR_5873    :Permitir cadeas elevadoras en todas as seccións de vía
 STR_5874    :Permite facer calquera sección de vía nunha cadea elevadora
-STR_5875    :Motor de debuxo:
-STR_5876    :Motor a empregar para debuxar o xogo.
-STR_5877    :Soporte lóxico
-STR_5878    :Soporte lóxico (a través de Soporte físico)
-STR_5879    :OpenGL (experimental)
 STR_5880    :Só seleccionados
 STR_5881    :Só Non seleccionados
 STR_5882    :Moeda personalizada

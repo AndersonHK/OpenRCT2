@@ -50,7 +50,10 @@ void TileElementPaintSetup(PaintSession& session, const CoordsXY& mapCoords, boo
     {
         PaintUtilSetSegmentSupportHeight(session, kSegmentsAll, 0xFFFF, 0);
         PaintUtilForceSetGeneralSupportHeight(session, -1, 0);
-        session.Flags = isTrackPiecePreview ? PaintSessionFlags::IsTrackPiecePreview : 0;
+        // Native category admission belongs to the whole viewport column, not the current tile.
+        const auto nativeCategories = session.Flags & (PaintSessionFlags::SurfaceBaseDrawn | PaintSessionFlags::EntitiesDrawn);
+        session.Flags = static_cast<uint8_t>(
+            nativeCategories | (isTrackPiecePreview ? PaintSessionFlags::IsTrackPiecePreview : 0));
         session.WaterHeight = 0xFFFF;
 
         PaintTileElementBase(session, mapCoords);

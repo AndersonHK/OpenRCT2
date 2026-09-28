@@ -12,6 +12,7 @@
 #ifdef ENABLE_SCRIPTING
 
     #include "CustomImages.h"
+    #include <limits>
 
     #include <openrct2/Context.h>
     #include <openrct2/SpriteIds.h>
@@ -98,8 +99,15 @@ namespace OpenRCT2::Scripting
 
             auto& scriptEngine = GetContext()->GetScriptEngine();
             auto plugin = scriptEngine.GetExecInfo().GetCurrentPlugin();
-            auto range = AllocateCustomImages(plugin, count);
-            return range ? CreateImageIndexRange(ctx, range->BaseId, range->Count) : JS_UNDEFINED;
+            try
+            {
+                auto range = AllocateCustomImages(plugin, count);
+                return range ? CreateImageIndexRange(ctx, range->BaseId, range->Count) : JS_UNDEFINED;
+            }
+            catch (const std::exception& e)
+            {
+                return JS_ThrowInternalError(ctx, "%s", e.what());
+            }
         }
 
         static JSValue free(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
@@ -116,10 +124,14 @@ namespace OpenRCT2::Scripting
 
             auto& scriptEngine = GetContext()->GetScriptEngine();
             auto plugin = scriptEngine.GetExecInfo().GetCurrentPlugin();
-            if (!FreeCustomImages(plugin, range))
+            try
             {
-                JS_ThrowPlainError(ctx, "This plugin did not allocate the specified image range.");
-                return JS_EXCEPTION;
+                if (!FreeCustomImages(plugin, range))
+                    return JS_ThrowPlainError(ctx, "Image range is not owned by this plugin or is being drawn.");
+            }
+            catch (const std::exception& e)
+            {
+                return JS_ThrowInternalError(ctx, "%s", e.what());
             }
 
             return JS_UNDEFINED;
@@ -136,7 +148,14 @@ namespace OpenRCT2::Scripting
         {
             JS_UNPACK_INT32(id, ctx, argv[0]);
 
-            return JSGetImagePixelData(ctx, id);
+            try
+            {
+                return JSGetImagePixelData(ctx, id);
+            }
+            catch (const std::exception& e)
+            {
+                return JS_ThrowInternalError(ctx, "%s", e.what());
+            }
         }
 
         static JSValue setPixelData(JSContext* ctx, JSValue thisVal, int argc, JSValue* argv)
@@ -174,6 +193,9 @@ namespace OpenRCT2::Scripting
                 JS_ThrowPlainError(ctx, "Invalid size argument");
                 return JS_EXCEPTION;
             }
+            if (*width <= 0 || *height <= 0 || *width > std::numeric_limits<int16_t>::max()
+                || *height > std::numeric_limits<int16_t>::max())
+                return JS_ThrowPlainError(ctx, "Invalid custom image dimensions");
             JSCallback callback(ctx, argv[2]);
 
             auto& scriptEngine = GetContext()->GetScriptEngine();
@@ -184,8 +206,15 @@ namespace OpenRCT2::Scripting
                 return JS_EXCEPTION;
             }
 
-            JSDrawCustomImage(
-                ctx, scriptEngine, id, { static_cast<int32_t>(width.value()), static_cast<int32_t>(height.value()) }, callback);
+            try
+            {
+                JSDrawCustomImage(
+                    ctx, scriptEngine, id, { static_cast<int32_t>(width.value()), static_cast<int32_t>(height.value()) }, callback);
+            }
+            catch (const std::exception& e)
+            {
+                return JS_ThrowInternalError(ctx, "%s", e.what());
+            }
             return JS_UNDEFINED;
         }
 

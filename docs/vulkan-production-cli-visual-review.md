@@ -1,0 +1,27 @@
+# Production configured CLI visual review
+
+The configured-factory matrix passes: 64 screenshots and eight lifecycle controls. Every PNG, indexed buffer, RGB palette and decoded RGBA buffer is byte-identical to its qualified frozen controlled-background reference. No divergence or renderer exception was accepted.
+
+Accepted image runs are `production-cli-{software,vulkan}-background-{01,02}` (16 cases each). Lifecycle runs are `production-cli-software-lifecycle-02` (three cases) and `production-cli-vulkan-lifecycle-02` (five cases). They use the new receipt-qualified `production-cli-build-03` driver. The companion JSON pins all six summaries, all output/config/report/log hashes and reviewed source files. I independently rehashed all 35,460 unique files in their recorded before/after input inventories; all matched. These inventories include build/source/dependency/runtime artifacts and isolated installed assets. Both renderer lanes have a fresh-process repeat with identical inputs and results.
+
+Each image run covers four rotations, zooms 0 and 1, and ordinary versus explicit transparent background at 640x480, world focus [336,112,144]. The isolated config explicitly sets `transparent_screenshot = false`, so `--transparent` is a meaningful separate branch. All eight camera pairs differ outside the park, replacing opaque blank index 10 with transparent index 0; park geometry remains unchanged.
+
+The production configured factory is constructed before config loading and selects the renderer from the loaded config when the real screenshot handler requests it. All 32 software captures record engine 0 (`SOFTWARE_HWD`), one disabled policy observation, zero service/device, and no owned Vulkan capture. All 32 Vulkan captures record engine 2 (`VULKAN`), two enabled policy observations, one service, one created persistent owner device, and no benchmark override. A Vulkan screenshot cannot pass this gate by quietly falling back to software: the actual owned GPU result must exist and match the output PNG's indexed and RGBA data exactly. The owned request/result palettes also match the PNG palette, and all dimensions, byte counts and submission/target identities were checked. Vulkan service creation reports all 29,294 G1 records/payloads and required RCT1 CSG loaded.
+
+Configured runs use the real production shader lookup under their isolated `installed-data/shaders/vulkan` directory. Pinned runner source clears inherited renderer/Vulkan diagnostics, omits the diagnostic renderer selector and shader-directory override in configured mode, and installs receipt-qualified shaders. The final installed tree equals the verified frozen asset inventory plus the specific qualified shader replacements. Its full inventory is pinned before children run and audited afterward. This is source-and-inventory evidence; the run does not intercept file opens or archive the child environment independently.
+
+I manually inspected all 16 first-run configured Vulkan PNGs and four corresponding frozen images (20 images). Ferris-wheel spokes/supports, entrance towers and banner, station occlusion, grass/cliff boundaries and fence alignment match through rotations and zoom. The ordinary background remains opaque dark green-grey; the transparent variant removes only the intended outside background. Every Vulkan image process activated Khronos validation with synchronization validation enabled and produced no warning, error, VUID or synchronization hazard.
+
+| Lifecycle control | Software | Vulkan | Services / devices |
+| --- | --- | --- | --- |
+| Help | Pass | Pass | 0 / 0 |
+| Version | Pass | Pass | 0 / 0 |
+| Missing park | Explicit failure | Explicit failure | 0 / 0 |
+| Giant screenshot | Not a software rejection control | Explicit tiled-rendering requirement | 0 / 0 |
+| Oversized ordinary screenshot | Not a software rejection control | Explicit bounded-pool failure | 1 / 0 |
+
+All eight controls produce no PNG or owned readback. Help/version/missing-park do not evaluate render selection. Giant and oversized Vulkan requests select the configured Vulkan path and fail explicitly without software fallback. No device is created in these lifecycle controls, so validation activation is required by the separate successful-image cases. Giant rejection remains an open feature limitation, not completed parity.
+
+The preserved `production-cli-software-lifecycle-01` failed during preflight before any child ran: frozen installed data already contained Vulkan shader files. The corrected installer verifies the entire original copy, permits replacement only at recognized destinations whose existing bytes equal the pinned frozen entry, and pins the exact final tree. The failed receipt remains rejected; this was not a pixel divergence or waived validation warning.
+
+The observer driver calls the real dispatcher and production configured factory; it does not independently capture execution of the ordinary production launcher. Zero/one device evidence is the supplied persistent owner's `IsCreated` state plus reviewed wiring, not global Vulkan API interception. Software captures lack the Vulkan factory's post-load asset observer. These bounded screenshots establish neither complete native world rendering nor performance, upload-bandwidth, vsync or TPS targets. Main-window lifecycle is qualified separately in `vulkan-production-service-lifecycle-review.md`. Global Gate P and software removal remain open.

@@ -1,0 +1,97 @@
+{
+  "status": "all15runs exact and validation clean",
+  "build": "obj/vulkan-parity/ui-build-14/receipt.json",
+  "shaderBuild": "obj/vulkan-parity/build-29/receipt.json",
+  "runs": [
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-baseline-01\\summary.json",
+      "summarySha256": "1f4312509bd5ca8c511c1814495f0c68619fc443c596d37d60b790f1cd7de9dc",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-light-night-01\\summary.json",
+      "summarySha256": "223ff96cbe2ccfa02b31d9dd5b56c994b8ec57b526abe57e449586ef80f87fd0",
+      "captures": 4,
+      "comparisons": 8
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-overlap-01\\summary.json",
+      "summarySha256": "2dc5bb8ac2715bf35056bc98895e6325c8ee41f727df8f88dbcd91efa44bdd68",
+      "captures": 12,
+      "comparisons": 24
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-scroll-01\\summary.json",
+      "summarySha256": "382971cbd74b2f064a061f106ace4e963f957ffeb801b318f9156cac30f9db70",
+      "captures": 12,
+      "comparisons": 24
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-grid-01\\summary.json",
+      "summarySha256": "533264254597482e1f67f71d806e450307572c3b133736e64a3c4843782c0459",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-overlap-01\\summary.json",
+      "summarySha256": "16608b4fc25a116910a76a3f3ca3c4b5ff3443941f67c4848d3fc725fd4b2851",
+      "captures": 12,
+      "comparisons": 24
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-r0z0-01\\summary.json",
+      "summarySha256": "991196c41c444bc7e4f139dcd1d15536a8a40ac63695c110f127bde278d34b05",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-r0z1phase-01\\summary.json",
+      "summarySha256": "a5bca9dea81d05e01c595d08756b1d9b4fb6d2112689a03598ae16df43a1e881",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-r1z0-01\\summary.json",
+      "summarySha256": "7847aec5feab5fe96da100959c2cb06c0a47687a7ac6f7280d0af7e6f3eac896",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-r2z0-01\\summary.json",
+      "summarySha256": "a9ed6859253dda6f6c9baf2af9e12002a70a6bf68f86fe6866fd32dffb725209",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-r3z0-01\\summary.json",
+      "summarySha256": "4814569274e2934bd28891f186101d66545c6e6ff19e8953c13777cce871eb68",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-terrain-smooth-01\\summary.json",
+      "summarySha256": "03524dc294ea52dbb8ecb259470a084ed535f5c7336b59bcf1ed10c08c3dc2f2",
+      "captures": 2,
+      "comparisons": 4
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-text-01\\summary.json",
+      "summarySha256": "58d602803d63f7ec76a66c73650be7830037786bb6cba6f920c1e2c97e37b21b",
+      "captures": 12,
+      "comparisons": 24
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-weather-palette-01\\summary.json",
+      "summarySha256": "41cbe66cba660a038fe06af1a7dc81357b216d5da18e73f60285135903f6b830",
+      "captures": 6,
+      "comparisons": 12
+    },
+    {
+      "summary": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\ui-e2a-vulkan-weather-precipitation-01\\summary.json",
+      "summarySha256": "8389ef5750ff2c7f03e83cffe21b37809e505a358c7f3b841cda3ef6f04b1118",
+      "captures": 8,
+      "comparisons": 16
+    }
+  ]
+}

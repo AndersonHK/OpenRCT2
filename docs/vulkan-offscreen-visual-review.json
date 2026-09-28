@@ -1,0 +1,1496 @@
+{
+  "schema": 1,
+  "date": "2026-09-19",
+  "reviewer": "/root/decode_assets",
+  "status": "pass-bounded-offscreen-visual-coverage",
+  "summary": {
+    "path": "obj/vulkan-parity/run-31/summary.json",
+    "sha256": "a1a59d9ff9f212ae61a6bcc841d97d91802c5efcc49861abea8208333f948b0b"
+  },
+  "testLog": {
+    "path": "obj/vulkan-parity/run-31/tests.log",
+    "sha256": "6aa75db952b28bcc0ea4c975081f1c14d5e2b65709638d3b7d73878f62c78a02"
+  },
+  "testSource": {
+    "path": "test/tests/VulkanOffscreenRenderTests.cpp",
+    "sha256": "cb6a54d37ba2dfacb8bdb40a6696b467b9e11d325d2255353dbbff2cc34a6bf3"
+  },
+  "acceptedRendererExceptions": [],
+  "fixtures": [
+    {
+      "name": "clear-0",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/clear-0.png",
+        "sha256": "9c82c05ffec10a34839f55fc43cde8a834b2f5311aa88d04418d4ba41c42626b"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/report.json",
+            "sha256": "c922260a4ea852ed2e337f987fd7c03582eef0006f3a6db6c7c7ea099c7e3c7c"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/software.png",
+              "sha256": "b8d419ef47cc6b824d230eac99e2828e7100f6b4b0e617dd1db6b05cfda8a69d"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/vulkan.png",
+              "sha256": "b8d419ef47cc6b824d230eac99e2828e7100f6b4b0e617dd1db6b05cfda8a69d"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 0
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/report.json",
+            "sha256": "4e086dd36b386c298c0de985e8c559d8a3b5cac63a27b983301925631d3c4437"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/software.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/vulkan.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/software.png",
+              "sha256": "b8d419ef47cc6b824d230eac99e2828e7100f6b4b0e617dd1db6b05cfda8a69d"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/vulkan.png",
+              "sha256": "b8d419ef47cc6b824d230eac99e2828e7100f6b4b0e617dd1db6b05cfda8a69d"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-0/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 0,
+          "alphaValues": [
+            255
+          ],
+          "transparentPixels": 0,
+          "partialAlphaPixels": 0
+        }
+      }
+    },
+    {
+      "name": "clear-1",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/clear-1.png",
+        "sha256": "81e21a7f6a8adfd73412dcd228c5cdd50bae281c15ec26cac369e2e211343756"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/report.json",
+            "sha256": "f2d9735f546989de917a89b47efeae5f95143705ad92a81282dd9d1e3c59ceb1"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/software.png",
+              "sha256": "318e63ac65b3a9d8887573c6063f38b5da1e69a84ca2320db0f272e973e90418"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/vulkan.png",
+              "sha256": "318e63ac65b3a9d8887573c6063f38b5da1e69a84ca2320db0f272e973e90418"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 1
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/report.json",
+            "sha256": "22357987dabbdc69efbdd495815add39ad5a26bb9f462ab61b21caab5eda0057"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/software.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/vulkan.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/software.png",
+              "sha256": "318e63ac65b3a9d8887573c6063f38b5da1e69a84ca2320db0f272e973e90418"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/vulkan.png",
+              "sha256": "318e63ac65b3a9d8887573c6063f38b5da1e69a84ca2320db0f272e973e90418"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-1/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 1,
+          "alphaValues": [
+            0,
+            25,
+            79,
+            91,
+            156,
+            180,
+            233
+          ],
+          "transparentPixels": 132,
+          "partialAlphaPixels": 2940
+        }
+      }
+    },
+    {
+      "name": "clear-2",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/clear-2.png",
+        "sha256": "54f69fe5c3114c085323a94904c254c18417e8de686a054ee16de2332db13a2e"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/report.json",
+            "sha256": "19960524a2eca9e0b556ae3b5a261c60378b60da0290bf8fd6de79be7066248b"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/software.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/vulkan.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/report.json",
+            "sha256": "971ffd70fe543df105f024e27492a8a26c0a599b91f8b4d6791865322e1fbc8d"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/software.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/vulkan.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/clear-2/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2,
+          "alphaValues": [
+            0,
+            255
+          ],
+          "transparentPixels": 132,
+          "partialAlphaPixels": 0
+        }
+      }
+    },
+    {
+      "name": "offscreen-primitives",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/offscreen-primitives.png",
+        "sha256": "54f69fe5c3114c085323a94904c254c18417e8de686a054ee16de2332db13a2e"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/report.json",
+            "sha256": "b8697f9c758ed5e1ba7c66666315beccfbb63dab33c4bd079005875671347c25"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/software.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/vulkan.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/report.json",
+            "sha256": "07925b8e7e900a3e41908d5e1aae0d0515c1bde34f24396094fe597d30f71b50"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/software.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/vulkan.png",
+              "sha256": "9192e36d0dfc30a73ebc2b7ee3a64ca7822c1fb1cafd096e6393570efc58a8c7"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/offscreen-primitives/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2,
+          "alphaValues": [
+            0,
+            255
+          ],
+          "transparentPixels": 132,
+          "partialAlphaPixels": 0
+        }
+      }
+    },
+    {
+      "name": "owned-0",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/owned-0.png",
+        "sha256": "e15f814813e95c8ca2f45ced3961b773798e8ac3f6e754d129ab62af8a94b423"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/report.json",
+            "sha256": "e7ea035a18665d4b34b2b403388d9b403b2d5a325db468351fb94fbe94d35846"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/software.png",
+              "sha256": "0965bffb6db6d6e4c1db078d4c2b5a2878b06700679792cb47ef17a55bfa8c98"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/vulkan.png",
+              "sha256": "0965bffb6db6d6e4c1db078d4c2b5a2878b06700679792cb47ef17a55bfa8c98"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 0
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/report.json",
+            "sha256": "7ff07eeb4631bcb4f85dcc6bf174eb7c80511ab2343b84bedd492976d8d1042c"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/software.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/vulkan.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/software.png",
+              "sha256": "0965bffb6db6d6e4c1db078d4c2b5a2878b06700679792cb47ef17a55bfa8c98"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/vulkan.png",
+              "sha256": "0965bffb6db6d6e4c1db078d4c2b5a2878b06700679792cb47ef17a55bfa8c98"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-0/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 0,
+          "alphaValues": [
+            255
+          ],
+          "transparentPixels": 0,
+          "partialAlphaPixels": 0
+        }
+      }
+    },
+    {
+      "name": "owned-1",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/owned-1.png",
+        "sha256": "bc97c685cc3e07a6603118d12c119cb69e9be0e1b08418ed861bef5b86cda0f4"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/report.json",
+            "sha256": "debf64ff2054f4d2af1b3341312bc7f6d613fa519417f5254970a87a60947733"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/software.png",
+              "sha256": "b1ca9387b5020c96883b5c7a3c69a2b05105f615118af2fd30cef52cd39fd7e1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/vulkan.png",
+              "sha256": "b1ca9387b5020c96883b5c7a3c69a2b05105f615118af2fd30cef52cd39fd7e1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 1
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/report.json",
+            "sha256": "48222c9f6793128bd26d585f78c8cdbe5499c11aa21b497e39a087868de671f6"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/software.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/vulkan.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/software.png",
+              "sha256": "b1ca9387b5020c96883b5c7a3c69a2b05105f615118af2fd30cef52cd39fd7e1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/vulkan.png",
+              "sha256": "b1ca9387b5020c96883b5c7a3c69a2b05105f615118af2fd30cef52cd39fd7e1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-1/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 1,
+          "alphaValues": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148,
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170,
+            171,
+            172,
+            173,
+            174,
+            175,
+            176,
+            177,
+            178,
+            179,
+            180,
+            181,
+            182,
+            183,
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193,
+            194,
+            195,
+            196,
+            197,
+            198,
+            199,
+            200,
+            201,
+            202,
+            203,
+            204,
+            205,
+            206,
+            207,
+            208,
+            209,
+            210,
+            211,
+            212,
+            213,
+            214,
+            215,
+            216,
+            217,
+            218,
+            219,
+            220,
+            221,
+            222,
+            223,
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238,
+            239,
+            240,
+            241,
+            242,
+            243,
+            244,
+            245,
+            246,
+            247,
+            248,
+            249,
+            250,
+            251,
+            252,
+            253,
+            254,
+            255
+          ],
+          "transparentPixels": 138,
+          "partialAlphaPixels": 2922
+        }
+      }
+    },
+    {
+      "name": "owned-2",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/owned-2.png",
+        "sha256": "8a92e60c4e5342ddf0c7c2a261f9ebc385aba0325dfc988612d9f50b9c3e15cb"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/report.json",
+            "sha256": "5fa9d96933c11de6db51c21fddf9ab8a04aff42c590e1f41ab027cef27e771f2"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/software.png",
+              "sha256": "7c8f201dcd3ca771bb1e36bcb2f03457bde390680169d9c3ee39787055cf94a1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/vulkan.png",
+              "sha256": "7c8f201dcd3ca771bb1e36bcb2f03457bde390680169d9c3ee39787055cf94a1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/report.json",
+            "sha256": "9fccd0a31c3d49a3db3734de9f01cdff03c90d7cb1ae728e9a715a8a2ade8c42"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/software.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/vulkan.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/software.png",
+              "sha256": "7c8f201dcd3ca771bb1e36bcb2f03457bde390680169d9c3ee39787055cf94a1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/vulkan.png",
+              "sha256": "7c8f201dcd3ca771bb1e36bcb2f03457bde390680169d9c3ee39787055cf94a1"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-2/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": 2,
+          "alphaValues": [
+            0,
+            255
+          ],
+          "transparentPixels": 138,
+          "partialAlphaPixels": 0
+        }
+      }
+    },
+    {
+      "name": "owned-sprite-covered-zero",
+      "manualReview": "Full indexed and RGBA software/Vulkan/diff sheets viewed; nearest 4x enlargement; identical shapes, colour/alpha and clipping; black differences",
+      "sheet": {
+        "path": "obj/vulkan-parity/offscreen-manual-review/owned-sprite-covered-zero.png",
+        "sha256": "ce32ca6104b59eccaef194da0b0279abfda21628becb98de14a90865611d012b"
+      },
+      "layers": {
+        "indexed": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/report.json",
+            "sha256": "d23241e3319e92bd516146c88c0e6d9b22f8432e3e3bb546aa3f0e02ee016ca3"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/software.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/vulkan.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/software.png",
+              "sha256": "0ba726df229303b45776e7965a5405d8e4e000e99545c0cdb0d904c737f88ca5"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/vulkan.png",
+              "sha256": "0ba726df229303b45776e7965a5405d8e4e000e99545c0cdb0d904c737f88ca5"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/indexed/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": null
+        },
+        "rgba": {
+          "report": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/report.json",
+            "sha256": "a4d136cbb56035006073e2db2ae20bb80dbe83ef9e0ba49c4cbcc921bce68d6a"
+          },
+          "software": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/software.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          },
+          "vulkan": {
+            "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/vulkan.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          },
+          "pngs": [
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/software.png",
+              "sha256": "0ba726df229303b45776e7965a5405d8e4e000e99545c0cdb0d904c737f88ca5"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/vulkan.png",
+              "sha256": "0ba726df229303b45776e7965a5405d8e4e000e99545c0cdb0d904c737f88ca5"
+            },
+            {
+              "path": "obj/vulkan-parity/run-31/samples/offscreen/owned-sprite-covered-zero/rgba/diff.png",
+              "sha256": "d7ff6630c4b53a742bf874840839ca607fed8c7fd82aa4f866438e74123d4d21"
+            }
+          ],
+          "rawComparison": "exact",
+          "width": 64,
+          "height": 48,
+          "alphaPolicy": null,
+          "alphaValues": [
+            0,
+            255
+          ],
+          "transparentPixels": 45,
+          "partialAlphaPixels": 0
+        }
+      }
+    }
+  ],
+  "fullSuiteTests": 750,
+  "testBinarySha256": "438a6cd9ee6467c825b875ce76825eae15ce700cd14894a49752577b64e043de",
+  "scope": "Frozen X8 primitive oracle and explicit palette expansion versus actual surface-free Vulkan service output. Six initial-content/alpha cases, shared-domain primitive result and source-owned covered-zero sprite; not production auxiliary caller migration, main UI, offscreen park scene, or performance proof.",
+  "manualImageTreatment": "PNG palette/alpha is composited over #555555 and enlarged 4x nearest for inspection. Raw indexed bytes and all RGBA channels independently compared exactly; alpha policy values and counts are retained. Original automatic report visualReview labels are not rewritten.",
+  "postShutdownOrderingFixConfirmation": {
+    "summary": {
+      "path": "obj/vulkan-parity/run-32/summary.json",
+      "sha256": "0f628eddab9a7fffad0f38e2b466534ec5cdc11f5b04c2257ddc24ca46508f26"
+    },
+    "testLog": {
+      "path": "obj/vulkan-parity/run-32/tests.log",
+      "sha256": "537541dd60ee204d935667c34c3984a30f6a23737f4a5bf28a28984d84314e48"
+    },
+    "status": "All16reports and raw software/Vulkan buffers independently byte-identical to manually reviewed run31; visual conclusions carry forward only for these images.",
+    "reports": [
+      {
+        "fixture": "clear-0",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/indexed/report.json",
+          "sha256": "c922260a4ea852ed2e337f987fd7c03582eef0006f3a6db6c7c7ea099c7e3c7c"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "fixture": "clear-0",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/rgba/report.json",
+          "sha256": "4e086dd36b386c298c0de985e8c559d8a3b5cac63a27b983301925631d3c4437"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/rgba/software.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-0/rgba/vulkan.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          }
+        ]
+      },
+      {
+        "fixture": "clear-1",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/indexed/report.json",
+          "sha256": "f2d9735f546989de917a89b47efeae5f95143705ad92a81282dd9d1e3c59ceb1"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "fixture": "clear-1",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/rgba/report.json",
+          "sha256": "22357987dabbdc69efbdd495815add39ad5a26bb9f462ab61b21caab5eda0057"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/rgba/software.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-1/rgba/vulkan.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          }
+        ]
+      },
+      {
+        "fixture": "clear-2",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/indexed/report.json",
+          "sha256": "19960524a2eca9e0b556ae3b5a261c60378b60da0290bf8fd6de79be7066248b"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "fixture": "clear-2",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/rgba/report.json",
+          "sha256": "971ffd70fe543df105f024e27492a8a26c0a599b91f8b4d6791865322e1fbc8d"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/clear-2/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          }
+        ]
+      },
+      {
+        "fixture": "offscreen-primitives",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/indexed/report.json",
+          "sha256": "b8697f9c758ed5e1ba7c66666315beccfbb63dab33c4bd079005875671347c25"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "fixture": "offscreen-primitives",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/rgba/report.json",
+          "sha256": "07925b8e7e900a3e41908d5e1aae0d0515c1bde34f24396094fe597d30f71b50"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/offscreen-primitives/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-0",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/indexed/report.json",
+          "sha256": "e7ea035a18665d4b34b2b403388d9b403b2d5a325db468351fb94fbe94d35846"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-0",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/rgba/report.json",
+          "sha256": "7ff07eeb4631bcb4f85dcc6bf174eb7c80511ab2343b84bedd492976d8d1042c"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/rgba/software.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-0/rgba/vulkan.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-1",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/indexed/report.json",
+          "sha256": "debf64ff2054f4d2af1b3341312bc7f6d613fa519417f5254970a87a60947733"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-1",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/rgba/report.json",
+          "sha256": "48222c9f6793128bd26d585f78c8cdbe5499c11aa21b497e39a087868de671f6"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/rgba/software.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-1/rgba/vulkan.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-2",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/indexed/report.json",
+          "sha256": "5fa9d96933c11de6db51c21fddf9ab8a04aff42c590e1f41ab027cef27e771f2"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-2",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/rgba/report.json",
+          "sha256": "9fccd0a31c3d49a3db3734de9f01cdff03c90d7cb1ae728e9a715a8a2ade8c42"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/rgba/software.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-2/rgba/vulkan.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-sprite-covered-zero",
+        "layer": "indexed",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/indexed/report.json",
+          "sha256": "d23241e3319e92bd516146c88c0e6d9b22f8432e3e3bb546aa3f0e02ee016ca3"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/indexed/software.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/indexed/vulkan.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          }
+        ]
+      },
+      {
+        "fixture": "owned-sprite-covered-zero",
+        "layer": "rgba",
+        "report": {
+          "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/rgba/report.json",
+          "sha256": "a4d136cbb56035006073e2db2ae20bb80dbe83ef9e0ba49c4cbcc921bce68d6a"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/rgba/software.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          },
+          {
+            "path": "obj/vulkan-parity/run-32/samples/offscreen/owned-sprite-covered-zero/rgba/vulkan.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          }
+        ]
+      }
+    ]
+  },
+  "freshNoWindowConfirmation": {
+    "summary": {
+      "path": "obj/vulkan-parity/e4-no-window-offscreen-01/summary.json",
+      "sha256": "0895e42cb91638ba7d871f48f2026b8d06b05c8e64bebc0faee10b5425905092"
+    },
+    "buildReceipt": {
+      "path": "C:/Users/imper/Documents/GitHub/OpenRCT2/obj/vulkan-parity/e4-no-window-07/receipt.json",
+      "sha256": "822bd32ee37698c7ad9a57e237500b61f7c53270c29a7d9e58d68a7e234e7ac6"
+    },
+    "testLog": {
+      "path": "obj/vulkan-parity/e4-no-window-offscreen-01/tests.log",
+      "sha256": "3be079bc11d8c8318e56dfe79cc8dec4677a5d2ff4cef810f1a67d2844c3c333"
+    },
+    "status": "8 tests pass; validation active and clean; all32 raw buffers match reviewed run32/run31 exactly",
+    "reports": [
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/indexed/report.json",
+          "sha256": "c922260a4ea852ed2e337f987fd7c03582eef0006f3a6db6c7c7ea099c7e3c7c"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/rgba/report.json",
+          "sha256": "4e086dd36b386c298c0de985e8c559d8a3b5cac63a27b983301925631d3c4437"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/rgba/software.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-0/rgba/vulkan.bin",
+            "sha256": "d82a5f7fc908b20e7944c0326ba475219a41e97f0fc1b3ff1f1130c98dc71fa2"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/indexed/report.json",
+          "sha256": "f2d9735f546989de917a89b47efeae5f95143705ad92a81282dd9d1e3c59ceb1"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/rgba/report.json",
+          "sha256": "22357987dabbdc69efbdd495815add39ad5a26bb9f462ab61b21caab5eda0057"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/rgba/software.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-1/rgba/vulkan.bin",
+            "sha256": "3239058478d1006457904fbb83a870c80b972869ad4341e2fd0d9427b46efb55"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/indexed/report.json",
+          "sha256": "19960524a2eca9e0b556ae3b5a261c60378b60da0290bf8fd6de79be7066248b"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/rgba/report.json",
+          "sha256": "971ffd70fe543df105f024e27492a8a26c0a599b91f8b4d6791865322e1fbc8d"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/clear-2/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/indexed/report.json",
+          "sha256": "b8697f9c758ed5e1ba7c66666315beccfbb63dab33c4bd079005875671347c25"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/indexed/software.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/indexed/vulkan.bin",
+            "sha256": "92dbc1be44f8d55bb9877b7041b1284d5c897acfe3eaaee63eb63d48881ddd05"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/rgba/report.json",
+          "sha256": "07925b8e7e900a3e41908d5e1aae0d0515c1bde34f24396094fe597d30f71b50"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/rgba/software.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/offscreen-primitives/rgba/vulkan.bin",
+            "sha256": "0e21d5545f168001c4d4a3fba75d1f78fc359fee3b07489d4a6f88eb8e66cece"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/indexed/report.json",
+          "sha256": "e7ea035a18665d4b34b2b403388d9b403b2d5a325db468351fb94fbe94d35846"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/rgba/report.json",
+          "sha256": "7ff07eeb4631bcb4f85dcc6bf174eb7c80511ab2343b84bedd492976d8d1042c"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/rgba/software.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-0/rgba/vulkan.bin",
+            "sha256": "50cbca2d4c8fbd8d71098c60f1c42d8f1a0758bcd37e4de8b3b4f229d68035a2"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/indexed/report.json",
+          "sha256": "debf64ff2054f4d2af1b3341312bc7f6d613fa519417f5254970a87a60947733"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/rgba/report.json",
+          "sha256": "48222c9f6793128bd26d585f78c8cdbe5499c11aa21b497e39a087868de671f6"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/rgba/software.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-1/rgba/vulkan.bin",
+            "sha256": "f337625ab7d8309994549af26426867363f037e966cf41e45b06e6984822bbaf"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/indexed/report.json",
+          "sha256": "5fa9d96933c11de6db51c21fddf9ab8a04aff42c590e1f41ab027cef27e771f2"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/indexed/software.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/indexed/vulkan.bin",
+            "sha256": "40b15af7f8ec39037bd564633d9616bf9e2a45ecee30df35e9bf83cd99a71ccc"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/rgba/report.json",
+          "sha256": "9fccd0a31c3d49a3db3734de9f01cdff03c90d7cb1ae728e9a715a8a2ade8c42"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/rgba/software.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-2/rgba/vulkan.bin",
+            "sha256": "bf18b9b18cf3fe4d27dc6268122198023ce5610b535b49570da1627879ea2811"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/indexed/report.json",
+          "sha256": "d23241e3319e92bd516146c88c0e6d9b22f8432e3e3bb546aa3f0e02ee016ca3"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/indexed/software.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/indexed/vulkan.bin",
+            "sha256": "73c03eb9ee951666dcf2c3ca099bfab1875e65334bbab5528c2c9a10fcb2c4aa"
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/rgba/report.json",
+          "sha256": "a4d136cbb56035006073e2db2ae20bb80dbe83ef9e0ba49c4cbcc921bce68d6a"
+        },
+        "raw": [
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/rgba/software.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          },
+          {
+            "path": "obj/vulkan-parity/e4-no-window-offscreen-01/samples/offscreen/owned-sprite-covered-zero/rgba/vulkan.bin",
+            "sha256": "79f94f0b6ba2a78fb1c88796cd551ea350a3bba3ea9e8efd502380042f560ba1"
+          }
+        ]
+      }
+    ]
+  }
+}

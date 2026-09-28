@@ -112,12 +112,12 @@ protected:
         ride->stableStats.stations[0].SegmentTime = segmentTime;
         for (auto& station : ride->getStations())
         {
-            station.start.setNull();
-            station.entrance.setNull();
-            station.exit.setNull();
+            station.clearStart();
+            station.clearEntrance();
+            station.clearExit();
         }
-        ride->getStation(StationIndex::FromUnderlying(0)).entrance = entrance;
-        ride->getStation(StationIndex::FromUnderlying(stationCount - 1)).exit = exit;
+        ride->getStation(StationIndex::FromUnderlying(0)).setEntrance(entrance);
+        ride->getStation(StationIndex::FromUnderlying(stationCount - 1)).setExit(exit);
         return ride;
     }
 
@@ -400,7 +400,7 @@ TEST_P(SimplePathfindingTest, CanFindPathFromStartToGoal)
     auto ride = FindRideByName(scenario.name);
     ASSERT_NE(ride, nullptr);
 
-    auto entrancePos = ride->getStation().entrance;
+    auto entrancePos = ride->getStation().getEntrance();
     TileCoordsXYZ goal = TileCoordsXYZ(
         entrancePos.x - TileDirectionDelta[entrancePos.direction].x,
         entrancePos.y - TileDirectionDelta[entrancePos.direction].y, entrancePos.z);
@@ -784,7 +784,7 @@ TEST_P(ImpossiblePathfindingTest, CannotFindPathFromStartToGoal)
     auto ride = FindRideByName(scenario.name);
     ASSERT_NE(ride, nullptr);
 
-    auto entrancePos = ride->getStation().entrance;
+    auto entrancePos = ride->getStation().getEntrance();
     TileCoordsXYZ goal = TileCoordsXYZ(
         entrancePos.x + TileDirectionDelta[entrancePos.direction].x,
         entrancePos.y + TileDirectionDelta[entrancePos.direction].y, entrancePos.z);

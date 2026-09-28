@@ -7,9 +7,12 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
-#include "../drawing/X8DrawingEngine.h"
+#include "../drawing/IDrawingEngine.h"
 #include "UiContext.h"
 #include "WindowManager.h"
+
+#include <stdexcept>
+#include <utility>
 
 using namespace OpenRCT2::Drawing;
 
@@ -22,8 +25,14 @@ namespace OpenRCT2::Ui
     {
     private:
         std::unique_ptr<IWindowManager> const _windowManager = CreateDummyWindowManager();
+        const std::shared_ptr<IDrawingEngineFactory> _drawingEngineFactory;
 
     public:
+        explicit DummyUiContext(std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
+            : _drawingEngineFactory(std::move(drawingEngineFactory))
+        {
+        }
+
         void InitialiseScriptExtensions() override
         {
         }
@@ -165,18 +174,18 @@ namespace OpenRCT2::Ui
         {
         }
 
-        class X8DrawingEngineFactory final : public IDrawingEngineFactory
+        class UnavailableDrawingEngineFactory final : public IDrawingEngineFactory
         {
-            std::unique_ptr<IDrawingEngine> Create([[maybe_unused]] DrawingEngine type, IUiContext& uiContext) override
+            std::unique_ptr<IDrawingEngine> Create(IUiContext&) override
             {
-                return std::make_unique<X8DrawingEngine>(uiContext);
+                throw std::runtime_error("A nongraphical UI has no display renderer; use the shared Vulkan image service.");
             }
         };
 
         // Drawing
         std::shared_ptr<IDrawingEngineFactory> GetDrawingEngineFactory() override
         {
-            return std::make_shared<X8DrawingEngineFactory>();
+            return _drawingEngineFactory ? _drawingEngineFactory : std::make_shared<UnavailableDrawingEngineFactory>();
         }
         void DrawWeatherAnimation(IWeatherDrawer* weatherDrawer, RenderTarget& rt, DrawWeatherFunc drawFunc) override
         {
@@ -219,8 +228,8 @@ namespace OpenRCT2::Ui
         }
     };
 
-    std::unique_ptr<IUiContext> CreateDummyUiContext()
+    std::unique_ptr<IUiContext> CreateDummyUiContext(std::shared_ptr<IDrawingEngineFactory> drawingEngineFactory)
     {
-        return std::make_unique<DummyUiContext>();
+        return std::make_unique<DummyUiContext>(std::move(drawingEngineFactory));
     }
 } // namespace OpenRCT2::Ui

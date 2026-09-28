@@ -1,0 +1,19 @@
+# Corrected terrain camera review
+
+Reviewer: `screenshot_runner`, 2026-09-19. The [machine-readable review](vulkan-terrain-camera-corrected-review.json) pins inspected PNGs, run summaries, actual camera poses, comparisons and the proposed fix. Frozen UI18 and current UI30 rebuilt only their serial drivers using exact, qualified library reuse. Camera contract version 2 independently verifies requested pose after both warmups and every capture.
+
+The historical harness wrote `viewport.viewPos`, but production painting subsequently replaced it from `savedViewPos`. Earlier exact pixels remain valid at each reported actual pose; those runs cannot establish a requested offset or odd phase that was not actually captured. The corrected harness synchronizes explicit targets, preserves the authoritative loaded target for saved cameras, and rejects drift instead of silently capturing a different camera.
+
+## Completed evidence before the matrix stopped
+
+Rotation 0, zoom 0, position `(-480,-240)`: all six processes (frozen/current software/Vulkan, each with a fresh repeat) pass. The first frozen/Vulkan frame pair was manually inspected at 960x640. The grass apex near `(480,256)`, diagonal boundaries, fine texture, dark exterior, toolbar icons and corner status panels match visibly. Both repetitions in each compared process have zero differing indexed and physical RGBA pixels.
+
+Rotation 1, zoom 0, position `(-672,-336)`: frozen and current software each pass both processes, agreeing exactly. The first Vulkan process fails in both captures with **240 differing pixels per layer**, exclusive bounds `(0,608)-(30,623)`. I opened both physical frame comparisons/difference images and indexed masks, plus first-frame indexed reference/candidate images. A small triangle of unfiltered grass appears over the translucent bottom-left guest panel; its footprint is identical in indexed and physical output. Terrain tip near `(608,320)`, remaining grass boundaries and other UI match. This is a Vulkan defect; no exception or tolerance is accepted.
+
+## Proposed repair and remaining checks
+
+Static inspection identifies colliding painter-depth namespaces: native terrain compute writes `orderIndex` as depth, while ordinary commands begin at zero and native surface admission reserves no range. The recent per-tile flag correction suppresses duplicate CPU base sprites, reducing subsequent UI command depths enough to expose the collision. The staged renderer repair reserves a contiguous interval on successful native admission, offsets GPU terrain order by its base, and places later ordinary/transparent UI commands after the interval. Empty clips, invalid counts and exhausted depth space reject without reserving. Atlas reentry is accounted for by computing the committed interval after successful residency resolution. Balloon sealing already reserves its own interval after the current ordinary counter and therefore composes with this repair.
+
+The seven-file candidate is in `obj/vulkan-parity/terrain-depth-interval-staged`. The C++/GLSL push-constant block grows from 56 to 60 bytes, with depth base at offset 56. One foundation regression covers ordering and depth capacity; the existing actual-device runtime test gains nonzero native-base ordering checks against earlier and later ordinary draws. These staged changes have not been compiled or run by this reviewer. Required closure is a qualified shader/C++ build, foundation/device tests, repaired exact r1 captures and visual review, then the remaining corrected camera matrix and B1 regression.
+
+This review establishes neither full terrain migration nor zero CPU terrain work. The base-sprite flag fix makes admitted flat base terrain native, but legacy traversal, border/overlay commands and fallback paths remain. The frozen screenshots contain no performance measurement; VSYNC headroom, CPU/bandwidth and large-park TPS gates remain separate.

@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "fixture": "native-terrain-v1",
+  "accepted": true,
+  "qualification": "Immutable input only; renderer evidence is recorded separately in vulkan-native-terrain-visual-review.md",
+  "manifest": {
+    "path": "obj/vulkan-parity/native-terrain-input-01/manifest.json",
+    "sha256": "fcb07c21e01dd392ddd3f17aa92905f4e5a466c64b26f643ae30fbe15aed8dd7"
+  },
+  "park": {
+    "path": "obj/vulkan-parity/native-terrain-input-01/native-terrain-v1.park",
+    "sha256": "e68fde27ff16c78bafcaa10a58b21f7490a4542ad6534c1c7a59289c25452c8e",
+    "bytes": 5340,
+    "formatVersion": 60016,
+    "compressionLevel": 7,
+    "exportTimeInterval": [
+      1789850034.8671727,
+      1789850035.4136932
+    ]
+  },
+  "frozenReference": {
+    "revision": "9a092745f38a714cf33629aaa005d078d473e48b",
+    "objectsRevision": "b2a5511cd7ff90646dd40c61f08cb27fa977e8f4",
+    "sourceArchiveSha256": "d51ea98df71cec90e8bb94403e3a80deace505e95af3be56a92a0e20644757cf"
+  },
+  "preparerSourceSha256": "09b8a78554b1c75f52e26baa1c7086f98760406888ba3c24d7427b3cfcdd8e29",
+  "runnerSha256": "58fc6fb113c9e6fab9c58641e677eccf1dbcb3b3510f21cd8ade7741dc2b03f0",
+  "builds": {
+    "frozen": {
+      "receipt": "obj/vulkan-parity/terrain-frozen-build-01/receipt.json",
+      "sha256": "ec7d960368cd4c4892304993c612b32efbf97729cf5b9991dca9cab5de1b5dcf",
+      "executableSha256": "fe74edb304593a6916450164902ca4596b859def461ab943fc5fd565de036e25"
+    },
+    "current": {
+      "receipt": "obj/vulkan-parity/terrain-current-build-01/receipt.json",
+      "sha256": "5d88e7f9b3e463e6e0d44e8842c4903c58880ccdedf89c3f7922cce789bff6f7",
+      "executableSha256": "a4f9f9ea61fa9f455915c60580584e641a7954ddf9d3c81374fb0a76d9aec999"
+    }
+  },
+  "census": {
+    "sha256": "a5b4efa797f8bea3e0c993f916b532aa442535e4bc54300a2ef07a0f0d4069c7",
+    "verifiedProcesses": [
+      {
+        "name": "frozen-prepare",
+        "exitCode": 0,
+        "reportSha256": "492e735e2974e87ebdc030db99a0638f589ced5e8c36bc6e442bd49ccd04362b",
+        "canonicalCensusSha256": "a5b4efa797f8bea3e0c993f916b532aa442535e4bc54300a2ef07a0f0d4069c7"
+      },
+      {
+        "name": "frozen-verify",
+        "exitCode": 0,
+        "reportSha256": "f877ce61d7ef2988b07a4fe571321ffcd9459a1102d9d9be1c762d4ff0967b23",
+        "canonicalCensusSha256": "a5b4efa797f8bea3e0c993f916b532aa442535e4bc54300a2ef07a0f0d4069c7"
+      },
+      {
+        "name": "current-verify",
+        "exitCode": 0,
+        "reportSha256": "f877ce61d7ef2988b07a4fe571321ffcd9459a1102d9d9be1c762d4ff0967b23",
+        "canonicalCensusSha256": "a5b4efa797f8bea3e0c993f916b532aa442535e4bc54300a2ef07a0f0d4069c7"
+      }
+    ],
+    "differences": {
+      "frozen-verify": [],
+      "current-verify": []
+    },
+    "mapSize": [
+      32,
+      32
+    ],
+    "declaredElements": 1024,
+    "borderSurfaces": 124,
+    "interiorSurfaces": 900,
+    "technicalStorageElements": 1002001,
+    "allSurfaceBaseAndClearanceZ": 16,
+    "surfaceIdentifier": "rct2.terrain_surface.grass",
+    "edgeIdentifier": "rct2.terrain_edge.rock",
+    "entityTypeCounts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "freeEntitySlots": 65535,
+    "spatialBucketsChecked": 1002002,
+    "nonemptySpatialBuckets": 0,
+    "rides": 0,
+    "spawns": 0,
+    "entrances": 0,
+    "mapAnimationCount": "not publicly observable; surface-only map has no animated element types",
+    "ticks": 0,
+    "date": [
+      0,
+      0
+    ],
+    "weatherCurrent": {
+      "effect": 0,
+      "gloom": 0,
+      "level": 0,
+      "temperature": 20,
+      "type": 0
+    },
+    "weatherNext": {
+      "effect": 0,
+      "gloom": 0,
+      "level": 0,
+      "temperature": 20,
+      "type": 0
+    },
+    "weatherUpdateTimer": 1920,
+    "scenarioRandomState": "1 1",
+    "camera": {
+      "rotation": 0,
+      "x": 0,
+      "y": 80,
+      "zoom": 0
+    }
+  },
+  "assetFileCounts": {
+    "data": 4694,
+    "rct2": 2477,
+    "rct1": 519
+  },
+  "sourcePark": {
+    "path": "obj/vulkan-parity/reference-9a092745f3/testdata/parks/small_park_with_ferris_wheel.sv6",
+    "sha256": "45d3fe5af73f6bc14f9178648d56c137ca2e7985b340d024eaef7851a7f2584e",
+    "bytes": 274329
+  }
+}

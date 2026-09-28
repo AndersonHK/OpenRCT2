@@ -2919,11 +2919,6 @@ STR_5871    :Bloemen verwelken nooit
 STR_5872    :Schakelt het verwelken van bloemen uit.
 STR_5873    :Kettingheuvels op elk onderdeel toestaan
 STR_5874    :Maakt het gebruiken van kettingen op elk onderdeel mogelijk.
-STR_5875    :Renderengine:
-STR_5876    :De engine die wordt gebruikt om het spel te renderen.
-STR_5877    :Software
-STR_5878    :Software (omgeleid via hardware)
-STR_5879    :OpenGL (experimenteel)
 STR_5880    :Geselecteerd
 STR_5881    :Niet-geselecteerd
 STR_5882    :Eigen valuta

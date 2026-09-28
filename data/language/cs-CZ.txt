@@ -2923,11 +2923,6 @@ STR_5871    :Vypnout vadnutí květin
 STR_5872    :Vypnout stárnutí a uvadání květin.
 STR_5873    :Povolit řetěz. vlek na všech část. trati
 STR_5874    :Umožní použít řetězový výtah na jakékoliv části dráhy
-STR_5875    :Vykreslovací engine:
-STR_5876    :Engine, který bude použit pro vykreslování hry.
-STR_5877    :Software
-STR_5878    :Software (hardwarové zobrazování)
-STR_5879    :OpenGL (experiment.)
 STR_5880    :Pouze vybrané
 STR_5881    :Pouze nevybrané
 STR_5882    :Vlastní měna

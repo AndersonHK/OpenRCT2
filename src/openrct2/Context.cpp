@@ -31,6 +31,7 @@
 #include "ParkImporter.h"
 #include "PlatformEnvironment.h"
 #include "ReplayManager.h"
+#include "TitleLoadingDiagnostic.h"
 #include "Version.h"
 #include "actions/GameActionRunner.h"
 #include "audio/Audio.h"
@@ -44,24 +45,30 @@
 #include "core/Guard.hpp"
 #include "core/Http.h"
 #include "core/JobPool.h"
+#include "core/Json.hpp"
 #include "core/MemoryStream.h"
 #include "core/Path.hpp"
 #include "core/String.hpp"
 #include "core/Timer.hpp"
 #include "drawing/ColourMap.h"
+#include "drawing/Drawing.Screen.h"
 #include "drawing/Drawing.Sprite.h"
 #include "drawing/Drawing.h"
-#include "drawing/PickupPeep.h"
 #include "drawing/Font.h"
 #include "drawing/IDrawingEngine.h"
 #include "drawing/Image.h"
 #include "drawing/LightFX.h"
 #include "drawing/Palette.h"
+#include "drawing/PickupPeep.h"
+#include "drawing/PresentationGeneration.h"
+#include "drawing/RenderService.h"
+#include "entity/EntityList.h"
 #include "entity/EntityTweener.h"
 #include "entity/PatrolArea.h"
 #include "interface/Chat.h"
 #include "interface/StdInOutConsole.h"
 #include "interface/Viewport.h"
+#include "interface/WindowBase.h"
 #include "localisation/Formatter.h"
 #include "localisation/LocalisationService.h"
 #include "network/DiscordService.h"
@@ -74,8 +81,10 @@
 #include "platform/Crash.h"
 #include "platform/Platform.h"
 #include "profiling/Profiling.h"
+#include "profiling/SimulationAttributionJson.h"
 #include "rct2/RCT2.h"
 #include "ride/TrackDesignRepository.h"
+#include "ride/Vehicle.h"
 #include "scenario/Scenario.h"
 #include "scenario/ScenarioRepository.h"
 #include "scenes/SceneManager.h"
@@ -85,15 +94,20 @@
 #include "scripting/ScriptEngine.h"
 #include "ui/UiContext.h"
 #include "ui/WindowManager.h"
+#include "world/Map.h"
 #include "world/MapAnimation.h"
 #include "world/MapSelection.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <exception>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -123,8 +137,8 @@ namespace OpenRCT2
 
             std::vector<std::byte> buffer(bufferSize);
             if (!GetSystemCpuSetInformation(
-                    reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), bufferSize, &bufferSize,
-                    GetCurrentProcess(), 0))
+                    reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), bufferSize, &bufferSize, GetCurrentProcess(),
+                    0))
             {
                 return;
             }
@@ -166,33 +180,21 @@ namespace OpenRCT2
 #endif
         }
 
-        const char* GetDrawingEngineName(DrawingEngine drawingEngine)
-        {
-            switch (drawingEngine)
-            {
-                case DrawingEngine::softwareWithHardwareDisplay:
-                    return "software";
-                case DrawingEngine::vulkan:
-                    return "vulkan";
-                default:
-                    return "unknown";
-            }
-        }
-
         void PrintBenchmarkStateSnapshot(const utf8* label, const BenchmarkStateSnapshot& snapshot)
         {
             Console::WriteLine("%s simulation state:", label);
             Console::WriteLine("  simulation tick:    %u", snapshot.simulationTick);
             Console::WriteLine(
-                "  guests:             %zu (%zu inside, %zu outside)",
-                snapshot.guestsInsidePark + snapshot.guestsOutsidePark, snapshot.guestsInsidePark, snapshot.guestsOutsidePark);
+                "  guests:             %zu (%zu inside, %zu outside)", snapshot.guestsInsidePark + snapshot.guestsOutsidePark,
+                snapshot.guestsInsidePark, snapshot.guestsOutsidePark);
             Console::WriteLine(
-                "  guest states:       %zu walking, %zu queued, %zu on ride", snapshot.guestsWalking,
-                snapshot.guestsQueuing, snapshot.guestsOnRide);
+                "  guest states:       %zu walking, %zu queued, %zu on ride", snapshot.guestsWalking, snapshot.guestsQueuing,
+                snapshot.guestsOnRide);
             Console::WriteLine("  transport routes:   %zu active", snapshot.activeTransportRoutes);
             Console::WriteLine("  staff / vehicles:   %zu / %zu", snapshot.staff, snapshot.vehicles);
             Console::WriteLine(
-                "  shared route cache: %zu nodes, %zu targets, %zu direction / %zu distance entries, %zu single-ride targets (%s)",
+                "  shared route cache: %zu nodes, %zu targets, %zu direction / %zu distance entries, %zu single-ride targets "
+                "(%s)",
                 snapshot.routeNodes, snapshot.routeTargets, snapshot.routeDirectionEntries, snapshot.routeDistanceEntries,
                 snapshot.singleRideTargets, snapshot.routeCacheCurrent ? "current" : "fallback or stale");
         }
@@ -205,6 +207,7 @@ namespace OpenRCT2
         std::unique_ptr<IPlatformEnvironment> const _env;
         std::unique_ptr<IAudioContext> const _audioContext;
         std::unique_ptr<IUiContext> const _uiContext;
+        Drawing::LazyRenderService _renderService;
 
         // Services
         std::unique_ptr<Localisation::LocalisationService> _localisationService;
@@ -227,7 +230,6 @@ namespace OpenRCT2
         Network::NetworkBase _network;
 #endif
 
-        DrawingEngine _drawingEngineType = DrawingEngine::softwareWithHardwareDisplay;
         std::unique_ptr<Drawing::IDrawingEngine> _drawingEngine;
         std::unique_ptr<Paint::Painter> _painter;
 
@@ -253,9 +255,20 @@ namespace OpenRCT2
 
         IntegratedBenchmarkPhase _benchmarkPhase = IntegratedBenchmarkPhase::waitingForPark;
         IntegratedBenchmarkClock::time_point _benchmarkPhaseStart{};
+        bool _benchmarkCameraStress{};
+        uint64_t _benchmarkCameraInitialTick{};
+        uint64_t _benchmarkCameraStep{};
+        std::optional<uint16_t> _benchmarkSecondaryRide;
+        json_t _benchmarkSecondarySetup;
+        bool _benchmarkTrackGhost{};
+        uint64_t _benchmarkTrackGhostMoves{};
+        double _benchmarkTrackGhostMilliseconds{};
+        double _benchmarkTrackGhostWorstMilliseconds{};
         IntegratedBenchmarkClock::time_point _benchmarkPreviousDrawStart{};
         IntegratedBenchmarkTotals _benchmarkTotals{};
         BenchmarkStateSnapshot _benchmarkInitialState{};
+        Ui::Resolution _benchmarkInitialDrawableSize{};
+        uint32_t _benchmarkInitialRefreshRate{};
         uint64_t _benchmarkInitialLogicalTicks{};
         uint64_t _benchmarkPhaseInitialLogicalTicks{};
         uint64_t _benchmarkMessagePumps{};
@@ -275,9 +288,214 @@ namespace OpenRCT2
             double gpuCompositeMicroseconds{};
             double presentCallMicroseconds{};
         } _benchmarkRenderer{};
+        Drawing::RenderUploadTotals _benchmarkUploads{};
         std::vector<double> _benchmarkFrameIntervalsMilliseconds;
         std::vector<Drawing::FrameTimings> _benchmarkRendererTimingScratch;
+        std::optional<Drawing::FramePresentationCounters> _benchmarkInitialPresentationCounters;
+        BenchmarkPresentationPacing _benchmarkPresentationPacing;
+        uint64_t _benchmarkAcceptedTimestampSamples = 0;
         bool _benchmarkFailed{};
+
+        enum class BenchmarkWorkPhase : size_t
+        {
+            simulation,
+            tick,
+            messages,
+            ui,
+            drawBegin,
+            drawPaint,
+            drawEnd,
+            networkUpdate,
+            networkFlush,
+            schedulerWait,
+            drawInterval,
+            count,
+        };
+        static constexpr std::array<const char*, static_cast<size_t>(BenchmarkWorkPhase::count)> kBenchmarkWorkPhaseNames = {
+            "simulation",    "tick",         "messages",      "ui",           "drawBegin", "drawPaint", "drawEnd",
+            "networkUpdate", "networkFlush", "schedulerWait", "drawInterval",
+        };
+        struct BenchmarkWorstEvent
+        {
+            uint32_t simulationTick{};
+            double offsetMilliseconds{};
+            double wallMilliseconds{};
+            uint64_t threadCycles{};
+            bool threadCyclesAvailable{};
+            double requestedWaitMilliseconds{};
+        };
+        struct BenchmarkPhaseSamples
+        {
+            uint64_t count{};
+            double wallMilliseconds{};
+            uint64_t threadCycles{};
+            uint64_t threadCycleSamples{};
+            std::array<BenchmarkWorstEvent, 16> worst{};
+            size_t retained{};
+            size_t minimum{};
+        };
+        std::array<BenchmarkPhaseSamples, static_cast<size_t>(BenchmarkWorkPhase::count)> _benchmarkPhaseSamples{};
+        uint64_t _benchmarkPreviousDrawCycles{};
+        uint32_t _benchmarkPreviousDrawTick{};
+        struct BenchmarkTickWindow
+        {
+            uint64_t endLogicalTick{};
+            uint32_t simulationTick{};
+            double elapsedSeconds{};
+            double simulationSeconds{};
+            uint64_t draws{};
+            double drawSeconds{};
+        };
+        std::array<BenchmarkTickWindow, 16> _benchmarkTickWindows{};
+        size_t _benchmarkTickWindowCount{};
+
+        void RecordBenchmarkTickWindow()
+        {
+            if (_benchmarkPhase != IntegratedBenchmarkPhase::measurement
+                || _benchmarkTickWindowCount == _benchmarkTickWindows.size())
+                return;
+            const uint64_t ticks = gTotalSimulationTicks - _benchmarkInitialLogicalTicks;
+            if (ticks < (_benchmarkTickWindowCount + 1) * 3000)
+                return;
+            _benchmarkTickWindows[_benchmarkTickWindowCount++] = {
+                ticks,
+                getGameState().currentTicks,
+                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - _benchmarkPhaseStart).count(),
+                _benchmarkTotals.simulationSeconds,
+                _benchmarkTotals.draws,
+                _benchmarkTotals.drawSeconds
+            };
+        }
+
+        static uint64_t ReadBenchmarkThreadCycles() noexcept
+        {
+#ifdef _WIN32
+            ULONG64 cycles{};
+            if (QueryThreadCycleTime(GetCurrentThread(), &cycles))
+                return cycles;
+#endif
+            return 0;
+        }
+
+        void RecordBenchmarkPhase(
+            BenchmarkWorkPhase phase, IntegratedBenchmarkClock::time_point start, IntegratedBenchmarkClock::time_point end,
+            uint64_t startCycles, uint64_t endCycles, uint32_t tick, double requestedWaitMilliseconds = 0) noexcept
+        {
+            auto& samples = _benchmarkPhaseSamples[static_cast<size_t>(phase)];
+            BenchmarkWorstEvent event{ tick,
+                                       std::chrono::duration<double, std::milli>(start - _benchmarkPhaseStart).count(),
+                                       std::chrono::duration<double, std::milli>(end - start).count(),
+                                       endCycles >= startCycles ? endCycles - startCycles : 0,
+                                       startCycles != 0 && endCycles >= startCycles,
+                                       requestedWaitMilliseconds };
+            ++samples.count;
+            samples.wallMilliseconds += event.wallMilliseconds;
+            if (event.threadCyclesAvailable)
+            {
+                samples.threadCycles += event.threadCycles;
+                ++samples.threadCycleSamples;
+            }
+            if (samples.retained == samples.worst.size()
+                && event.wallMilliseconds <= samples.worst[samples.minimum].wallMilliseconds)
+                return;
+            const size_t index = samples.retained < samples.worst.size() ? samples.retained++ : samples.minimum;
+            samples.worst[index] = event;
+            samples.minimum = 0;
+            for (size_t i = 1; i < samples.retained; ++i)
+                if (samples.worst[i].wallMilliseconds < samples.worst[samples.minimum].wallMilliseconds)
+                    samples.minimum = i;
+        }
+
+        // Fixed storage and no I/O during measurement. Nested tick/simulation and draw-interval samples overlap;
+        // thread cycles are scheduled CPU work, not CPU milliseconds or proof of a particular blocking cause.
+        class BenchmarkPhaseScope
+        {
+            Context& _context;
+            BenchmarkWorkPhase _phase;
+            bool _enabled;
+            IntegratedBenchmarkClock::time_point _start{};
+            uint64_t _cycles{};
+            uint32_t _tick{};
+            double _requestedWaitMilliseconds{};
+
+        public:
+            BenchmarkPhaseScope(Context& context, BenchmarkWorkPhase phase, double requestedWaitMilliseconds = 0)
+                : _context(context)
+                , _phase(phase)
+                , _enabled(context._benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                , _requestedWaitMilliseconds(requestedWaitMilliseconds)
+            {
+                if (_enabled)
+                {
+                    _tick = getGameState().currentTicks;
+                    _cycles = ReadBenchmarkThreadCycles();
+                    _start = IntegratedBenchmarkClock::now();
+                }
+            }
+            ~BenchmarkPhaseScope()
+            {
+                if (_enabled)
+                {
+                    const auto end = IntegratedBenchmarkClock::now();
+                    const auto cycles = ReadBenchmarkThreadCycles();
+                    _context.RecordBenchmarkPhase(_phase, _start, end, _cycles, cycles, _tick, _requestedWaitMilliseconds);
+                }
+            }
+        };
+
+        void PrintBenchmarkPhaseSamples() const
+        {
+            json_t phases = json_t::object();
+            for (size_t p = 0; p < _benchmarkPhaseSamples.size(); ++p)
+            {
+                const auto& samples = _benchmarkPhaseSamples[p];
+                auto events = samples.worst;
+                std::sort(events.begin(), events.begin() + samples.retained, [](const auto& a, const auto& b) {
+                    return a.wallMilliseconds > b.wallMilliseconds;
+                });
+                json_t worst = json_t::array();
+                for (size_t i = 0; i < samples.retained; ++i)
+                {
+                    const auto& e = events[i];
+                    worst.push_back({ { "simulationTick", e.simulationTick },
+                                      { "offsetMs", e.offsetMilliseconds },
+                                      { "wallMs", e.wallMilliseconds },
+                                      { "threadCycles", e.threadCycles },
+                                      { "threadCyclesAvailable", e.threadCyclesAvailable },
+                                      { "requestedWaitMs", e.requestedWaitMilliseconds } });
+                }
+                phases[kBenchmarkWorkPhaseNames[p]] = { { "count", samples.count },
+                                                        { "wallMs", samples.wallMilliseconds },
+                                                        { "threadCycles", samples.threadCycles },
+                                                        { "threadCycleSamples", samples.threadCycleSamples },
+                                                        { "worst", std::move(worst) } };
+            }
+            json_t windows = json_t::array();
+            BenchmarkTickWindow previous{};
+            for (size_t i = 0; i < _benchmarkTickWindowCount; ++i)
+            {
+                const auto& current = _benchmarkTickWindows[i];
+                windows.push_back({ { "startLogicalTick", previous.endLogicalTick },
+                                    { "endLogicalTick", current.endLogicalTick },
+                                    { "simulationTick", current.simulationTick },
+                                    { "elapsedSeconds", current.elapsedSeconds - previous.elapsedSeconds },
+                                    { "simulationSeconds", current.simulationSeconds - previous.simulationSeconds },
+                                    { "draws", current.draws - previous.draws },
+                                    { "drawSeconds", current.drawSeconds - previous.drawSeconds } });
+                previous = current;
+            }
+            const json_t report = {
+                { "schema", 1 },
+                { "capacityPerPhase", 16 },
+                { "phases", std::move(phases) },
+                { "tickWindowSize", 3000 },
+                { "tickWindowCapacity", 16 },
+                { "tickWindows", std::move(windows) },
+                { "scope", "main-thread wall durations; nested phases overlap; Windows thread cycles are not CPU time" }
+            };
+            // Console::WriteLine has a 4096-byte formatting buffer; this bounded event report can exceed it.
+            Console::WriteFormat("Benchmark phase timing v1: %s\n", report.dump().c_str());
+        }
 
         // If set, will end the OpenRCT2 game loop. Intentionally private to this module so that the flag can not be set back to
         // false.
@@ -306,10 +524,11 @@ namespace OpenRCT2
     public:
         Context(
             std::unique_ptr<IPlatformEnvironment>&& env, std::unique_ptr<IAudioContext>&& audioContext,
-            std::unique_ptr<IUiContext>&& uiContext)
+            std::unique_ptr<IUiContext>&& uiContext, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
             : _env(std::move(env))
             , _audioContext(std::move(audioContext))
             , _uiContext(std::move(uiContext))
+            , _renderService(std::move(renderServiceFactory))
             , _localisationService(std::make_unique<Localisation::LocalisationService>(*_env))
             , _replayManager(CreateReplayManager())
             , _gameStateSnapshots(CreateGameStateSnapshots())
@@ -372,6 +591,15 @@ namespace OpenRCT2
 
             auto* windowMgr = GetWindowManager();
             windowMgr->Cleanup();
+
+            // Stop auxiliary work while its immutable asset dependencies and context services still exist. An unused
+            // injected factory is discarded without creating a loader/device or video subsystem.
+            _renderService.Shutdown();
+
+            // Drain the final presentation and retire its atlas uploads before object unloading invalidates images.
+            // In particular, closing immediately after a cold park frame must not scan its entire pending upload list
+            // once for each unloaded image. All window and auxiliary users have already stopped.
+            _drawingEngine.reset();
 
             // Unload objects after closing all windows, this is to overcome windows like
             // the object selection window which loads objects when closed.
@@ -456,14 +684,19 @@ namespace OpenRCT2
             return _assetPackManager.get();
         }
 
-        DrawingEngine GetDrawingEngineType() override
-        {
-            return _drawingEngineType;
-        }
-
         Drawing::IDrawingEngine* GetDrawingEngine() override
         {
             return _drawingEngine.get();
+        }
+
+        Drawing::IRenderService& GetRenderService() override
+        {
+            return _renderService.Get();
+        }
+
+        void InvalidateRenderServiceImage(uint32_t image) override
+        {
+            _renderService.InvalidateImage(image);
         }
 
         Paint::Painter* GetPainter() override
@@ -508,6 +741,11 @@ namespace OpenRCT2
 
         void Quit() override
         {
+            if (_sceneManager && _sceneManager->getActiveScene() == _sceneManager->getPreloaderScene())
+            {
+                Finish();
+                return;
+            }
             gSavePromptMode = PromptMode::quit;
             ContextOpenWindow(WindowClass::savePrompt);
         }
@@ -670,6 +908,20 @@ namespace OpenRCT2
                 auto* preloaderScene = static_cast<PreloaderScene*>(_sceneManager->getPreloaderScene());
                 _sceneManager->setActiveScene(preloaderScene);
 
+                // Base fonts/palette and the ordinary progress widget are ready.
+                // Compile world graphics independently while the same Vulkan UI
+                // renderer remains responsive; no simulation or repository job
+                // runs against incomplete world resources during this stage.
+                OpenProgress(STR_LOADING_GENERIC);
+                _drawingEngine->PrepareWorldRendering([this]() {
+                    _uiContext->ProcessMessages();
+                    GetWindowManager()->InvalidateByClass(WindowClass::progressWindow);
+                    Draw();
+                });
+                CloseProgress();
+                if (_finished)
+                    return false;
+
                 // TODO: preload the title scene in another (parallel) job.
                 preloaderScene->AddJob([this]() { InitialiseRepositories(); });
             }
@@ -752,12 +1004,10 @@ namespace OpenRCT2
         void InitialiseDrawingEngine() final override
         {
             assert(_drawingEngine == nullptr);
-            _drawingEngineType = gIntegratedBenchmark.drawingEngine.value_or(Config::Get().general.drawingEngine);
-            _drawingEngine = _uiContext->GetDrawingEngineFactory()->Create(_drawingEngineType, *_uiContext);
+            _drawingEngine = _uiContext->GetDrawingEngineFactory()->Create(*_uiContext);
             if (_drawingEngine == nullptr)
             {
-                throw std::runtime_error(
-                    String::stdFormat("Unable to create requested renderer '%s'.", GetDrawingEngineName(_drawingEngineType)));
+                throw std::runtime_error("Unable to create the Vulkan renderer.");
             }
             _drawingEngine->Initialise();
             _drawingEngine->SetVSync(gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync));
@@ -1059,12 +1309,13 @@ namespace OpenRCT2
             }
             catch (const std::exception& e)
             {
+                // Report the original load failure before fallback can itself fail while drawing.
+                Console::Error::WriteLine(e.what());
                 // If loading the SV6 or SV4 failed return to the title screen if requested.
                 if (loadTitleScreenFirstOnFail)
                 {
                     _sceneManager->setActiveScene(_sceneManager->getTitleScene());
                 }
-                Console::Error::WriteLine(e.what());
             }
 
             CloseProgress();
@@ -1350,7 +1601,8 @@ namespace OpenRCT2
 
         bool ShouldDraw()
         {
-            return !gOpenRCT2Headless && (gIntegratedBenchmark.enabled || !_uiContext->IsMinimised());
+            return !gOpenRCT2Headless
+                && (gIntegratedBenchmark.enabled || IsTitleLoadingDiagnostic() || !_uiContext->IsMinimised());
         }
 
         bool IsVSyncPresentationPaced() const
@@ -1402,13 +1654,6 @@ namespace OpenRCT2
             if (_variableFrame == useVariableFrame)
                 return useVariableFrame;
 
-            if (_variableFrame)
-            {
-                // Fixed frames need authoritative end-of-tick positions.
-                auto& tweener = EntityTweener::get();
-                tweener.restore();
-                tweener.reset();
-            }
             _variableFrame = useVariableFrame;
             return useVariableFrame;
         }
@@ -1444,6 +1689,15 @@ namespace OpenRCT2
         {
             for (const auto& timings : samples)
             {
+                if (gIntegratedBenchmark.uploadTelemetry && timings.uploadTelemetry.has_value())
+                    _benchmarkUploads.Include(*timings.uploadTelemetry);
+                if (timings.telemetryOnly)
+                    continue;
+                if (timings.acceptedPresentNanoseconds)
+                {
+                    ++_benchmarkAcceptedTimestampSamples;
+                    _benchmarkPresentationPacing.Include(*timings.acceptedPresentNanoseconds);
+                }
                 _benchmarkRenderer.rendererSamples++;
                 _benchmarkRenderer.submitMicroseconds += timings.cpuSubmitMicroseconds;
                 _benchmarkRenderer.presentMicroseconds += timings.cpuPresentMicroseconds;
@@ -1470,10 +1724,22 @@ namespace OpenRCT2
 
         void BeginIntegratedBenchmarkMeasurement()
         {
+            _benchmarkTrackGhostMoves = 0;
+            _benchmarkTrackGhostMilliseconds = 0;
+            _benchmarkTrackGhostWorstMilliseconds = 0;
             _benchmarkInitialState = CaptureBenchmarkStateSnapshot();
+            _benchmarkInitialDrawableSize = _uiContext->GetDrawableSize();
+            _benchmarkInitialRefreshRate = _uiContext->GetRefreshRate();
             _benchmarkTotals = {};
+            _benchmarkPhaseSamples = {};
+            _benchmarkPreviousDrawCycles = 0;
+            _benchmarkPreviousDrawTick = 0;
+            _benchmarkTickWindows = {};
+            _benchmarkTickWindowCount = 0;
             _benchmarkInitialLogicalTicks = gTotalSimulationTicks;
             _benchmarkRenderer = {};
+            _benchmarkAcceptedTimestampSamples = 0;
+            _benchmarkUploads = {};
             _benchmarkMessagePumps = 0;
             _benchmarkUiFrames = 0;
             _benchmarkPreviousDrawStart = {};
@@ -1483,6 +1749,7 @@ namespace OpenRCT2
             {
                 _drawingEngine->DrainFrameTimings(_benchmarkRendererTimingScratch);
                 _benchmarkRendererTimingScratch.clear();
+                _benchmarkInitialPresentationCounters = _drawingEngine->GetFramePresentationCounters();
             }
             catch (const std::exception& e)
             {
@@ -1496,7 +1763,13 @@ namespace OpenRCT2
             _timer.Restart();
             _nextPresentationDeadline = IntegratedBenchmarkClock::now();
             _benchmarkPhaseStart = IntegratedBenchmarkClock::now();
+            _benchmarkPresentationPacing.Reset(static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(_benchmarkPhaseStart.time_since_epoch()).count()));
             _benchmarkPhase = IntegratedBenchmarkPhase::measurement;
+            const auto* simulationAttribution = std::getenv("OPENRCT2_PROFILE_SIMULATION_WAITS");
+            SimulationAttribution::Begin(
+                simulationAttribution != nullptr && std::string_view(simulationAttribution) == "1", _benchmarkPhaseStart,
+                ReadBenchmarkThreadCycles);
             if (!gIntegratedBenchmark.profilePath.empty())
             {
                 Profiling::resetData();
@@ -1509,6 +1782,117 @@ namespace OpenRCT2
                 Console::WriteLine("Measuring integrated UI for %d seconds...", gIntegratedBenchmark.measurementSeconds);
         }
 
+        void PrintIntegratedBenchmarkPresentationCounters(
+            const std::optional<Drawing::FramePresentationCounters>& atEnd,
+            const std::optional<Drawing::FramePresentationCounters>& afterDrain, uint64_t rendererSamplesAtEnd,
+            uint64_t gpuSamplesAtEnd)
+        {
+            using Counters = Drawing::FramePresentationCounters;
+            json_t report{ { "schema", 1 },
+                           { "available", false },
+                           { "displayedFramesAvailable", false },
+                           { "elapsedSeconds", _benchmarkTotals.elapsedSeconds },
+                           { "drawAttempts", _benchmarkTotals.draws },
+                           { "drawAttemptFPS", _benchmarkTotals.draws / _benchmarkTotals.elapsedSeconds },
+                           { "rendererTimingSamples", _benchmarkRenderer.rendererSamples },
+                           { "gpuTimingSamples", _benchmarkRenderer.gpuSamples },
+                           { "lateRendererTimingSamples", _benchmarkRenderer.rendererSamples - rendererSamplesAtEnd },
+                           { "lateGpuTimingSamples", _benchmarkRenderer.gpuSamples - gpuSamplesAtEnd },
+                           { "presentMeaning", "Queue presentation accepted; not compositor/display scanout" } };
+            json_t pacing{ { "available", false },
+                           { "cohortTimestampSamples", _benchmarkAcceptedTimestampSamples },
+                           { "timestampSamples", _benchmarkPresentationPacing.Samples() },
+                           { "intervals", _benchmarkPresentationPacing.Intervals() },
+                           { "binWidthMicroseconds", 100 },
+                           { "percentilesAreUpperBounds", true },
+                           { "histogramLimitMilliseconds", 1000 },
+                           { "overflowIntervals", _benchmarkPresentationPacing.OverflowIntervals() },
+                           { "outOfOrderSamples", _benchmarkPresentationPacing.OutOfOrderSamples() },
+                           { "scope", "Accepted present timestamps inside measurement; excludes warmup and drain work" } };
+            if (_benchmarkInitialPresentationCounters && atEnd && afterDrain)
+            {
+                constexpr std::pair<const char*, uint64_t Counters::*> fields[] = {
+                    { "publishedVisualPackets", &Counters::publishedVisualPackets },
+                    { "supersededVisualPackets", &Counters::supersededVisualPackets },
+                    { "unavailableVisualPackets", &Counters::unavailableVisualPackets },
+                    { "discardedVisualPackets", &Counters::discardedVisualPackets },
+                    { "visualFrameSubmissions", &Counters::visualFrameSubmissions },
+                    { "presentRequests", &Counters::presentRequests },
+                    { "presentAccepted", &Counters::presentAccepted },
+                    { "presentOutOfDate", &Counters::presentOutOfDate },
+                    { "fenceCompletedFrames", &Counters::fenceCompletedFrames },
+                    { "lostTimingSamples", &Counters::lostTimingSamples },
+                };
+                const auto& initial = *_benchmarkInitialPresentationCounters;
+                bool monotonic = true;
+                for (const auto& [name, member] : fields)
+                {
+                    monotonic &= (*atEnd).*member >= initial.*member && (*afterDrain).*member >= (*atEnd).*member;
+                }
+                if (monotonic)
+                {
+                    report["available"] = true;
+                    for (const auto& [name, member] : fields)
+                    {
+                        report["intervalEnd"][name] = (*atEnd).*member - initial.*member;
+                        report["afterDrain"][name] = (*afterDrain).*member - initial.*member;
+                    }
+                    const auto intervalSubmissions = atEnd->visualFrameSubmissions - initial.visualFrameSubmissions;
+                    const auto intervalPresents = atEnd->presentAccepted - initial.presentAccepted;
+                    const auto drainedSubmissions = afterDrain->visualFrameSubmissions - initial.visualFrameSubmissions;
+                    const auto drainedPresents = afterDrain->presentAccepted - initial.presentAccepted;
+                    report["intervalSubmissionFPS"] = intervalSubmissions / _benchmarkTotals.elapsedSeconds;
+                    report["intervalAcceptedPresentFPS"] = intervalPresents / _benchmarkTotals.elapsedSeconds;
+                    report["drainedSubmissionFPS"] = drainedSubmissions / _benchmarkTotals.elapsedSeconds;
+                    report["drainedAcceptedPresentFPS"] = drainedPresents / _benchmarkTotals.elapsedSeconds;
+                    report["lateSubmissions"] = drainedSubmissions - intervalSubmissions;
+                    report["lateAcceptedPresents"] = drainedPresents - intervalPresents;
+                    report["lateFenceCompletions"] = afterDrain->fenceCompletedFrames - atEnd->fenceCompletedFrames;
+                    const auto lostSamples = afterDrain->lostTimingSamples - initial.lostTimingSamples;
+                    pacing["cohortAcceptedPresents"] = drainedPresents;
+                    if (lostSamples == 0 && _benchmarkPresentationPacing.OutOfOrderSamples() == 0
+                        && _benchmarkPresentationPacing.Intervals() != 0
+                        && _benchmarkAcceptedTimestampSamples == drainedPresents)
+                    {
+                        pacing["available"] = true;
+                        const auto percentile = [this](uint32_t percent) -> json_t {
+                            const auto value = _benchmarkPresentationPacing.PercentileUpperMilliseconds(percent);
+                            return value ? json_t(*value) : json_t(nullptr);
+                        };
+                        pacing["p50Ms"] = percentile(50);
+                        pacing["p95Ms"] = percentile(95);
+                        pacing["p99Ms"] = percentile(99);
+                        pacing["maxMs"] = _benchmarkPresentationPacing.MaximumMilliseconds();
+                    }
+                    else
+                    {
+                        pacing["unavailableReason"] = "Missing, lost, out-of-order or insufficient accepted-present timestamps";
+                    }
+                    Console::WriteLine(
+                        "  submitted / FPS:    %llu / %.3f (before drain)",
+                        static_cast<unsigned long long>(intervalSubmissions),
+                        intervalSubmissions / _benchmarkTotals.elapsedSeconds);
+                    Console::WriteLine(
+                        "  accepted presents:  %llu / %.3f FPS (before drain; not measured scanout)",
+                        static_cast<unsigned long long>(intervalPresents), intervalPresents / _benchmarkTotals.elapsedSeconds);
+                    Console::WriteLine(
+                        "  drained frames:     %llu submissions / %llu accepted presents / %llu fence completions",
+                        static_cast<unsigned long long>(drainedSubmissions), static_cast<unsigned long long>(drainedPresents),
+                        static_cast<unsigned long long>(afterDrain->fenceCompletedFrames - initial.fenceCompletedFrames));
+                }
+                else
+                {
+                    report["unavailableReason"] = "Renderer lifetime counters reset during measurement";
+                }
+            }
+            else
+            {
+                report["unavailableReason"] = "Renderer does not expose presentation counters";
+            }
+            report["acceptedPresentIntervals"] = std::move(pacing);
+            Console::WriteLine("Frame presentation v1: %s", report.dump().c_str());
+        }
+
         void FinishIntegratedBenchmarkMeasurement(IntegratedBenchmarkClock::time_point now)
         {
             if (!gIntegratedBenchmark.profilePath.empty())
@@ -1516,6 +1900,11 @@ namespace OpenRCT2
             _benchmarkPhase = IntegratedBenchmarkPhase::complete;
             _benchmarkTotals.elapsedSeconds = std::chrono::duration<double>(now - _benchmarkPhaseStart).count();
             _benchmarkTotals.logicalTicks = gTotalSimulationTicks - _benchmarkInitialLogicalTicks;
+            _benchmarkPresentationPacing.SetEnd(
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count()));
+            const auto presentationAtEnd = _drawingEngine->GetFramePresentationCounters();
+            const auto rendererSamplesAtEnd = _benchmarkRenderer.rendererSamples;
+            const auto gpuSamplesAtEnd = _benchmarkRenderer.gpuSamples;
             // The wait and harvest occur outside elapsed/draw timing, but include every frame submitted during measurement.
             try
             {
@@ -1530,6 +1919,7 @@ namespace OpenRCT2
                 FailIntegratedBenchmark(message.c_str());
                 return;
             }
+            const auto presentationAfterDrain = _drawingEngine->GetFramePresentationCounters();
             const auto metrics = CalculateIntegratedBenchmarkMetrics(_benchmarkTotals);
             const auto finalState = CaptureBenchmarkStateSnapshot();
             const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
@@ -1537,13 +1927,24 @@ namespace OpenRCT2
             std::sort(_benchmarkFrameIntervalsMilliseconds.begin(), _benchmarkFrameIntervalsMilliseconds.end());
 
             Console::WriteLine("Integrated UI benchmark:");
-            Console::WriteLine("  renderer:           %s", GetDrawingEngineName(_drawingEngineType));
+            Console::WriteLine("  renderer:           vulkan");
             Console::WriteLine(
-                "  VSync:              %s", gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled");
+                "  VSync:              %s",
+                gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled");
             Console::WriteLine("  elapsed:            %.6f s", _benchmarkTotals.elapsedSeconds);
             Console::WriteLine("  logical ticks:      %llu", static_cast<unsigned long long>(_benchmarkTotals.logicalTicks));
             Console::WriteLine("  actual logical TPS: %.3f", metrics.logicalTicksPerSecond);
-            Console::WriteLine("  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws), metrics.framesPerSecond);
+            const auto finalDrawableSize = _uiContext->GetDrawableSize();
+            Console::WriteLine(
+                "  drawable pixels:    %d x %d initial, %d x %d final", _benchmarkInitialDrawableSize.Width,
+                _benchmarkInitialDrawableSize.Height, finalDrawableSize.Width, finalDrawableSize.Height);
+            Console::WriteLine(
+                "  monitor refresh:    %u Hz initial, %u Hz final", _benchmarkInitialRefreshRate, _uiContext->GetRefreshRate());
+            Console::WriteLine(
+                "  draws / FPS:        %llu / %.3f", static_cast<unsigned long long>(_benchmarkTotals.draws),
+                metrics.framesPerSecond);
+            PrintIntegratedBenchmarkPresentationCounters(
+                presentationAtEnd, presentationAfterDrain, rendererSamplesAtEnd, gpuSamplesAtEnd);
             Console::WriteLine(
                 "  message / window:  %llu pumps / %llu updates (%.3f / %.3f Hz)",
                 static_cast<unsigned long long>(_benchmarkMessagePumps), static_cast<unsigned long long>(_benchmarkUiFrames),
@@ -1564,9 +1965,8 @@ namespace OpenRCT2
                 metrics.simulationUtilisationPercent, metrics.meanSimulationMicrosecondsPerLogicalTick);
             Console::WriteLine(
                 "  simulation batches: %llu (%.3f us mean, %.3f ms longest; %.3f ms longest UI-bounded slice)",
-                static_cast<unsigned long long>(_benchmarkTotals.simulationBatches),
-                metrics.meanSimulationMicrosecondsPerBatch, metrics.longestSimulationBatchMilliseconds,
-                metrics.longestSimulationSliceMilliseconds);
+                static_cast<unsigned long long>(_benchmarkTotals.simulationBatches), metrics.meanSimulationMicrosecondsPerBatch,
+                metrics.longestSimulationBatchMilliseconds, metrics.longestSimulationSliceMilliseconds);
             Console::WriteLine(
                 "  draw time:          %.6f s (%.1f%%, %.3f us/draw; includes presentation)", _benchmarkTotals.drawSeconds,
                 metrics.drawUtilisationPercent, metrics.meanDrawMicroseconds);
@@ -1617,9 +2017,133 @@ namespace OpenRCT2
             {
                 Console::WriteLine("  GPU passes:         unavailable");
             }
+            if (gIntegratedBenchmark.uploadTelemetry)
+            {
+                const auto& u = _benchmarkUploads;
+                const auto& a = u.attempted;
+                std::ostringstream out;
+                out << "{\"schema\":1,\"attemptedFrames\":" << u.attemptedFrames << ",\"submittedFrames\":" << u.submittedFrames
+                    << ",\"auxiliarySamples\":" << u.auxiliarySamples << ",\"allocatedBytes\":" << a.allocatedBytes
+                    << ",\"alignmentBytes\":" << a.alignmentBytes << ",\"allocationFailures\":" << a.allocationFailures
+                    << ",\"captureRequests\":" << a.captureRequests << ",\"readbackRequests\":" << a.readbackRequests
+                    << ",\"readbackBytes\":" << a.readbackBytes << ",\"lostSamples\":" << a.lostSamples
+                    << ",\"statusReadbackRequests\":" << a.statusReadbackRequests
+                    << ",\"statusReadbackBytes\":" << a.statusReadbackBytes
+                    << ",\"worldBufferCopyCalls\":" << a.worldBufferCopyCalls
+                    << ",\"overflow\":" << (a.overflow ? "true" : "false");
+                const auto matrix = [&out](const char* label, const Drawing::UploadByteMatrix& bytes) {
+                    out << ",\"" << label << "\":[";
+                    for (size_t c = 0; c < bytes.size(); ++c)
+                    {
+                        if (c != 0)
+                            out << ',';
+                        out << '[';
+                        for (size_t m = 0; m < bytes[c].size(); ++m)
+                        {
+                            if (m != 0)
+                                out << ',';
+                            out << bytes[c][m];
+                        }
+                        out << ']';
+                    }
+                    out << ']';
+                };
+                matrix("attempted", a.bytes);
+                matrix("submitted", u.submittedBytes);
+                out << '}';
+                Console::WriteLine("Upload telemetry v1: %s", out.str().c_str());
+            }
+            PrintBenchmarkPhaseSamples();
+            if (SimulationAttribution::state.enabled)
+            {
+                SimulationAttribution::state.enabled = false;
+                Console::WriteFormat(
+                    "Benchmark simulation attribution v1: %s\n", SimulationAttribution::Report().dump().c_str());
+            }
+            Console::WriteLine(
+                "Benchmark simulation pacing: %s",
+                _benchmarkCameraStress
+                    ? "normal speed camera stress"
+                    : (gIntegratedBenchmark.uncappedSimulation ? "uncapped headroom" : "ordinary Turbo 360 TPS target"));
             PrintBenchmarkStateSnapshot("Initial", _benchmarkInitialState);
             PrintBenchmarkStateSnapshot("Final", finalState);
             Console::WriteLine("Completed: %s", checksum.c_str());
+            if (gIntegratedBenchmark.finalScreenshot)
+            {
+                // phase is already complete; elapsed, draw/tick counters and all measured
+                // timing/upload samples above are frozen. Never add these samples to them.
+                try
+                {
+                    const auto* window = WindowGetMain();
+                    if (window == nullptr || window->viewport == nullptr)
+                        throw std::runtime_error("Final benchmark screenshot has no main viewport");
+                    const auto camera = [&]() {
+                        const auto& viewport = *window->viewport;
+                        return json_t{ { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
+                                       { "rotation", viewport.rotation },
+                                       { "zoom", static_cast<int8_t>(viewport.zoom) },
+                                       { "flags", viewport.flags } };
+                    };
+                    const auto beforeCamera = camera();
+                    const auto tick = getGameState().currentTicks;
+                    Drawing::GfxInvalidateScreen();
+                    Draw();
+                    _drawingEngine->DrainFrameTimings(_benchmarkRendererTimingScratch);
+                    // A timing boundary also completes when BeginFrame declined a busy
+                    // visual packet. Require this final draw to have actually presented,
+                    // otherwise a subsequent control-only readback could return old pixels.
+                    uint64_t finalFrameNumber = 0;
+                    size_t finalFrameCount = 0;
+                    for (const auto& sample : _benchmarkRendererTimingScratch)
+                    {
+                        if (sample.telemetryOnly)
+                            continue;
+                        ++finalFrameCount;
+                        finalFrameNumber = sample.frameNumber;
+                    }
+                    _benchmarkRendererTimingScratch.clear();
+                    if (finalFrameCount != 1 || finalFrameNumber == 0)
+                        throw std::runtime_error("Final benchmark draw did not produce exactly one completed frame");
+                    const auto screenshot = _drawingEngine->Screenshot();
+                    if (screenshot.empty())
+                        throw std::runtime_error("Final benchmark screenshot did not produce an owned image");
+                    if (getGameState().currentTicks != tick
+                        || getGameState().entities.getAllEntitiesChecksum().toString() != checksum || camera() != beforeCamera)
+                        throw std::runtime_error("Final benchmark screenshot changed authoritative state or camera");
+                    const auto drawable = _uiContext->GetDrawableSize();
+                    const auto generation = ViewportGetPresentationGeneration();
+                    const bool partial = _drawingEngine->GetEntityPublicationProfile() == EntityPublicationProfile::gpuWorld;
+                    json_t receipt{ { "schema", 1 },
+                                    { "path", screenshot },
+                                    { "outsideMeasurement", true },
+                                    { "completedFrameNumber", finalFrameNumber },
+                                    { "authoritativeStateUnchanged", true },
+                                    { "simulationTick", tick },
+                                    { "entityChecksum", checksum },
+                                    { "camera", beforeCamera },
+                                    { "partialRender", partial },
+                                    { "logicalExtent", { _uiContext->GetWidth(), _uiContext->GetHeight() } },
+                                    { "drawableExtent", { drawable.Width, drawable.Height } },
+                                    { "renderScope",
+                                      partial ? "GPU world snapshots including vehicles, peeps, balloons, effects and text; "
+                                                "track recipe and visual parity gaps remain under qualification"
+                                              : "configured main renderer" } };
+                    // The displayed immutable generation may lag the final simulation tick.
+                    // Report that age honestly; no second render or publication reset is hidden.
+                    receipt["publicationSourceTick"] = generation ? json_t(generation->sourceTick) : json_t(nullptr);
+                    if (_benchmarkSecondaryRide)
+                    {
+                        receipt["secondaryViewport"] = ObserveBenchmarkSecondaryViewport();
+                        receipt["secondaryViewport"]["setup"] = _benchmarkSecondarySetup;
+                    }
+                    Console::WriteLine("Final benchmark screenshot v1: %s", receipt.dump().c_str());
+                }
+                catch (const std::exception& e)
+                {
+                    Console::Error::WriteLine("Final benchmark screenshot failed: %s", e.what());
+                    _benchmarkFailed = true;
+                }
+            }
             if (!gIntegratedBenchmark.profilePath.empty())
             {
                 if (!Profiling::exportData(gIntegratedBenchmark.profilePath))
@@ -1646,6 +2170,75 @@ namespace OpenRCT2
             _finished = true;
         }
 
+        void UpdateCameraStress()
+        {
+            // Diagnostic only: use ordinary scrolling/zoom logic while simulation and rendering keep running.
+            // Readbacks deliberately disturb pacing, so these results must never qualify performance.
+            const auto step = (gTotalSimulationTicks - _benchmarkCameraInitialTick) / 16;
+            if (step == _benchmarkCameraStep)
+                return;
+            _benchmarkCameraStep = step;
+            auto* window = WindowGetMain();
+            if (window == nullptr || window->viewport == nullptr)
+                throw std::runtime_error("Camera stress lost its main viewport");
+            if (step % 5 == 0)
+            {
+                const auto screenshot = _drawingEngine->Screenshot();
+                if (screenshot.empty())
+                    throw std::runtime_error("Camera stress readback failed");
+                Console::WriteLine(
+                    "Camera stress capture v1: %s",
+                    json_t{ { "step", step },
+                            { "tick", getGameState().currentTicks },
+                            { "path", screenshot },
+                            { "zoom", static_cast<int8_t>(window->viewport->zoom) },
+                            { "viewPosition", { window->viewport->viewPos.x, window->viewport->viewPos.y } } }
+                        .dump()
+                        .c_str());
+            }
+            constexpr std::array<int8_t, 8> zooms{ 0, 1, 2, 3, 2, 1, 0, -1 };
+            // Tour the populated interior; proportional coordinates also work for smaller diagnostic parks.
+            constexpr std::array<CoordsXY, 8> fractions{ CoordsXY{ 3, 4 }, { 5, 6 }, { 7, 4 }, { 5, 3 },
+                                                         { 3, 7 },         { 6, 7 }, { 7, 6 }, { 4, 5 } };
+            const auto extent = GetMapSizeUnits();
+            const auto fraction = fractions[(step / zooms.size()) % fractions.size()];
+            const CoordsXY location{ extent.x * fraction.x / 10, extent.y * fraction.y / 10 };
+            WindowZoomSet(*window, ZoomLevel{ zooms[step % zooms.size()] }, false);
+            WindowScrollToLocation(*window, CoordsXYZ{ location, TileElementHeight(location) });
+            Console::WriteLine(
+                "Camera stress step: %llu zoom=%d x=%d y=%d", static_cast<unsigned long long>(step),
+                static_cast<int8_t>(window->viewport->zoom), location.x, location.y);
+        }
+
+        json_t ObserveBenchmarkSecondaryViewport() const
+        {
+            for (const auto& window : gWindowList)
+            {
+                if (!_benchmarkSecondaryRide || window->classification != WindowClass::ride
+                    || window->number != *_benchmarkSecondaryRide || window->viewport == nullptr)
+                    continue;
+                const auto* vehicle = getGameState().entities.getEntity<Vehicle>(window->viewportTargetSprite);
+                if (vehicle == nullptr)
+                    throw std::runtime_error("Secondary benchmark window lost its live vehicle target");
+                auto& viewport = *window->viewport;
+                const auto expected = centre2dCoordinates(vehicle->getLocation(), &viewport);
+                return json_t{
+                    { "ride", vehicle->ride.ToUnderlying() },
+                    { "entity", vehicle->id.ToUnderlying() },
+                    { "worldXYZ", { vehicle->x, vehicle->y, vehicle->z } },
+                    { "tick", getGameState().currentTicks },
+                    { "screenRect", { viewport.pos.x, viewport.pos.y, viewport.width, viewport.height } },
+                    { "viewPosition", { viewport.viewPos.x, viewport.viewPos.y } },
+                    { "expectedFollowPosition", expected ? json_t{ expected->x, expected->y } : json_t(nullptr) },
+                    { "followsLiveVehicle", expected && *expected == viewport.viewPos },
+                    { "zoom", static_cast<int8_t>(viewport.zoom) },
+                    { "rotation", viewport.rotation },
+                    { "flags", viewport.flags },
+                };
+            }
+            throw std::runtime_error("Secondary benchmark ride window is missing");
+        }
+
         void UpdateIntegratedBenchmark()
         {
             if (!gIntegratedBenchmark.enabled || _benchmarkPhase == IntegratedBenchmarkPhase::complete)
@@ -1664,13 +2257,107 @@ namespace OpenRCT2
                             "Integrated UI benchmark cannot start while a modal or saving pause is active.");
                         return;
                     }
+                    const auto* secondaryPreview = std::getenv("OPENRCT2_BENCHMARK_SECONDARY_VEHICLE");
+                    if (gIntegratedBenchmark.secondaryVehicle
+                        || (secondaryPreview != nullptr && std::string_view(secondaryPreview) == "1"))
+                    {
+                        const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
+                        Vehicle* selected = nullptr;
+                        for (auto* vehicle : EntityList<Vehicle>())
+                        {
+                            if (vehicle->x != kLocationNull && !vehicle->ride.IsNull() && vehicle->GetRide() != nullptr
+                                && (gIntegratedBenchmark.secondaryRide < 0
+                                    || vehicle->ride.ToUnderlying() == gIntegratedBenchmark.secondaryRide))
+                            {
+                                selected = vehicle;
+                                break;
+                            }
+                        }
+                        if (selected == nullptr)
+                        {
+                            FailIntegratedBenchmark("Secondary viewport benchmark has no eligible vehicle.");
+                            return;
+                        }
+                        auto intent = Intent(WindowDetail::vehicle);
+                        intent.PutExtra(INTENT_EXTRA_VEHICLE, selected);
+                        auto* window = ContextOpenIntent(&intent);
+                        if (window == nullptr || window->viewport == nullptr
+                            || getGameState().entities.getAllEntitiesChecksum().toString() != checksum)
+                        {
+                            FailIntegratedBenchmark("Secondary viewport benchmark setup failed or changed entity state.");
+                            return;
+                        }
+                        _benchmarkSecondaryRide = selected->ride.ToUnderlying();
+                        _benchmarkSecondarySetup = ObserveBenchmarkSecondaryViewport();
+                        _benchmarkSecondarySetup["entityChecksum"] = checksum;
+                        _benchmarkSecondarySetup["requestedRide"] = gIntegratedBenchmark.secondaryRide;
+                        Console::WriteLine("Secondary viewport benchmark v2: %s", _benchmarkSecondarySetup.dump().c_str());
+                    }
+                    const auto* undergroundView = std::getenv("OPENRCT2_BENCHMARK_UNDERGROUND_VIEW");
+                    if (undergroundView != nullptr && std::string_view(undergroundView) == "1")
+                    {
+                        auto* mainWindow = WindowGetMain();
+                        if (mainWindow == nullptr || mainWindow->viewport == nullptr)
+                        {
+                            FailIntegratedBenchmark("Underground viewport benchmark has no main viewport.");
+                            return;
+                        }
+                        auto& viewport = *mainWindow->viewport;
+                        const auto before = viewport;
+                        const auto tick = getGameState().currentTicks;
+                        const auto checksum = getGameState().entities.getAllEntitiesChecksum().toString();
+                        // Keep contextual secondary viewports on their ordinary flags. This only changes the main view.
+                        viewport.flags |= VIEWPORT_FLAG_UNDERGROUND_INSIDE;
+                        viewport.Invalidate();
+                        if (viewport.viewPos != before.viewPos || viewport.pos != before.pos || viewport.zoom != before.zoom
+                            || viewport.rotation != before.rotation || viewport.width != before.width
+                            || viewport.height != before.height || getGameState().currentTicks != tick
+                            || getGameState().entities.getAllEntitiesChecksum().toString() != checksum)
+                        {
+                            FailIntegratedBenchmark("Underground viewport benchmark setup changed camera or entity state.");
+                            return;
+                        }
+                        Console::WriteLine(
+                            "Underground viewport benchmark v1: tick=%u checksum=%s flagsBefore=%u flagsAfter=%u "
+                            "viewX=%d viewY=%d width=%d height=%d zoom=%d rotation=%u",
+                            tick, checksum.c_str(), before.flags, viewport.flags, viewport.viewPos.x, viewport.viewPos.y,
+                            viewport.width, viewport.height, static_cast<int8_t>(viewport.zoom),
+                            static_cast<unsigned>(viewport.rotation));
+                    }
                     // This is process-local benchmark setup, not an in-game command or replay event.
-                    gGameSpeed = kGameSpeedTurbo;
+                    if (const auto* design = std::getenv("OPENRCT2_BENCHMARK_TRACK_GHOST"))
+                    {
+                        TrackDesignFileRef ref{ "ghost diagnostic", design };
+                        auto intent = Intent(WindowClass::trackDesignPlace);
+                        intent.PutExtra(INTENT_EXTRA_TRACK_DESIGN, &ref);
+                        if (ContextOpenIntent(&intent) == nullptr)
+                        {
+                            FailIntegratedBenchmark("Track ghost benchmark could not open design");
+                            return;
+                        }
+                        auto* main = WindowGetMain();
+                        if (main == nullptr || main->viewport == nullptr)
+                        {
+                            FailIntegratedBenchmark("Track ghost benchmark has no main viewport");
+                            return;
+                        }
+                        auto& vp = *main->viewport;
+                        vp.zoom = ZoomLevel{ 1 };
+                        const CoordsXY centre{ 2048, 2048 };
+                        vp.viewPos = Translate3DTo2DWithZ(vp.rotation, { centre, TileElementHeight(centre) })
+                            - ScreenCoordsXY{ vp.ViewWidth() / 2, vp.ViewHeight() / 2 };
+                        main->savedViewPos = vp.viewPos;
+                        _benchmarkTrackGhost = true;
+                    }
+                    const auto* cameraStress = std::getenv("OPENRCT2_CAMERA_STRESS");
+                    _benchmarkCameraStress = cameraStress != nullptr && std::string_view(cameraStress) == "1";
+                    _benchmarkCameraInitialTick = gTotalSimulationTicks;
+                    gGameSpeed = _benchmarkCameraStress ? 1 : kGameSpeedTurbo;
                     Console::WriteLine(
-                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, ordinary Turbo.",
-                        GetDrawingEngineName(_drawingEngineType),
+                        "Integrated UI benchmark ready: renderer=%s, VSync=%s, %s window, %s.", "vulkan",
                         gIntegratedBenchmark.useVSync.value_or(Config::Get().general.useVSync) ? "enabled" : "disabled",
-                        gIntegratedBenchmark.visible ? "visible" : "hidden");
+                        gIntegratedBenchmark.visible ? "visible" : "hidden",
+                        _benchmarkCameraStress ? "normal speed camera stress" : "ordinary Turbo");
                     if (gIntegratedBenchmark.warmupTicks == 0
                         || (gIntegratedBenchmark.warmupTicks < 0 && gIntegratedBenchmark.warmupSeconds == 0))
                     {
@@ -1702,11 +2389,24 @@ namespace OpenRCT2
             }
 
             if (_sceneManager->getActiveScene() != _sceneManager->getGameScene() || GameIsPaused()
-                || Network::GetMode() != Network::Mode::none || gGameSpeed != kGameSpeedTurbo)
+                || Network::GetMode() != Network::Mode::none || gGameSpeed != (_benchmarkCameraStress ? 1 : kGameSpeedTurbo))
             {
                 FailIntegratedBenchmark(
                     "Integrated UI benchmark requires the game scene, an unpaused offline park, and ordinary Turbo speed.");
                 return;
+            }
+
+            if (_benchmarkCameraStress)
+            {
+                try
+                {
+                    UpdateCameraStress();
+                }
+                catch (const std::exception& e)
+                {
+                    FailIntegratedBenchmark(e.what());
+                    return;
+                }
             }
 
             const bool warmupComplete = gIntegratedBenchmark.warmupTicks >= 0
@@ -1724,7 +2424,39 @@ namespace OpenRCT2
             }
             else if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement && measurementComplete)
             {
+                if (_benchmarkTrackGhost)
+                    Console::WriteLine(
+                        "Track ghost benchmark v1: moves=%llu toolMs=%.3f worstToolMs=%.3f",
+                        static_cast<unsigned long long>(_benchmarkTrackGhostMoves), _benchmarkTrackGhostMilliseconds,
+                        _benchmarkTrackGhostWorstMilliseconds);
                 FinishIntegratedBenchmarkMeasurement(now);
+            }
+        }
+
+        void UpdateBenchmarkTrackGhost()
+        {
+            if (_benchmarkTrackGhost && _benchmarkPhase != IntegratedBenchmarkPhase::complete)
+            {
+                auto* tool = GetWindowManager()->FindByClass(WindowClass::trackDesignPlace);
+                auto* main = WindowGetMain();
+                if (tool == nullptr || main == nullptr || main->viewport == nullptr)
+                {
+                    FailIntegratedBenchmark("Track ghost benchmark lost its tool or viewport");
+                    return;
+                }
+                const auto& vp = *main->viewport;
+                const CoordsXY target{ 2048 + static_cast<int32_t>(_benchmarkTrackGhostMoves % 8) * 32, 2048 };
+                const auto point = Translate3DTo2DWithZ(
+                    vp.rotation, { target + CoordsXY{ 16, 16 }, TileElementHeight(target) });
+                const auto screen = vp.pos
+                    + ScreenCoordsXY{ vp.zoom.ApplyInversedTo(point.x - vp.viewPos.x),
+                                      vp.zoom.ApplyInversedTo(point.y - vp.viewPos.y) };
+                const auto begin = IntegratedBenchmarkClock::now();
+                tool->onToolUpdate(0, screen);
+                const auto ms = std::chrono::duration<double, std::milli>(IntegratedBenchmarkClock::now() - begin).count();
+                ++_benchmarkTrackGhostMoves;
+                _benchmarkTrackGhostMilliseconds += ms;
+                _benchmarkTrackGhostWorstMilliseconds = std::max(_benchmarkTrackGhostWorstMilliseconds, ms);
             }
         }
 
@@ -1768,6 +2500,40 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
+            if (const auto path = TakeTitleLoadingSavedGameRequest())
+            {
+                // The title player has returned: loading may now replace its scene safely.
+                const auto start = IntegratedBenchmarkClock::now();
+                Console::WriteLine("Loading saved park probe: status=begin");
+                try
+                {
+                    if (!LoadParkFromFile(*path))
+                        throw std::runtime_error("Saved-game transition failed");
+                    Console::WriteLine(
+                        "Loading saved park probe: status=loaded elapsed_ms=%.3f",
+                        std::chrono::duration<double, std::milli>(IntegratedBenchmarkClock::now() - start).count());
+                    std::vector<Drawing::FrameTimings> samples;
+                    _drawingEngine->DrainFrameTimings(samples);
+                    const auto before = _drawingEngine->GetFramePresentationCounters();
+                    Draw();
+                    _drawingEngine->DrainFrameTimings(samples);
+                    const auto after = _drawingEngine->GetFramePresentationCounters();
+                    if (!before || !after || after->presentAccepted <= before->presentAccepted)
+                        throw std::runtime_error("Saved-game post-load frame was not presented");
+                    const auto screenshot = _drawingEngine->Screenshot();
+                    if (screenshot.empty())
+                        throw std::runtime_error("Saved-game post-load screenshot was not produced");
+                    Console::WriteLine("Loading saved park probe: screenshot=%s", screenshot.c_str());
+                    Console::WriteLine("Loading saved park probe: status=rendered");
+                }
+                catch (const std::exception& e)
+                {
+                    Console::Error::WriteLine("Loading saved park probe: status=exception error=%s", e.what());
+                }
+                Finish();
+                return;
+            }
+
             UpdateIntegratedBenchmark();
             if (_finished)
                 return;
@@ -1781,7 +2547,10 @@ namespace OpenRCT2
 
             UpdateTimeAccumulators(deltaTime, updateTime);
 
-            Network::Update();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::networkUpdate);
+                Network::Update();
+            }
 
             const bool shouldDraw = ShouldDrawFrame();
             if (useVariableFrame)
@@ -1793,23 +2562,32 @@ namespace OpenRCT2
                 RunFixedFrame(shouldDraw, updateTime);
             }
 
-            Network::Flush();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::networkFlush);
+                Network::Flush();
+            }
             UpdateIntegratedBenchmark();
 
-            if (!shouldDraw && ShouldDraw() && _ticksAccumulator < updateTime)
+            // The fixed-frame path already owns its idle wait. Do not wait a second time before servicing input/network.
+            if (useVariableFrame && !shouldDraw && ShouldDraw() && _ticksAccumulator < updateTime)
             {
-                auto waitDuration = std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
-                    std::chrono::duration<float>(updateTime - _ticksAccumulator));
+                const auto now = IntegratedBenchmarkClock::now();
+                float presentationWait = kNetworkUpdateTimeMS;
                 if (IsVSyncPresentationPaced() && _nextPresentationDeadline != IntegratedBenchmarkClock::time_point{})
                 {
-                    const auto untilPresentation = _nextPresentationDeadline - IntegratedBenchmarkClock::now();
-                    waitDuration = std::min(waitDuration, untilPresentation);
+                    presentationWait = std::chrono::duration<float>(_nextPresentationDeadline - now).count();
                 }
-                const auto waitMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(waitDuration).count();
-                if (waitMilliseconds > 0)
-                    Platform::Sleep(static_cast<uint32_t>(waitMilliseconds));
-                else
-                    std::this_thread::yield();
+                const float waitSeconds = GetSchedulerWaitSeconds(
+                    GetSimulationWaitSeconds(updateTime, _ticksAccumulator, _timer.GetElapsedTime().count(), _timeScale),
+                    presentationWait);
+                if (waitSeconds > 0)
+                {
+                    BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::schedulerWait, waitSeconds * 1000.0);
+                    Platform::SleepUntil(
+                        now
+                        + std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                            std::chrono::duration<float>(waitSeconds)));
+                }
             }
         }
 
@@ -1820,6 +2598,15 @@ namespace OpenRCT2
             // artificially low long-run TPS. The variable-frame loop still checks VSync after every complete tick, so retained
             // debt cannot become a render-blocking partial-tick batch.
             _ticksAccumulator = std::min(_ticksAccumulator + deltaTime * _timeScale, kGameUpdateMaxThreshold);
+            if (gIntegratedBenchmark.enabled && gIntegratedBenchmark.uncappedSimulation
+                && (_benchmarkPhase == IntegratedBenchmarkPhase::warmup
+                    || _benchmarkPhase == IntegratedBenchmarkPhase::measurement)
+                && Network::GetMode() == Network::Mode::none && gGameSpeed == kGameSpeedTurbo && GameIsNotPaused())
+            {
+                // Benchmark headroom only: supply bounded debt without changing logical tick contents or gameplay speed.
+                // Each completed tick still checks the presentation deadline and benchmark tick limit.
+                _ticksAccumulator = kGameUpdateMaxThreshold;
+            }
 
             // Real Time.
             _realtimeAccumulator = std::min(_realtimeAccumulator + deltaTime, kGameUpdateMaxThreshold);
@@ -1832,6 +2619,7 @@ namespace OpenRCT2
 
         void ProcessMessages()
         {
+            BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::messages);
             _uiContext->ProcessMessages();
             if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 _benchmarkMessagePumps++;
@@ -1839,6 +2627,7 @@ namespace OpenRCT2
 
         bool UpdateUi()
         {
+            BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::ui);
             _backgroundWorker.dispatchCompleted();
             ContextHandleInput();
             const bool useVariableFrame = UpdateVariableFrameMode();
@@ -1857,14 +2646,26 @@ namespace OpenRCT2
 
             if (_ticksAccumulator < updateTime)
             {
-                const auto sleepTimeSec = std::min(kNetworkUpdateTimeMS, updateTime - _ticksAccumulator);
-                Platform::Sleep(static_cast<uint32_t>(sleepTimeSec * 1000.f));
+                const auto now = IntegratedBenchmarkClock::now();
+                const auto sleepTimeSec = GetSchedulerWaitSeconds(
+                    GetSimulationWaitSeconds(updateTime, _ticksAccumulator, _timer.GetElapsedTime().count(), _timeScale),
+                    kNetworkUpdateTimeMS);
+                if (sleepTimeSec > 0)
+                {
+                    BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::schedulerWait, sleepTimeSec * 1000.0);
+                    Platform::SleepUntil(
+                        now
+                        + std::chrono::duration_cast<IntegratedBenchmarkClock::duration>(
+                            std::chrono::duration<float>(sleepTimeSec)));
+                }
                 return;
             }
 
             while (_ticksAccumulator >= updateTime)
             {
                 Tick();
+
+                RecordBenchmarkTickWindow();
 
                 _ticksAccumulator -= updateTime;
 
@@ -1892,58 +2693,23 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
-            auto& tweener = EntityTweener::get();
-
             ProcessMessages();
 
-            bool canTween = true;
-            if (_ticksAccumulator >= updateTime)
-            {
-                // A completed logical tick must never begin from presentation-only interpolated coordinates, including when
-                // VSync has not yet requested another frame.
-                tweener.restore();
-                tweener.reset();
-                canTween = false;
-            }
+            // The GPU world pass consumes authoritative entity state. Presentation no longer scans visible entities or
+            // temporarily writes interpolated coordinates into simulation objects. Simulation and VSync keep separate clocks.
             while (_ticksAccumulator >= updateTime)
             {
-                // Only the final catch-up tick can contribute interpolation endpoints to this frame. Restore any positions
-                // tweened by the previous frame before the first intermediate tick, but defer the visible-entity scan until
-                // the final tick that will actually be drawn.
-                const bool captureTween = shouldDraw && _ticksAccumulator < (2.0f * updateTime);
-                if (captureTween)
-                {
-                    tweener.preTick();
-                }
-
                 Tick();
+
+                RecordBenchmarkTickWindow();
 
                 _ticksAccumulator -= updateTime;
 
                 const bool continueVariableFrame = ShouldRunVariableFrame();
-                if (captureTween)
-                {
-                    if (continueVariableFrame)
-                    {
-                        // Get the next position of each sprite only when this frame can consume the endpoints.
-                        tweener.postTick();
-                        canTween = true;
-                    }
-                    else
-                    {
-                        // The tick left every entity at its authoritative post-tick position. Fixed-frame mode cannot use the
-                        // captured pre-tick positions, so discard them without rescanning visible entities or restoring
-                        // positions which have not been tweened.
-                        tweener.reset();
-                        canTween = false;
-                    }
-                }
-
                 // A queued speed action can change the desired frame mode inside Tick(). Keep the remaining accumulated
                 // time for the next outer frame instead of running fixed-frame work through the stale variable path.
                 if (!continueVariableFrame)
                 {
-                    // The tween state is empty and entity positions are authoritative, so no transition restore remains.
                     _variableFrame = false;
                     break;
                 }
@@ -1961,18 +2727,11 @@ namespace OpenRCT2
                 }
             }
 
-            bool useVariableFrame = _variableFrame;
             if (shouldDraw || !ShouldDraw())
-                useVariableFrame = UpdateUi();
+                UpdateUi();
 
             if (shouldDraw)
             {
-                if (useVariableFrame && canTween)
-                {
-                    const float alpha = std::min(_ticksAccumulator / updateTime, 1.0f);
-                    tweener.tween(alpha);
-                }
-
                 Draw();
             }
         }
@@ -1981,27 +2740,81 @@ namespace OpenRCT2
         {
             PROFILED_FUNCTION();
 
+            // Apply the synthetic tool event after ordinary UI input, before snapshot capture.
+            // Never move a ghost during a frame or during the final diagnostic readback.
+            UpdateBenchmarkTrackGhost();
             const auto drawStart = IntegratedBenchmarkClock::now();
 
             const bool measuring = _benchmarkPhase == IntegratedBenchmarkPhase::measurement;
+            const uint64_t drawCycles = measuring ? ReadBenchmarkThreadCycles() : 0;
             if (measuring && _benchmarkPreviousDrawStart != IntegratedBenchmarkClock::time_point{})
             {
                 _benchmarkFrameIntervalsMilliseconds.push_back(
                     std::chrono::duration<double, std::milli>(drawStart - _benchmarkPreviousDrawStart).count());
+                RecordBenchmarkPhase(
+                    BenchmarkWorkPhase::drawInterval, _benchmarkPreviousDrawStart, drawStart, _benchmarkPreviousDrawCycles,
+                    drawCycles, _benchmarkPreviousDrawTick);
             }
             if (measuring)
+            {
                 _benchmarkPreviousDrawStart = drawStart;
+                _benchmarkPreviousDrawCycles = drawCycles;
+                _benchmarkPreviousDrawTick = getGameState().currentTicks;
+            }
 
-            _drawingEngine->BeginDraw();
-            _painter->Paint(*_drawingEngine);
-            _drawingEngine->EndDraw();
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawBegin);
+                _drawingEngine->BeginDraw();
+            }
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawPaint);
+                try
+                {
+                    _painter->Paint(*_drawingEngine);
+                }
+                catch (...)
+                {
+                    const auto failure = std::current_exception();
+                    try
+                    {
+                        _drawingEngine->AbortDraw();
+                    }
+                    catch (...)
+                    {
+                        // Keep the original paint failure, not a secondary cleanup error.
+                    }
+                    try
+                    {
+                        std::rethrow_exception(failure);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        Console::Error::WriteLine("Frame recording failed: %s", e.what());
+                        try
+                        {
+                            const auto path = Path::Combine(_env->GetDirectoryPath(DirBase::user), "render-error.log");
+                            FileStream log(path, FileMode::append);
+                            const auto line = std::string("Frame recording failed: ") + e.what() + "\n";
+                            log.Write(line.data(), line.size());
+                        }
+                        catch (...)
+                        {
+                            // A log-write failure must not replace the original error either.
+                        }
+                    }
+                    std::rethrow_exception(failure);
+                }
+            }
+            {
+                BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::drawEnd);
+                _drawingEngine->EndDraw();
+            }
             AdvancePresentationDeadline(IntegratedBenchmarkClock::now());
             if (!measuring)
                 return;
 
             _benchmarkTotals.draws++;
-            _benchmarkTotals.drawSeconds +=
-                std::chrono::duration<double>(IntegratedBenchmarkClock::now() - drawStart).count();
+            _benchmarkTotals.drawSeconds += std::chrono::duration<double>(IntegratedBenchmarkClock::now() - drawStart).count();
             _drawingEngine->TakeCompletedFrameTimings(_benchmarkRendererTimingScratch);
             AddIntegratedBenchmarkRendererTimings(_benchmarkRendererTimingScratch);
             _benchmarkRendererTimingScratch.clear();
@@ -2010,6 +2823,7 @@ namespace OpenRCT2
         void Tick()
         {
             PROFILED_FUNCTION();
+            BenchmarkPhaseScope tickTiming(*this, BenchmarkWorkPhase::tick);
 
             // TODO: This variable has been never "variable" in time, some code expects
             // this to be 40Hz (25 ms). Refactor this once the UI is decoupled.
@@ -2027,15 +2841,18 @@ namespace OpenRCT2
                 if (_benchmarkPhase == IntegratedBenchmarkPhase::measurement)
                 {
                     const auto benchmarkStart = IntegratedBenchmarkClock::now();
-                    activeScene->Tick();
+                    {
+                        BenchmarkPhaseScope timing(*this, BenchmarkWorkPhase::simulation);
+                        activeScene->Tick();
+                    }
                     const auto benchmarkEnd = IntegratedBenchmarkClock::now();
                     const auto simulationSeconds = std::chrono::duration<double>(benchmarkEnd - benchmarkStart).count();
                     _benchmarkTotals.simulationSeconds += simulationSeconds;
                     _benchmarkTotals.simulationBatches++;
-                    _benchmarkTotals.longestSimulationBatchSeconds =
-                        std::max(_benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
-                    _benchmarkTotals.longestSimulationSliceSeconds =
-                        std::max(_benchmarkTotals.longestSimulationSliceSeconds, simulationSeconds);
+                    _benchmarkTotals.longestSimulationBatchSeconds = std::max(
+                        _benchmarkTotals.longestSimulationBatchSeconds, simulationSeconds);
+                    _benchmarkTotals.longestSimulationSliceSeconds = std::max(
+                        _benchmarkTotals.longestSimulationSliceSeconds, simulationSeconds);
                 }
                 else
                 {
@@ -2213,9 +3030,10 @@ namespace OpenRCT2
 
     std::unique_ptr<IContext> CreateContext(
         std::unique_ptr<IPlatformEnvironment>&& env, std::unique_ptr<IAudioContext>&& audioContext,
-        std::unique_ptr<IUiContext>&& uiContext)
+        std::unique_ptr<IUiContext>&& uiContext, std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory)
     {
-        return std::make_unique<Context>(std::move(env), std::move(audioContext), std::move(uiContext));
+        return std::make_unique<Context>(
+            std::move(env), std::move(audioContext), std::move(uiContext), std::move(renderServiceFactory));
     }
 
     IContext* GetContext()

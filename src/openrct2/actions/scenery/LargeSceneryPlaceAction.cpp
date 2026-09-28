@@ -23,7 +23,6 @@
 #include "../../world/ConstructionClearance.h"
 #include "../../world/Footpath.h"
 #include "../../world/Map.h"
-#include "../../world/MapAnimation.h"
 #include "../../world/QuarterTile.h"
 #include "../../world/Wall.h"
 #include "../../world/tile_element/LargeSceneryElement.h"
@@ -240,18 +239,18 @@ namespace OpenRCT2::GameActions
                 return Result(Status::invalidParameters, STR_CANT_POSITION_THIS_HERE, STR_TOO_MANY_BANNERS_IN_GAME);
             }
 
-            banner->text = {};
+            banner->setText({});
             banner->colour = Drawing::Colour::white;
-            banner->textColour = Drawing::TextColour::white;
-            banner->flags = { BannerFlag::isLargeScenery };
-            banner->type = 0;
+            banner->setTextColour(Drawing::TextColour::white);
+            banner->setFlags({ BannerFlag::isLargeScenery });
+            banner->setType(0);
             banner->position = TileCoordsXY(_loc);
 
             RideId rideIndex = BannerGetClosestRideIndex({ _loc, maxHeight });
             if (!rideIndex.IsNull())
             {
-                banner->rideIndex = rideIndex;
-                banner->flags.set(BannerFlag::linkedToRide);
+                banner->setRideIndex(rideIndex);
+                banner->setFlag(BannerFlag::linkedToRide, true);
             }
 
             resultData.bannerId = banner->id;
@@ -304,8 +303,6 @@ namespace OpenRCT2::GameActions
                         newSceneryElement.setBannerIndex(banner->id);
                 });
             Guard::Assert(newSceneryElement != nullptr);
-
-            MapAnimations::MarkTileForInvalidation(TileCoordsXY(curTile));
 
             if (tile.index == 0)
             {

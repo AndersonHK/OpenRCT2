@@ -2926,11 +2926,6 @@ STR_5871    :Désactiver le vieillissement des plantes
 STR_5872    :Désactive le vieillissement des plantes pour qu’elles ne fanent pas
 STR_5873    :Autoriser les remontées à chaîne sur {NEWLINE}tous les éléments de voie
 STR_5874    :Permet à tous les éléments de voie d’être équipés d’une remontée à chaîne
-STR_5875    :Moteur graphique :
-STR_5876    :Sélectionne le moteur à utiliser pour dessiner le jeu
-STR_5877    :Logiciel
-STR_5878    :Logiciel (aff. matériel)
-STR_5879    :OpenGL (expérimental)
 STR_5880    :Sélectionnés
 STR_5881    :Non-sélectionnés
 STR_5882    :Devise personnalisée…

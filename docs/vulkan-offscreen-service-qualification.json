@@ -1,0 +1,192 @@
+{
+  "status": "pass",
+  "scope": "E4 shared indexed executor and bounded offscreen service; caller migration and Gate P remain open",
+  "fullSuite": {
+    "path": "obj/vulkan-parity/run-32/summary.json",
+    "sha256": "0f628eddab9a7fffad0f38e2b466534ec5cdc11f5b04c2257ddc24ca46508f26",
+    "tests": 750
+  },
+  "freshNoWindow": {
+    "path": "obj/vulkan-parity/e4-no-window-offscreen-01/summary.json",
+    "sha256": "0895e42cb91638ba7d871f48f2026b8d06b05c8e64bebc0faee10b5425905092",
+    "tests": 8
+  },
+  "windowedRuns": [
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-balloon-v2-overlap-incremental-01/summary.json",
+      "sha256": "6851ae4ce276d9ab17cb0a3bd7c89c371bdea36182bc6b9a2a7d01598bbfa1c5",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-overlap-incremental-01",
+          "summarySha256": "3db67ebdffa211c39c715c07ed60482dcf9c91777230402d48760cd866c09fc3"
+        },
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-balloon-v2-overlap-01",
+          "summarySha256": "d93cef9c90ee200f45bf9795c60cecb2d679ee37418c4661d1aeabb219daa5b0"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-baseline-01/summary.json",
+      "sha256": "c3566a862147122605146d2d4008b0aa97b5fa5edd076556e5dc8c36fe34301e",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-baseline-01",
+          "summarySha256": "4d91b5a792a8464c7b5e51bf9d6b7b989f9c5b94c14438c55287f6c5cca90495"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-everything-saved-01/summary.json",
+      "sha256": "648f253c28b9f5cf42bdb17e0aefcd635615cb09ccf9a6452387f61f6655fa90",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-everything-saved-02",
+          "summarySha256": "1ae66482d6249cd785637c0982cc30bb271f50137495079a8ac37b6ded206419"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-font-ttf-arial-hinted-scale125-01/summary.json",
+      "sha256": "79f581a249824798a25db8db142b4453b72ea7922383141d7d3caaec548ba5e9",
+      "captures": 7,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-scale125-01",
+          "summarySha256": "715d997cadb2bb63016326883e697b18f7c6e3b1de8af54d173702523a7effbc"
+        },
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-font-ttf-arial-hinted-02",
+          "summarySha256": "3b4b34c23db43188f4c051fe3b00b13eb419805c0f4124171b91d9d27b2919ad"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-font-ttf-arial-hinted-scale150-01/summary.json",
+      "sha256": "645525da1639e0e63b14e65a46bbff83643dd47f05657d225e2dc656ee88b121",
+      "captures": 7,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-scale150-01",
+          "summarySha256": "098aa604ed40e5214f29b286dbae1fa00e6c5007afc0c40002f36e84bf322c78"
+        },
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-font-ttf-arial-hinted-02",
+          "summarySha256": "3b4b34c23db43188f4c051fe3b00b13eb419805c0f4124171b91d9d27b2919ad"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-font-ttf-arial-hinted-scale200-01/summary.json",
+      "sha256": "aebb85111263845f64384bf82700f76b00d0ee97120a5e3d9dd4df5a5902b9d1",
+      "captures": 7,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-frozen-font-ttf-arial-hinted-scale200-01",
+          "summarySha256": "f649b7f2a142da7800eb5ae773fd7ca44673c42728d7af4fe601c35fd82964e1"
+        },
+        {
+          "path": "obj\\vulkan-parity\\ui-vulkan-font-ttf-arial-hinted-02",
+          "summarySha256": "3b4b34c23db43188f4c051fe3b00b13eb419805c0f4124171b91d9d27b2919ad"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-light-night-01/summary.json",
+      "sha256": "6de2ed2240bc406f0d7bf8be521757fd31903e1e06cdd7687a19bc07d55c5bca",
+      "captures": 4,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-light-night-01",
+          "summarySha256": "b22d4effd3acffa379984f39413e45ff2ac40168e23c327874ae4c6811fc0041"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-overlap-01/summary.json",
+      "sha256": "5de96455d1db225850a1df66c77066bd06db2114f4008bda5258344eff4b21a2",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-overlap-01",
+          "summarySha256": "e58b8cba542119b35341e234236cc34b0ad85df3c53bd3eac12351ab495e087f"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-scroll-01/summary.json",
+      "sha256": "6ac5a91ec83eb499e7ccebdcade9d92a8e0e082091b4c5987096d601e95ac9cf",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-scroll-01",
+          "summarySha256": "f3bec397267be6eb84a521fddc8bef83cb7d1269956a5f1fbb4a365f00a745de"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-terrain-r0z1phase-01/summary.json",
+      "sha256": "0dba0021db2e065280713ec2cdf83ac6526902defb613f1c93270837f9769645",
+      "captures": 2,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-terrain-r0z1phase-01",
+          "summarySha256": "6115c291b7ad398c02db310e66058030434fe6cbaa845c8ce9e3073d24f38b70"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-text-01/summary.json",
+      "sha256": "ebfca0fc15b3f3e49fa9a765b8eb7039a412c9a2a943ce0b40adfe2493666533",
+      "captures": 12,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-text-01",
+          "summarySha256": "189a31715df534af48b3a6353ea1374b634880546a2f35551ab75a3bd94755bd"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-weather-palette-01/summary.json",
+      "sha256": "b9f5dfb402b1246af7fe41798ab036e8264c22182a18fc53935183adeea84a58",
+      "captures": 6,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-weather-palette-01",
+          "summarySha256": "52e133cb942e2a81208eefc349e38bd896a5e3321e1fe29f9ab45f8ea54a81e3"
+        }
+      ]
+    },
+    {
+      "path": "obj/vulkan-parity/ui-e4-vulkan-weather-precipitation-01/summary.json",
+      "sha256": "1733e73467858f3aa3ddd82a081e79bd243150ff02c4e1684cd371bc2310a88b",
+      "captures": 8,
+      "comparedReference": [
+        {
+          "path": "obj\\vulkan-parity\\ui-loaded-frozen-weather-precipitation-01",
+          "summarySha256": "7beac0841ca284aa0b0f10f2d639452f21ef6b3b31e6cae4db7628607ad25465"
+        }
+      ]
+    }
+  ],
+  "windowedCaptures": 93,
+  "visualReview": {
+    "path": "docs/vulkan-offscreen-visual-review.json",
+    "sha256": "af13923c103dbe7b69ee480fefabd4ddbcdf9092cd34620f4d21e9bc3dcec9d3"
+  },
+  "windowedReview": "Exact previously agent-reviewed frozen samples, no divergence or new exception.",
+  "sdlFreeRendererCompile": {
+    "path": "obj/vulkan-parity/e4-sdl-free-cmake-03/qualification.json",
+    "sha256": "c12dd34167faa542fc803e9e2a0ff74d019a4cd2bbcdbb562542639a640099d2",
+    "translationUnits": 18,
+    "shaders": 17
+  },
+  "limitations": [
+    "Actual auxiliary callers not yet migrated.",
+    "Bounded auxiliary domain rejects unsupported LightFX, retained-world, giant and nested requests.",
+    "Loader packaging, cross-platform support and sustained performance remain open."
+  ]
+}

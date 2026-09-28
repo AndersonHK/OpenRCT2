@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <gtest/gtest.h>
 #include <openrct2/Context.h>
@@ -33,6 +34,10 @@
 
 #if defined(ENABLE_SCRIPTING) && defined(OPENRCT2_TEST_UI_BINDINGS)
     #include "TestData.h"
+    #include <cstdlib>
+    #include <filesystem>
+    #include <fstream>
+    #include <openrct2-renderer/RenderServiceFactory.h>
     #include <openrct2-ui/UiContext.h>
     #include <openrct2-ui/interface/Window.h>
     #include <openrct2-ui/scripting/UiExtensions.h>
@@ -40,10 +45,11 @@
     #include <openrct2/Input.h>
     #include <openrct2/audio/AudioContext.h>
     #include <openrct2/core/File.h>
+    #include <openrct2/core/Json.hpp>
     #include <openrct2/core/Path.hpp>
     #include <openrct2/drawing/Drawing.Sprite.h>
     #include <openrct2/drawing/Drawing.h>
-    #include <openrct2/drawing/X8DrawingEngine.h>
+    #include <openrct2/drawing/RenderService.h>
     #include <openrct2/interface/Widget.h>
     #include <openrct2/interface/WindowBase.h>
     #include <openrct2/ui/UiContext.h>
@@ -972,6 +978,12 @@ TEST_F(ScriptingTests, DrawnCustomImagesPreserveTransparentPixelsOnCreationRedra
             gOpenRCT2NoGraphics = noGraphics;
         }
     } restore{ _context, gOpenRCT2NoGraphics };
+    _context.reset();
+    gOpenRCT2NoGraphics = false;
+    _context = CreateContext(
+        CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(), Ui::CreateDummyUiContext(),
+        Renderer::CreateConfiguredRenderServiceFactory());
+    ASSERT_TRUE(_context->Initialise());
     gOpenRCT2NoGraphics = false;
     auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
     UiScriptExtensions::Extend(engine);
@@ -1007,7 +1019,6 @@ TEST_F(ScriptingTests, DrawnCustomImagesPreserveTransparentPixelsOnCreationRedra
     ASSERT_EQ(JS_ToUint32(ctx, &imageId, idValue), 0);
     JS_FreeValue(ctx, idValue);
     auto draw = JS_GetPropertyStr(ctx, global, "drawImage");
-    Drawing::X8DrawingEngine software(_context->GetUiContext());
     for (int pass = 0; pass < 4; ++pass)
     {
         const int size = pass >= 2 ? 3 : 2;
@@ -1022,23 +1033,402 @@ TEST_F(ScriptingTests, DrawnCustomImagesPreserveTransparentPixelsOnCreationRedra
         EXPECT_TRUE(sprite->flags.has(G1Flag::hasTransparency));
         EXPECT_EQ(sprite->width, size);
         EXPECT_EQ(sprite->height, size);
-        std::vector<Drawing::PaletteIndex> pixels(size * size, Drawing::PaletteIndex::pi20);
-        Drawing::RenderTarget target{};
-        target.DrawingEngine = &software;
-        target.bits = pixels.data();
-        target.width = size;
-        target.height = size;
-        software.BeginDraw();
-        GfxDrawSprite(target, ImageId(imageId), { 0, 0 });
-        software.EndDraw();
-        EXPECT_EQ(pixels[0], colour);
-        for (size_t i = 1; i < pixels.size(); ++i)
-            EXPECT_EQ(pixels[i], Drawing::PaletteIndex::pi20);
+        ASSERT_NE(sprite->offset, nullptr);
+        EXPECT_EQ(sprite->offset[0], static_cast<uint8_t>(colour));
+        for (int i = 1; i < size * size; ++i)
+            EXPECT_EQ(sprite->offset[i], 0);
     }
     JS_FreeValue(ctx, draw);
     JS_FreeValue(ctx, global);
 }
 
+TEST_F(ScriptingTests, CustomImageTranslatedOverlapPreservesOrderedBitmapSemantics)
+{
+    struct Restore
+    {
+        std::unique_ptr<IContext>& context;
+        bool noGraphics{ gOpenRCT2NoGraphics };
+        ~Restore() { context.reset(); gOpenRCT2NoGraphics = noGraphics; }
+    } restore{ _context };
+    _context.reset();
+    gOpenRCT2NoGraphics = false;
+    _context = CreateContext(CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(), Ui::CreateDummyUiContext(),
+        Renderer::CreateConfiguredRenderServiceFactory());
+    ASSERT_TRUE(_context->Initialise());
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    UiScriptExtensions::Extend(engine);
+    engine.AddNetworkPlugin(R"(
+        globalThis.aliasPassed = false;
+        globalThis.aliasSamples = [];
+        registerPlugin({name:'test-image-alias', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122,
+            main:function() {
+                const m = ui.imageManager, a = m.allocate(1), b = m.allocate(1);
+                function same(label, expected) {
+                    const actual = Array.from(m.getPixelData(a.start).data);
+                    if (actual.join(',') !== expected) throw new Error(label + ': actual=' + actual + ' expected=' + expected);
+                    return actual;
+                }
+                function run(label,w,h,seed,draw,expected) {
+                    m.setPixelData(a.start,{type:'raw',width:w,height:h,data:seed});
+                    let immediate;
+                    m.draw(a.start,{width:w,height:h},function(g) {
+                        draw(g);
+                        immediate = same(label+' immediate',expected);
+                    });
+                    const actual = same(label+' final',expected);
+                    aliasSamples.push({name:label,width:w,height:h,seed:Array.from(seed),
+                        expected:expected.split(',').map(Number),immediate:immediate,actual:actual});
+                }
+                // Explicit fixtures encode the prior top-to-bottom/left-to-right recurrence, not a snapshot copy.
+                run('right',4,1,[20,21,22,23],g=>g.image(a.start,1,0),'20,20,20,20');
+                run('left',4,1,[20,21,22,23],g=>g.image(a.start,-1,0),'21,22,23,23');
+                run('down',3,3,[20,21,22,23,24,25,26,27,28],g=>g.image(a.start,0,1),
+                    '20,21,22,20,21,22,20,21,22');
+                run('up',3,3,[20,21,22,23,24,25,26,27,28],g=>g.image(a.start,0,-1),
+                    '23,24,25,26,27,28,26,27,28');
+                run('diagonal',3,3,[20,21,22,23,24,25,26,27,28],g=>g.image(a.start,1,1),
+                    '20,21,22,23,20,21,26,23,20');
+                run('overwritten zero',4,1,[20,0,21,0],g=>g.image(a.start,1,0),'20,20,20,20');
+                run('transparent source zero',4,1,[0,21,22,23],g=>g.image(a.start,1,0),'0,21,21,21');
+                // Default WithTertiary(0): glyph 2 -> 244, then black's 244 -> 10 on the next propagated read.
+                run('repeated remap',4,1,[2,20,21,22],g=>g.image(a.start,1,0),'2,244,10,10');
+                run('local clip',4,1,[20,21,22,23],g=>{g.clip(1,0,2,1);g.image(a.start,0,0);},'20,20,20,23');
+                run('negative local clip',4,1,[20,21,22,23],g=>{g.clip(-1,0,4,1);g.image(a.start,0,0);},'21,22,23,23');
+                run('signed16 placement',4,1,[20,21,22,23],g=>g.image(a.start,65537,0),'20,20,20,20');
+                m.setPixelData(b.start,{type:'raw',width:1,height:1,data:[42]});
+                run('nested switch',4,1,[20,21,22,23],g=>{
+                    m.draw(b.start,{width:1,height:1},function(h) {
+                        g.image(a.start,1,0); // Reuse the outer context from a different active recorder.
+                        h.image(a.start,0,0);
+                    });
+                    if(m.getPixelData(b.start).data[0]!==20) throw new Error('nested source publication');
+                    m.draw(a.start,{width:4,height:1},function(h){h.image(a.start,1,0);});
+                    g.fill=24;g.rect(3,0,1,1);
+                },'20,20,20,24');
+                // 16510 copied pixels span three bounded dispatches and cross row/packed-word boundaries.
+                const seed = new Array(128*130).fill(21);
+                for(let y=0;y<130;y++) seed[y*128]=20;
+                run('multiple scan slices',128,130,seed,g=>g.image(a.start,1,0),new Array(128*130).fill(20).join(','));
+                globalThis.aliasImageId=a.start;
+                globalThis.runOffsetCase=function(expected) {
+                    run(expected==='20,20,20,20'?'sprite offset +1':'sprite offset -1',
+                        4,1,[20,21,22,23],g=>g.image(a.start,0,0),expected);
+                    globalThis.offsetCompleted=true;
+                };
+                globalThis.finishAlias=function(){m.free(a);};
+                m.free(b);globalThis.aliasPassed=true;
+            }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    const auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-image-alias";
+    });
+    ASSERT_NE(plugin, engine.GetPlugins().end());
+    auto* js = (*plugin)->GetContext();
+    const char* check = "aliasPassed";
+    auto result = JS_Eval(js, check, strlen(check), "custom-image-alias-check", JS_EVAL_TYPE_GLOBAL);
+    EXPECT_FALSE(JS_IsException(result));
+    ASSERT_EQ(JS_ToBool(js, result), 1);
+    JS_FreeValue(js, result);
+    auto global = JS_GetGlobalObject(js);
+    auto idValue = JS_GetPropertyStr(js, global, "aliasImageId");
+    uint32_t id{};
+    ASSERT_EQ(JS_ToUint32(js, &id, idValue), 0);
+    JS_FreeValue(js, idValue);
+    auto callback = JS_GetPropertyStr(js, global, "runOffsetCase");
+    for (const int16_t offset : { int16_t{ 1 }, int16_t{ -1 } })
+    {
+        auto sprite = *GfxGetG1Element(id);
+        sprite.xOffset = offset;
+        GfxSetG1Element(id, &sprite);
+        JS_SetPropertyStr(js, global, "offsetCompleted", JS_FALSE);
+        auto expected = JS_NewString(js, offset > 0 ? "20,20,20,20" : "21,22,23,23");
+        engine.ExecutePluginCall(*plugin, callback, { expected }, false, true);
+        JS_FreeValue(js, expected);
+        auto completed = JS_GetPropertyStr(js, global, "offsetCompleted");
+        EXPECT_EQ(JS_ToBool(js, completed), 1);
+        JS_FreeValue(js, completed);
+        const auto* actual = GfxGetG1Element(id);
+        const std::array<uint8_t, 4> expectedPixels = offset > 0 ? std::array<uint8_t, 4>{ 20, 20, 20, 20 }
+            : std::array<uint8_t, 4>{ 21, 22, 23, 23 };
+        EXPECT_EQ(std::memcmp(actual->offset, expectedPixels.data(), expectedPixels.size()), 0) << "offset=" << offset;
+    }
+    if (const auto* directory = std::getenv("OPENRCT2_VULKAN_PARITY_ARTIFACTS"))
+    {
+        const char* expression = "JSON.stringify(aliasSamples)";
+        auto encoded = JS_Eval(js, expression, strlen(expression), "custom-image-alias-artifacts", JS_EVAL_TYPE_GLOBAL);
+        ASSERT_FALSE(JS_IsException(encoded));
+        const auto* text = JS_ToCString(js, encoded);
+        ASSERT_NE(text, nullptr);
+        const std::string sampleJson(text);
+        JS_FreeCString(js, text);
+        JS_FreeValue(js, encoded);
+        auto samples = json_t::parse(sampleJson);
+        ASSERT_EQ(samples.size(), 15u);
+        auto palette = json_t::array();
+        for (const auto& colour : Drawing::gPalette)
+            palette.push_back({ colour.red, colour.green, colour.blue, colour.alpha });
+        const auto directoryPath = std::filesystem::path(directory) / "custom-image-alias";
+        std::filesystem::create_directories(directoryPath);
+        std::ofstream report(directoryPath / "report.json");
+        ASSERT_TRUE(report.good());
+        report << json_t{ { "schemaVersion", 1 }, { "fixture", "custom-image-alias" }, { "layer", "indexed" },
+            { "passed", !HasFailure() }, { "objectCount", samples.size() }, { "samples", std::move(samples) },
+            { "paletteRgba", std::move(palette) }, { "displayAlphaPolicy", "transparentIndexZero" },
+            { "hardwareReadback", true }, { "indexTolerance", 0 },
+            { "referenceKind", "explicit legacy scan-order expectations; not a new software execution" },
+            { "legacySourceRevision", "ba5b9d8a92a3ae6ca98c570c7d23f6114c2a470e" } }.dump(2);
+        report.close();
+        ASSERT_FALSE(report.fail());
+    }
+    JS_FreeValue(js, callback);
+    callback = JS_GetPropertyStr(js, global, "finishAlias");
+    engine.ExecutePluginCall(*plugin, callback, {}, false, true);
+    JS_FreeValue(js, callback);
+    JS_FreeValue(js, global);
+}
+
+TEST_F(ScriptingTests, CustomImageCallbacksResumeNestedTargetsAndExposeCurrentIndices)
+{
+    struct CountingFactory final : Drawing::IRenderServiceFactory
+    {
+        size_t creations{};
+        std::unique_ptr<Drawing::IRenderService> Create() override
+        {
+            ++creations;
+            return Renderer::CreateConfiguredRenderServiceFactory()->Create();
+        }
+    };
+    auto factory = std::make_shared<CountingFactory>();
+    struct Restore
+    {
+        std::unique_ptr<IContext>& context;
+        bool noGraphics{ gOpenRCT2NoGraphics };
+        ~Restore() { context.reset(); gOpenRCT2NoGraphics = noGraphics; }
+    } restore{ _context };
+    _context.reset();
+    gOpenRCT2NoGraphics = false;
+    _context = CreateContext(
+        CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(), Ui::CreateDummyUiContext(), factory);
+    ASSERT_TRUE(_context->Initialise());
+    // The legacy three-colour map first maps glyph indices 2/3 to primary-remap indices 244/245.
+    // The second image operation maps 244 through the loaded black palette to index 10.
+    const auto black = GetPaletteMapForColour(static_cast<Drawing::FilterPaletteID>(0));
+    ASSERT_TRUE(black.has_value());
+    EXPECT_EQ(static_cast<uint8_t>((*black)[244]), 10);
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    UiScriptExtensions::Extend(engine);
+    engine.AddNetworkPlugin(R"(
+        globalThis.customImagePassed = false;
+        registerPlugin({name:'test-nested-images', version:'1', authors:['openrct2-test'],
+            type:'remote', licence:'MIT', minApiVersion:122, targetApiVersion:122,
+            main:function() {
+                function check(ok, label, actual) { if (!ok) throw new Error(label + ': actual=' + String(actual)); }
+                const m = ui.imageManager, a = m.allocate(1), b = m.allocate(1), rle = m.allocate(1);
+                m.setPixelData(a.start, {type:'raw',width:3,height:2,data:[1,2,3,4,5,6]});
+                m.setPixelData(b.start, {type:'raw',width:2,height:2,data:[0,0,0,0]});
+                let saved, innerFinished = false, outerFinished = false;
+                m.draw(a.start, {width:3,height:2}, function(g) {
+                    saved = g;
+                    g.fill = 11; g.rect(0,0,1,1);
+                    check(m.getPixelData(a.start).data[0] === 11, 'immediate raw read', m.getPixelData(a.start).data.join(','));
+                    g.image(a.start,0,0);
+                    // GraphicsContext.image always applies WithTertiary(0), including with no explicit colours.
+                    // Preserve the legacy glyph-index remap; these values are not ordinary identity palette indices.
+                    check(m.getPixelData(a.start).data.join(',')==='11,244,245,4,5,6',
+                        'first self-image glyph remap', m.getPixelData(a.start).data.join(','));
+                    g.clip(1,0,2,2);
+                    m.draw(b.start, {width:2,height:2}, function(h) {
+                        h.fill = 22; h.rect(0,0,1,1);
+                        g.fill = 12; g.rect(0,1,1,1);
+                        h.image(a.start,0,0);
+                        const pixels = m.getPixelData(b.start).data;
+                        check(pixels[0]===11 && pixels[1]===10 && pixels[2]===4 && pixels[3]===12, 'nested B source after outer resume', pixels.join(','));
+                        innerFinished = true;
+                    });
+                    g.fill = 13; g.rect(1,1,1,1);
+                    let freeCaught = false, setCaught = false;
+                    try { m.free(a); } catch(e) { freeCaught = true; }
+                    try { m.setPixelData(a.start,{type:'raw',width:1,height:1,data:[99]}); }
+                    catch(e) { setCaught = true; }
+                    check(freeCaught && setCaught, 'active destination guards', [freeCaught,setCaught]);
+                    // Other image allocation/upload/free must not invalidate the bound outer target.
+                    const extra = m.allocate(1);
+                    m.setPixelData(extra.start,{type:'raw',width:1,height:1,data:[99]});
+                    m.free(extra);
+                    g.fill = 14; g.rect(0,0,1,1);
+                    outerFinished = true;
+                });
+                check(innerFinished && outerFinished, 'nested callback completion', [innerFinished,outerFinished]);
+                const pixels = m.getPixelData(a.start).data;
+                check(pixels.join(',') === '11,14,245,4,12,13', 'outer clip resumed', pixels.join(','));
+                m.draw(a.start,{width:3,height:2},function(g) {
+                    g.fill=31; g.rect(0,0,1,1);
+                    m.draw(a.start,{width:3,height:2},function(h) {
+                        h.fill=32; h.rect(1,0,1,1);
+                        g.fill=33; g.rect(2,0,1,1);
+                    });
+                    check(m.getPixelData(a.start).data.join(',') === '31,32,33,4,12,13', 'same-image nested resume', m.getPixelData(a.start).data.join(','));
+                });
+                check(m.getPixelData(a.start).data.join(',') === '31,32,33,4,12,13', 'same-image nested resume', m.getPixelData(a.start).data.join(','));
+                let expired = false;
+                try { saved.clear(); } catch(e) { expired = true; }
+                check(expired, 'escaped graphics rejected', expired);
+                // RLE conversion and resize retain the original sprite while the callback is executing.
+                m.setPixelData(rle.start,{type:'rle',width:2,height:1,data:[2,0,130,0,17,18]});
+                m.draw(rle.start,{width:3,height:2},function(g) {
+                    check(m.getImageInfo(rle.start).isRLE, 'RLE remains private until completion', m.getImageInfo(rle.start).isRLE);
+                    g.fill=19; g.rect(2,1,1,1);
+                });
+                check(m.getPixelData(rle.start).data.join(',') === '17,18,0,0,0,19', 'RLE resize', m.getPixelData(rle.start).data.join(','));
+                // Callback exceptions remain logged by ExecutePluginCall; preceding commands are committed.
+                m.draw(a.start,{width:3,height:2},function(g) {
+                    g.fill=41; g.rect(0,0,1,1); throw new Error('expected custom-image callback error');
+                });
+                check(m.getPixelData(a.start).data[0] === 41, 'JS-authored error retains commands', m.getPixelData(a.start).data.join(','));
+                // Force an actual native atlas recording error after a valid command. Catching its JS error inside
+                // the callback must not permit Finish to publish that partial recording as a successful draw.
+                const wide = m.allocate(1);
+                m.setPixelData(wide.start,{type:'raw',width:4096,height:1,data:new Uint8Array(4096).fill(1)});
+                let recordingCaught=false, operationCaught=false;
+                try {
+                    m.draw(a.start,{width:3,height:2},function(g) {
+                        g.fill=55; g.rect(0,0,1,1);
+                        try { g.image(wide.start,0,0); } catch(e) { recordingCaught=true; }
+                    });
+                } catch(e) { operationCaught=String(e).indexOf('GPU atlas cannot represent')>=0; }
+                check(recordingCaught && operationCaught && m.getPixelData(a.start).data[0]===41, 'native error cancels partial recording', [recordingCaught,operationCaught,m.getPixelData(a.start).data.join(',')]);
+                const beforeEmpty = m.getPixelData(a.start).data.join(',');
+                const emptyClips = [
+                    [100,0,1,1], [0,100,1,1], [0,0,0,1], [0,0,1,0], [0,0,-1,2], [0,0,2,-1],
+                    [2147483647,2147483647,2147483647,2147483647],
+                    [-2147483648,-2147483648,2147483647,2147483647]
+                ];
+                for (const clip of emptyClips) {
+                    let finished=false;
+                    m.draw(a.start,{width:3,height:2},function(g) {
+                        g.clip(clip[0],clip[1],clip[2],clip[3]);
+                        check(g.width===0 && g.height===0, 'empty clip dimensions '+clip, [g.width,g.height]);
+                        check(m.getPixelData(a.start).data.join(',')===beforeEmpty, 'empty clip flush '+clip,
+                            m.getPixelData(a.start).data.join(','));
+                        m.draw(b.start,{width:2,height:2},function(h) {
+                            h.fill=23; h.rect(0,0,1,1);
+                            g.fill=99; g.clear(); g.image(wide.start,0,0);
+                        });
+                        // Empty clipping is monotonic, including after both a flush and an inner callback.
+                        g.clip(0,0,3,2);
+                        g.fill=99; g.stroke=99;
+                        g.clear(); g.rect(0,0,3,2); g.line(0,0,2,1);
+                        g.box(0,0,3,2); g.well(0,0,3,2); g.text('empty',0,0);
+                        // This source exceeds the atlas limit and would throw if an empty draw resolved it.
+                        g.image(wide.start,0,0);
+                        finished=true;
+                    });
+                    check(finished && m.getPixelData(a.start).data.join(',')===beforeEmpty,
+                        'empty clip remains empty '+clip, [finished,m.getPixelData(a.start).data.join(',')]);
+                }
+                m.free(wide);
+                m.draw(a.start,{width:3,height:2},function(g) { g.fill=42; g.rect(0,0,1,1); });
+                check(m.getPixelData(a.start).data[0]===42, 'retry after recording failure', m.getPixelData(a.start).data.join(','));
+                globalThis.customImagePassed = true;
+            }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    const auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-nested-images";
+    });
+    ASSERT_NE(plugin, engine.GetPlugins().end());
+    auto* js = (*plugin)->GetContext();
+    const char* check = "customImagePassed";
+    auto result = JS_Eval(js, check, strlen(check), "custom-image-check", JS_EVAL_TYPE_GLOBAL);
+    EXPECT_FALSE(JS_IsException(result));
+    EXPECT_EQ(JS_ToBool(js, result), 1);
+    JS_FreeValue(js, result);
+    EXPECT_EQ(factory->creations, 1u);
+}
+
+TEST_F(ScriptingTests, CustomImageServiceFailureIsCatchableAndPreservesOwnedPixels)
+{
+    struct FailingService final : Drawing::IRenderService
+    {
+        size_t requests{};
+        std::unique_ptr<Drawing::IRenderSession> BeginOffscreen(Drawing::OffscreenRenderRequest request) override
+        {
+            ++requests;
+            EXPECT_EQ(request.initialContents, Drawing::RenderInitialContents::ownedIndices);
+            EXPECT_EQ(request.initialIndices, (std::vector<std::byte>{std::byte{7}, std::byte{0}}));
+            throw Drawing::RenderServiceException({ Drawing::RenderErrorCode::deviceLost, "Expected custom-image device loss" });
+        }
+        void Shutdown() noexcept override {}
+    };
+    struct Factory final : Drawing::IRenderServiceFactory
+    {
+        FailingService* service{};
+        size_t creations{};
+        std::unique_ptr<Drawing::IRenderService> Create() override
+        {
+            ++creations;
+            auto result = std::make_unique<FailingService>();
+            service = result.get();
+            return result;
+        }
+    };
+    auto factory = std::make_shared<Factory>();
+    _context.reset();
+    _context = CreateContext(
+        CreatePlatformEnvironment(), Audio::CreateDummyAudioContext(), Ui::CreateDummyUiContext(), factory);
+    ASSERT_TRUE(_context->Initialise());
+    struct Restore
+    {
+        std::unique_ptr<IContext>& context;
+        bool noGraphics{ gOpenRCT2NoGraphics };
+        ~Restore() { context.reset(); gOpenRCT2NoGraphics = noGraphics; }
+    } restore{ _context };
+    gOpenRCT2NoGraphics = false;
+    auto& engine = static_cast<ScriptEngine&>(_context->GetScriptEngine());
+    UiScriptExtensions::Extend(engine);
+    engine.AddNetworkPlugin(R"(
+        globalThis.customImageFailurePassed = false;
+        registerPlugin({name:'test-image-service-failure',version:'1',authors:['openrct2-test'],
+            type:'remote',licence:'MIT',minApiVersion:122,targetApiVersion:122,main:function() {
+                const m=ui.imageManager, r=m.allocate(1);
+                m.setPixelData(r.start,{type:'raw',width:2,height:1,data:[7,0]});
+                let caught=0, called=false;
+                for(let i=0;i<2;i++) {
+                    try { m.draw(r.start,{width:2,height:1},function(){called=true;}); }
+                    catch(e) { if(String(e).indexOf('Expected custom-image device loss')>=0) caught++; }
+                }
+                let invalid=false;
+                try { m.draw(r.start,{width:4294967298,height:1},function(){called=true;}); }
+                catch(e) { invalid=true; }
+                let oversized=false;
+                try { m.draw(r.start,{width:3000,height:2000},function(){called=true;}); }
+                catch(e) { oversized=String(e).indexOf('4M-pixel')>=0; }
+                const p=m.getPixelData(r.start), info=m.getImageInfo(r.start);
+                globalThis.customImageFailurePassed = caught===2 && !called && invalid && oversized
+                    && p.data.join(',')==='7,0' && info.width===2 && info.height===1 && !info.hasTransparent;
+                m.free(r);
+            }});
+    )");
+    engine.LoadTransientPlugins();
+    engine.Tick();
+    const auto plugin = std::find_if(engine.GetPlugins().begin(), engine.GetPlugins().end(), [](const auto& candidate) {
+        return candidate->GetMetadata().Name == "test-image-service-failure";
+    });
+    ASSERT_NE(plugin, engine.GetPlugins().end());
+    auto* js = (*plugin)->GetContext();
+    const char* check = "customImageFailurePassed";
+    auto result = JS_Eval(js, check, strlen(check), "custom-image-failure-check", JS_EVAL_TYPE_GLOBAL);
+    EXPECT_FALSE(JS_IsException(result));
+    EXPECT_EQ(JS_ToBool(js, result), 1);
+    JS_FreeValue(js, result);
+    EXPECT_EQ(factory->creations, 1u);
+    ASSERT_NE(factory->service, nullptr);
+    EXPECT_EQ(factory->service->requests, 2u);
+}
 TEST_F(ScriptingTests, CustomImageErrorsAreCatchablePreserveTheImageAndReleaseBuffers)
 {
     struct RestoreImageContext

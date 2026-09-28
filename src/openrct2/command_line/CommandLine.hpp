@@ -12,6 +12,12 @@
 #include "ExitCode.h"
 
 #include <cstdint>
+#include <memory>
+
+namespace OpenRCT2::Drawing
+{
+    struct IRenderServiceFactory;
+}
 
 namespace OpenRCT2
 {
@@ -24,6 +30,7 @@ namespace OpenRCT2
         const char* const* _arguments;
         uint16_t _count;
         uint16_t _index;
+        std::shared_ptr<Drawing::IRenderServiceFactory> _renderServiceFactory;
 
     public:
         const char* const* GetArguments() const
@@ -39,7 +46,14 @@ namespace OpenRCT2
             return _index;
         }
 
-        CommandLineArgEnumerator(const char* const* arguments, int32_t count);
+        CommandLineArgEnumerator(
+            const char* const* arguments, int32_t count,
+            std::shared_ptr<Drawing::IRenderServiceFactory> renderServiceFactory = {});
+
+        const std::shared_ptr<Drawing::IRenderServiceFactory>& GetRenderServiceFactory() const
+        {
+            return _renderServiceFactory;
+        }
 
         void Reset();
         bool Backtrack();

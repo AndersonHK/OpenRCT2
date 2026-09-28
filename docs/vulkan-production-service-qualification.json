@@ -1,0 +1,117 @@
+{
+  "status": "pass",
+  "scope": "Production configured factories/dispatcher and shared UI owner under diagnostic composition harnesses; bounded retained terrain compute emission. Full migration remains open.",
+  "fullSuite": {
+    "path": "obj/vulkan-parity/run-38/summary.json",
+    "sha256": "7c675b1a69ed549a440748eae1d9870bd2681527d5590c4b97868bdcba0cac22"
+  },
+  "builds": [
+    {
+      "path": "obj/vulkan-parity/build-44/receipt.json",
+      "sha256": "b3e9086f188879f7de31e27443f150eca88b3b569a427d1fcff7da9947cca6c9"
+    },
+    {
+      "path": "obj/vulkan-parity/ui-build-34/receipt.json",
+      "sha256": "b9cbc565c1a078d1490e5b7923ac0b4c71d6a326c4996bbe286f82f49adc5bf0"
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-build-03/receipt.json",
+      "sha256": "ffa3852c8b257b11f90f767b6b8ff83e1a856efa80773ca4d5cb5a4660ca249f"
+    },
+    {
+      "path": "obj/vulkan-parity/production-no-window-09/receipt.json",
+      "sha256": "c4a9526a945f0915038d4c1678a86ae91dedec84e8ef02a56c594cbaf99bd8b8"
+    }
+  ],
+  "configuredCliCaptures": 64,
+  "configuredCliRuns": [
+    {
+      "path": "obj/vulkan-parity/production-cli-software-background-01/summary.json",
+      "sha256": "279d242a3b7e3d16d94b64fac58c42321ffdf7de5aa087d83815f4d8b0f24a2e"
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-software-background-02/summary.json",
+      "sha256": "289429521c2906746403b9dcfe7510038e3230eb3c49eee7b636bd74dec64b5a"
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-background-01/summary.json",
+      "sha256": "280d96240f152cdfc15cc470056cdfc479f99f3be2abe9427efc6da03dffe375"
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-background-02/summary.json",
+      "sha256": "1b54a29e60194bb82b4f38cac45d008d95feb210d6b1c94bcaa0d6323dee3753"
+    }
+  ],
+  "configuredCliLifecycleCases": 8,
+  "configuredCliLifecycleRuns": [
+    {
+      "path": "obj/vulkan-parity/production-cli-software-lifecycle-02/summary.json",
+      "sha256": "f1e2ebe2e27fd9c2eaf4a6f0c1ffe8e2580e57c1d41f28432a72892548d669c4"
+    },
+    {
+      "path": "obj/vulkan-parity/production-cli-vulkan-lifecycle-02/summary.json",
+      "sha256": "e51aee476d50c3de44c97e9e1398c9d8e0c8ff345b43885c2bf590d8c05b562e"
+    }
+  ],
+  "uiLifecycleCaptures": 12,
+  "uiLifecycleRuns": [
+    {
+      "path": "obj/vulkan-parity/production-ui-lifecycle-01/summary.json",
+      "sha256": "03a0b6ff00df9f78380257477b5002ca4962027a73bb9c61a7696562736139ab"
+    },
+    {
+      "path": "obj/vulkan-parity/production-ui-lifecycle-02/summary.json",
+      "sha256": "b1d26feec2ed45d74cea59e9c0f33d150154f14d60e43cb37a992446617e6394"
+    }
+  ],
+  "noWindowRuns": [
+    {
+      "path": "obj/vulkan-parity/production-no-window-device-01/summary.json",
+      "sha256": "ee094b7549dd211734222b88b61b8bd1699bbf867f3fa9301e85aca14d9e9d3a"
+    },
+    {
+      "path": "obj/vulkan-parity/production-no-window-offscreen-01/summary.json",
+      "sha256": "e74fc7dc15555af06f8e318d45e4bd5fc5020931c7bb607b3cdfb3ce1dcbb5f7"
+    },
+    {
+      "path": "obj/vulkan-parity/production-no-window-terrain-rules-01/summary.json",
+      "sha256": "bca6d7e3e8b6fa71075e27c91593b0f32f2fe7e3af1ce391e4dae95e4cc043db"
+    },
+    {
+      "path": "obj/vulkan-parity/production-no-window-terrain-emission-01/summary.json",
+      "sha256": "699ff2bfed24b3ed4c5023eadf068a13ad67fafa6367bf859c7826ef5ba58403"
+    }
+  ],
+  "retainedTerrainSamples": 27,
+  "sdlFreeCompile": {
+    "path": "obj/vulkan-parity/production-sdl-free-cmake-06/qualification.json",
+    "sha256": "bd29441c53c3c5dc613e060481919c2af1df36d6d831b738fd9498dd6b93d0b9"
+  },
+  "actualLauncherHelpVersion": {
+    "path": "obj/vulkan-parity/production-launcher-smoke-01/summary.json",
+    "sha256": "856dfdd2631ede33602d6ec9a95cc55a319e2d9b8e34742f0ec2b195070b6554"
+  },
+  "manualReviews": [
+    {
+      "path": "docs/vulkan-production-cli-visual-review.json",
+      "sha256": "2ca79685d2f782d21468e7a2b7526cdd0049de8bae6fb0b84e856736084796fe"
+    },
+    {
+      "path": "docs/vulkan-production-service-lifecycle-review.json",
+      "sha256": "51f30f3275a585476d9251716647397a85effdc621b7c7542f143eeb08cced9f"
+    }
+  ],
+  "preservedFailures": [
+    {
+      "path": "obj/vulkan-parity/production-cli-software-lifecycle-01/summary.json",
+      "sha256": "8afe4cc5571d6d2744a208e11b8ac1141e6fba065876aa2c5f933cea1a973179"
+    }
+  ],
+  "limitations": [
+    "Shared-owner identities plus pinned wiring are not global intercepted Vulkan API counts.",
+    "Shutdown checks weak expiration and SDL stopped afterward, without chronological loader-before-SDL tracing.",
+    "Image captures use production factories/dispatcher through diagnostic harnesses; ordinary launchers have help/version smoke only.",
+    "Retained terrain emits exact bounded descriptors from raw resident state; drawing admission, global order/pixels and Gate P remain open.",
+    "Giant/tiled output, remaining auxiliary callers, packaging/cross-platform parity, sustained VSync/TPS and software removal remain open."
+  ]
+}

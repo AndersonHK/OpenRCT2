@@ -167,7 +167,7 @@ namespace OpenRCT2::Ui::Windows
                         { widget->left + windowPos.x, widget->top + windowPos.y }, widget->height(), colours[1], 0, {},
                         numItems, widget->width() - 1 + 3);
 
-                    gDropdown.items[EnumValue(banner->textColour) - 1].setChecked(true);
+                    gDropdown.items[EnumValue(banner->getTextColour()) - 1].setChecked(true);
                     break;
             }
         }
@@ -207,7 +207,8 @@ namespace OpenRCT2::Ui::Windows
                 {
                     TextinputCancel();
                     auto bannerSetStyle = GameActions::BannerSetStyleAction(
-                        GameActions::BannerSetStyleType::noEntry, GetBannerIndex(), !banner->flags.has(BannerFlag::noEntry));
+                        GameActions::BannerSetStyleType::noEntry, GetBannerIndex(),
+                        !banner->getFlags().has(BannerFlag::noEntry));
                     GameActions::Execute(&bannerSetStyle, gameState);
                     break;
                 }
@@ -275,11 +276,11 @@ namespace OpenRCT2::Ui::Windows
                 return;
             }
 
-            auto* bannerEntry = OpenRCT2::ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->type);
+            auto* bannerEntry = OpenRCT2::ObjectEntryManager::GetObjectEntry<BannerSceneryEntry>(banner->getType());
             const bool visible = bannerEntry != nullptr && (bannerEntry->flags & BANNER_ENTRY_FLAG_HAS_PRIMARY_COLOUR);
             widgets[WIDX_MAIN_COLOUR].setVisible(visible);
 
-            const bool noEntry = banner->flags.has(BannerFlag::noEntry);
+            const bool noEntry = banner->getFlags().has(BannerFlag::noEntry);
             setWidgetPressed(WIDX_BANNER_NO_ENTRY, noEntry);
             setWidgetDisabled(WIDX_BANNER_TEXT, noEntry);
             setWidgetDisabled(WIDX_TEXT_COLOUR_DROPDOWN, noEntry);
@@ -288,7 +289,7 @@ namespace OpenRCT2::Ui::Windows
             widgets[WIDX_MAIN_COLOUR].image = getColourButtonImage(banner->colour);
 
             Widget& dropdownWidget = widgets[WIDX_TEXT_COLOUR_DROPDOWN];
-            dropdownWidget.text = kBannerColouredTextFormats[EnumValue(banner->textColour)];
+            dropdownWidget.text = kBannerColouredTextFormats[EnumValue(banner->getTextColour())];
         }
     };
 

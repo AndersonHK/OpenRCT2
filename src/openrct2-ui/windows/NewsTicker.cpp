@@ -111,7 +111,7 @@ namespace OpenRCT2::Ui::Windows
                     image_id_base += currentFrame & 0xFFFFFFFC;
                     image_id_base++;
 
-                    auto image_id = ImageId(image_id_base, peep->tShirtColour, peep->trousersColour);
+                    auto image_id = ImageId(image_id_base, peep->getTShirtColour(), peep->getTrousersColour());
                     GfxDrawSprite(clippedRT, image_id, clipCoords);
 
                     auto* guest = peep->as<Guest>();
@@ -125,7 +125,7 @@ namespace OpenRCT2::Ui::Windows
                     if (guest->animationGroup == PeepAnimationGroup::hat)
                     {
                         auto itemOffset = kPeepSpriteHatItemStart + 1;
-                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->hatColour);
+                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getHatColour());
                         GfxDrawSprite(clippedRT, imageId, clipCoords);
                         return;
                     }
@@ -133,7 +133,7 @@ namespace OpenRCT2::Ui::Windows
                     if (guest->animationGroup == PeepAnimationGroup::balloon)
                     {
                         auto itemOffset = kPeepSpriteBalloonItemStart + 1;
-                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->balloonColour);
+                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getBalloonColour());
                         GfxDrawSprite(clippedRT, imageId, clipCoords);
                         return;
                     }
@@ -141,7 +141,7 @@ namespace OpenRCT2::Ui::Windows
                     if (guest->animationGroup == PeepAnimationGroup::umbrella)
                     {
                         auto itemOffset = kPeepSpriteUmbrellaItemStart + 1;
-                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->umbrellaColour);
+                        auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getUmbrellaColour());
                         GfxDrawSprite(clippedRT, imageId, clipCoords);
                         return;
                     }

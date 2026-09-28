@@ -577,7 +577,7 @@ namespace OpenRCT2::Ui::Windows
             }
             animationFrame += animationFrameOffset;
 
-            auto spriteId = ImageId(animationFrame, peep->tShirtColour, peep->trousersColour);
+            auto spriteId = ImageId(animationFrame, peep->getTShirtColour(), peep->getTrousersColour());
             GfxDrawSprite(clipRT, spriteId, screenCoords);
 
             auto* guest = peep->as<Guest>();
@@ -590,21 +590,21 @@ namespace OpenRCT2::Ui::Windows
             if (guest->animationGroup == PeepAnimationGroup::hat)
             {
                 auto itemOffset = kPeepSpriteHatItemStart + 1;
-                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->hatColour);
+                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getHatColour());
                 GfxDrawSprite(clipRT, imageId, screenCoords);
             }
 
             if (guest->animationGroup == PeepAnimationGroup::balloon)
             {
                 auto itemOffset = kPeepSpriteBalloonItemStart + 1;
-                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->balloonColour);
+                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getBalloonColour());
                 GfxDrawSprite(clipRT, imageId, screenCoords);
             }
 
             if (guest->animationGroup == PeepAnimationGroup::umbrella)
             {
                 auto itemOffset = kPeepSpriteUmbrellaItemStart + 1;
-                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->umbrellaColour);
+                auto imageId = ImageId(itemOffset + itemFrame * 4, guest->getUmbrellaColour());
                 GfxDrawSprite(clipRT, imageId, screenCoords);
             }
         }
@@ -1008,7 +1008,7 @@ namespace OpenRCT2::Ui::Windows
 
             auto baseImageId = animObj->GetPeepAnimation(peep->animationGroup, PeepAnimationType::hanging).baseImage;
             baseImageId += pickedPeepFrame >> 2;
-            Drawing::pickupPeepSetImage(baseImageId, peep->tShirtColour, peep->trousersColour);
+            Drawing::pickupPeepSetImage(baseImageId, peep->getTShirtColour(), peep->getTrousersColour());
         }
 
         void onToolDownOverview(WidgetIndex widgetIndex, const ScreenCoordsXY& screenCoords)
@@ -1644,7 +1644,7 @@ namespace OpenRCT2::Ui::Windows
             switch (item)
             {
                 case ShopItem::balloon:
-                    itemImage = ImageId(itemDesc.Image, guest.balloonColour);
+                    itemImage = ImageId(itemDesc.Image, guest.getBalloonColour());
                     break;
                 case ShopItem::photo:
                     invRide = GetRide(guest.photo1RideRef);
@@ -1657,7 +1657,7 @@ namespace OpenRCT2::Ui::Windows
 
                     break;
                 case ShopItem::umbrella:
-                    itemImage = ImageId(itemDesc.Image, guest.umbrellaColour);
+                    itemImage = ImageId(itemDesc.Image, guest.getUmbrellaColour());
                     break;
                 case ShopItem::voucher:
                     switch (guest.voucherType)
@@ -1695,10 +1695,10 @@ namespace OpenRCT2::Ui::Windows
                     }
                     break;
                 case ShopItem::hat:
-                    itemImage = ImageId(itemDesc.Image, guest.hatColour);
+                    itemImage = ImageId(itemDesc.Image, guest.getHatColour());
                     break;
                 case ShopItem::tShirt:
-                    itemImage = ImageId(itemDesc.Image, guest.tShirtColour);
+                    itemImage = ImageId(itemDesc.Image, guest.getTShirtColour());
                     break;
                 case ShopItem::photo2:
                     invRide = GetRide(guest.photo2RideRef);

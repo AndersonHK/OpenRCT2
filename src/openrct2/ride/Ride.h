@@ -225,17 +225,29 @@ namespace OpenRCT2
     RideMode& operator++(RideMode& d, int);
     using RideModes = FlagHolder<uint64_t, RideMode>;
 
+    uint64_t GetRideStationGraphicalRevision() noexcept;
+
     struct RideStation
     {
+    private:
+        // Assignment participates in publication even when a whole Ride/Station is replaced.
+        struct GraphicalState
+        {
+            CoordsXY start;
+            uint8_t height{};
+            TileCoordsXYZD entrance;
+            TileCoordsXYZD exit;
+            GraphicalState() = default;
+            GraphicalState(const GraphicalState&) = default;
+            GraphicalState& operator=(const GraphicalState& other);
+        } _graphical;
+
+    public:
         static constexpr uint8_t kNoTrain = std::numeric_limits<uint8_t>::max();
 
-        CoordsXY start;
-        uint8_t height{};
         uint8_t length{};
         uint8_t depart{};
         uint8_t trainAtStation{ kNoTrain };
-        TileCoordsXYZD entrance;
-        TileCoordsXYZD exit;
         int32_t segmentLength{}; // Length of track between this station and the next.
         uint16_t segmentTime{};  // Time for train to reach the next station from this station.
         uint8_t queueTime{};
@@ -248,6 +260,31 @@ namespace OpenRCT2
         int32_t getBaseZ() const;
         void setBaseZ(int32_t newZ);
         CoordsXYZ getStart() const;
+        const CoordsXY& getStartXY() const
+        {
+            return _graphical.start;
+        }
+        uint8_t getHeight() const
+        {
+            return _graphical.height;
+        }
+        const TileCoordsXYZD& getEntrance() const
+        {
+            return _graphical.entrance;
+        }
+        const TileCoordsXYZD& getExit() const
+        {
+            return _graphical.exit;
+        }
+        void setStart(CoordsXY value);
+        void setHeight(uint8_t value);
+        void setEntrance(TileCoordsXYZD value);
+        void setExit(TileCoordsXYZD value);
+        void clearStart();
+        void clearEntrance();
+        void clearExit();
+        void setEntranceDirection(uint8_t value);
+        void setExitDirection(uint8_t value);
     };
 
     struct RideStationPlatformReservation
@@ -599,6 +636,8 @@ namespace OpenRCT2
         TileCoordsXYZ chairliftBullwheelLocation[2];
         OpenRCT2::RideRating::Tuple ratings{};
         money64 value{};
+        // Fractional cents retained for automatic pricing; legacy saves initialize this to zero.
+        uint16_t valueFraction{};
         uint16_t chairliftBullwheelRotation{};
         uint8_t satisfaction{};
         uint8_t satisfactionTimeout{};
@@ -1232,7 +1271,15 @@ namespace OpenRCT2
     void RideClearStationPlatformPreQueue(const Ride& ride);
     void RideClearAllStationPlatformPreQueues();
     void RideRebuildStationPlatformPreQueues();
-    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target);
+    // Deterministic fixed-point pricing, in 1/1024 cent units until final quantization.
+    constexpr int64_t kRideValueFractionScale = 1024;
+    enum class RidePriceRounding : uint8_t
+    {
+        cent,
+        nearestTenCents
+    };
+    money64 RideGetPerceivedValue(const Ride& ride, bool paidParkEntry);
+    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target, RidePriceRounding rounding = RidePriceRounding::cent);
     bool RideUsesTargetPricing(const Ride& ride);
     void RideUpdateTargetPrice(Ride& ride);
 

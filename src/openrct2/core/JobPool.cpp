@@ -9,8 +9,11 @@
 
 #include "JobPool.h"
 
+#include "../profiling/Profiling.h"
+
 #include <algorithm>
 #include <cassert>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -99,8 +102,7 @@ void JobPool::EnqueueTask(
         {
             throw std::logic_error("Cannot submit work to a stopped JobPool");
         }
-        _pending[static_cast<size_t>(priority)].push_back(
-            { std::move(workFn), std::move(completionFn), {}, std::move(group) });
+        _pending[static_cast<size_t>(priority)].push_back({ std::move(workFn), std::move(completionFn), {}, std::move(group) });
     }
     _condPending.notify_one();
 }
@@ -150,6 +152,7 @@ void JobPool::AddTask(TaskGroup& group, std::function<void()> workFn, TaskPriori
 
 void JobPool::Wait(TaskGroup& group)
 {
+    PROFILED_FUNCTION();
     if (group._owner != this || group._state == nullptr)
     {
         throw std::invalid_argument("Task group does not belong to this JobPool");
@@ -159,8 +162,28 @@ void JobPool::Wait(TaskGroup& group)
         throw std::logic_error("A JobPool worker cannot wait on its own task group");
     }
 
+    auto* attribution = group._state->Attribution.get();
+    const auto beforeLock = attribution == nullptr ? OpenRCT2::SimulationAttribution::Clock::time_point{}
+                                                   : OpenRCT2::SimulationAttribution::Clock::now();
     std::unique_lock lock(group._state->Mutex);
+    const auto acquired = attribution == nullptr ? OpenRCT2::SimulationAttribution::Clock::time_point{}
+                                                 : OpenRCT2::SimulationAttribution::Clock::now();
+    if (attribution != nullptr)
+    {
+        attribution->acquireMutexMs = OpenRCT2::SimulationAttribution::Milliseconds(beforeLock, acquired);
+        attribution->remainingAtWait = group._state->Remaining;
+    }
     group._state->Complete.wait(lock, [&group] { return group._state->Remaining == 0; });
+    if (attribution != nullptr)
+    {
+        const auto resumed = OpenRCT2::SimulationAttribution::Clock::now();
+        attribution->conditionWaitMs = OpenRCT2::SimulationAttribution::Milliseconds(acquired, resumed);
+        // If ready preceded Wait, this interval includes useful caller work, not wakeup latency.
+        // Clamp to wait entry so only completion-to-resumption within the actual wait is reported.
+        if (attribution->ready != OpenRCT2::SimulationAttribution::Clock::time_point{})
+            attribution->readyToResumeMs = OpenRCT2::SimulationAttribution::Milliseconds(
+                std::max(acquired, attribution->ready), resumed);
+    }
     const auto error = group._state->FirstError;
     lock.unlock();
     if (error != nullptr)
@@ -253,6 +276,10 @@ void JobPool::ParallelFor(
         return;
     }
 
+    namespace Attribution = OpenRCT2::SimulationAttribution;
+    const bool trace = Attribution::TraceParallel();
+    const auto traceStart = trace ? Attribution::Read(Attribution::state.reader) : Attribution::Stamp{};
+    std::optional<Attribution::ParallelEvent> traceEvent;
     grainSize = std::max<size_t>(grainSize, 1);
     std::atomic_size_t nextIndex{ 0 };
     const auto processNext = [&]() {
@@ -272,11 +299,22 @@ void JobPool::ParallelFor(
     const auto batchCount = 1 + ((count - 1) / grainSize);
     const auto workerTasks = std::min(batchCount, _threads.size());
     auto group = CreateTaskGroup();
+    if (trace)
+    {
+        group._state->Attribution = std::make_unique<Attribution::Workers>();
+        group._state->Attribution->reader = Attribution::state.reader;
+        group._state->Attribution->groupStart = traceStart.time;
+        auto& event = traceEvent.emplace();
+        event.count = count;
+        event.grain = grainSize;
+        event.workers = workerTasks;
+    }
     for (size_t i = 0; i < workerTasks; i++)
     {
         AddTask(group, processNext, priority);
     }
 
+    const auto submitted = trace ? Attribution::Read(Attribution::state.reader) : Attribution::Stamp{};
     // The submitting thread participates instead of blocking while workers consume the queue. Both paths still reach the
     // barrier after an exception so worker lambdas never outlive references captured from this stack frame.
     std::exception_ptr firstError;
@@ -289,6 +327,38 @@ void JobPool::ParallelFor(
         firstError = std::current_exception();
     }
 
+    const auto callerEnd = trace ? Attribution::Read(Attribution::state.reader) : Attribution::Stamp{};
+    if (nextIndex.load(std::memory_order_relaxed) >= count)
+    {
+        // All indices are claimed. Consumers still in the queue can only discover
+        // that there is no work. Retire them here instead of waiting for unrelated
+        // busy workers to wake just to run these empty closures. Already running
+        // consumers remain in the group and must complete before stack captures die.
+        size_t removed = 0;
+        {
+            std::scoped_lock lock(_mutex);
+            for (auto& queue : _pending)
+                removed += std::erase_if(queue, [&](const auto& task) { return task.Group == group._state; });
+            if (removed != 0)
+                _condComplete.notify_all();
+        }
+        if (removed != 0)
+        {
+            std::scoped_lock lock(group._state->Mutex);
+            assert(group._state->Remaining >= removed);
+            group._state->Remaining -= removed;
+            if (trace)
+                group._state->Attribution->retired += removed;
+            if (group._state->Remaining == 0)
+            {
+                if (trace)
+                    group._state->Attribution->ready = Attribution::Clock::now();
+                group._state->Complete.notify_all();
+            }
+        }
+    }
+
+    const auto waitStart = trace ? Attribution::Read(Attribution::state.reader) : Attribution::Stamp{};
     try
     {
         Wait(group);
@@ -299,6 +369,29 @@ void JobPool::ParallelFor(
             firstError = std::current_exception();
     }
 
+    if (trace)
+    {
+        const auto end = Attribution::Read(Attribution::state.reader);
+        auto& event = *traceEvent;
+        static_cast<Attribution::Event&>(event) = Attribution::MakeEvent(
+            Attribution::state.tick, Attribution::state.epoch, traceStart, end);
+        event.submitMs = Attribution::Milliseconds(traceStart.time, submitted.time);
+        event.callerMs = Attribution::Milliseconds(submitted.time, callerEnd.time);
+        event.retireMs = Attribution::Milliseconds(callerEnd.time, waitStart.time);
+        event.waitMs = Attribution::Milliseconds(waitStart.time, end.time);
+        const auto caller = Attribution::MakeEvent(0, traceStart.time, submitted, callerEnd);
+        const auto waiting = Attribution::MakeEvent(0, traceStart.time, waitStart, end);
+        event.callerCycles = caller.cycles;
+        event.callerCyclesAvailable = caller.cyclesAvailable;
+        event.waitCycles = waiting.cycles;
+        event.waitCyclesAvailable = waiting.cyclesAvailable;
+        // Wait observed Remaining == 0 under this same mutex; no group workers can mutate the result afterward.
+        {
+            std::scoped_lock lock(group._state->Mutex);
+            event.worker = *group._state->Attribution;
+        }
+        Attribution::state.parallel[Attribution::state.phase == Attribution::Phase::peeps ? 0 : 1].Add(event);
+    }
     if (reportFn)
     {
         try
@@ -358,6 +451,9 @@ void JobPool::ProcessQueue()
 
             lock.unlock();
 
+            auto* attribution = taskData.Group == nullptr ? nullptr : taskData.Group->Attribution.get();
+            const auto workerStart = attribution == nullptr ? OpenRCT2::SimulationAttribution::Stamp{}
+                                                            : OpenRCT2::SimulationAttribution::Read(attribution->reader);
             try
             {
                 taskData.WorkFn();
@@ -367,9 +463,13 @@ void JobPool::ProcessQueue()
                 taskData.Error = std::current_exception();
             }
 
+            const auto workerEnd = attribution == nullptr ? OpenRCT2::SimulationAttribution::Stamp{}
+                                                          : OpenRCT2::SimulationAttribution::Read(attribution->reader);
             if (taskData.Group != nullptr)
             {
                 std::scoped_lock groupLock(taskData.Group->Mutex);
+                if (attribution != nullptr)
+                    attribution->Complete(workerStart, workerEnd, OpenRCT2::SimulationAttribution::Clock::now());
                 if (taskData.Error != nullptr && taskData.Group->FirstError == nullptr)
                 {
                     taskData.Group->FirstError = taskData.Error;
@@ -378,6 +478,8 @@ void JobPool::ProcessQueue()
                 taskData.Group->Remaining--;
                 if (taskData.Group->Remaining == 0)
                 {
+                    if (attribution != nullptr)
+                        attribution->ready = OpenRCT2::SimulationAttribution::Clock::now();
                     taskData.Group->Complete.notify_all();
                 }
             }

@@ -12,6 +12,10 @@
 #ifdef ENABLE_VULKAN
 
     #include <cstdint>
+    #include <functional>
+    #include <memory>
+    #include <openrct2-renderer/vulkan/VulkanPresentationHost.h>
+    #include <optional>
     #include <vector>
     #include <vulkan/vulkan.h>
 
@@ -19,12 +23,20 @@ struct SDL_Window;
 
 namespace OpenRCT2::Ui::Vulkan::Platform
 {
+    // Worker construction never touches the UI. The pump runs on the caller,
+    // and both success and failure join the worker before returning.
+    void PreparePipelines(const std::function<void()>& work, const std::function<void()>& pump);
+    // The caller owns the SDL window and must dispose the backend before destroying it.
+    [[nodiscard]] std::unique_ptr<PresentationHost> CreatePresentationHost(SDL_Window* window);
     [[nodiscard]] uint32_t GetRequiredSdlWindowFlags() noexcept;
     void LoadVulkanLibrary();
     void UnloadVulkanLibrary() noexcept;
     [[nodiscard]] std::vector<const char*> GetInstanceExtensions(SDL_Window* window);
     [[nodiscard]] VkSurfaceKHR CreateSurface(SDL_Window* window, VkInstance instance);
     [[nodiscard]] VkExtent2D GetDrawableExtent(SDL_Window* window) noexcept;
+    // UI-thread only. The Windows SDR-content brightness is in absolute nits;
+    // unavailable/ambiguous display information leaves the caller's fallback explicit.
+    [[nodiscard]] std::optional<float> GetSdrWhiteNits(SDL_Window* window);
 } // namespace OpenRCT2::Ui::Vulkan::Platform
 
 #endif // ENABLE_VULKAN

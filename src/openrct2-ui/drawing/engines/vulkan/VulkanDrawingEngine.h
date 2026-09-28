@@ -16,9 +16,15 @@ namespace OpenRCT2::Drawing
     struct IDrawingEngine;
 }
 
+namespace OpenRCT2::Ui::Vulkan
+{
+    class DeviceContextOwner;
+}
+
 namespace OpenRCT2::Ui
 {
     struct IUiContext;
 
-    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(IUiContext& uiContext);
+    [[nodiscard]] std::unique_ptr<Drawing::IDrawingEngine> CreateVulkanDrawingEngine(
+        IUiContext& uiContext, std::shared_ptr<Vulkan::DeviceContextOwner> owner = {});
 } // namespace OpenRCT2::Ui
