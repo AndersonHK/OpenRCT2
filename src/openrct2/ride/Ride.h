@@ -636,6 +636,8 @@ namespace OpenRCT2
         TileCoordsXYZ chairliftBullwheelLocation[2];
         OpenRCT2::RideRating::Tuple ratings{};
         money64 value{};
+        // Fractional cents retained for automatic pricing; legacy saves initialize this to zero.
+        uint16_t valueFraction{};
         uint16_t chairliftBullwheelRotation{};
         uint8_t satisfaction{};
         uint8_t satisfactionTimeout{};
@@ -1269,7 +1271,15 @@ namespace OpenRCT2
     void RideClearStationPlatformPreQueue(const Ride& ride);
     void RideClearAllStationPlatformPreQueues();
     void RideRebuildStationPlatformPreQueues();
-    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target);
+    // Deterministic fixed-point pricing, in 1/1024 cent units until final quantization.
+    constexpr int64_t kRideValueFractionScale = 1024;
+    enum class RidePriceRounding : uint8_t
+    {
+        cent,
+        nearestTenCents
+    };
+    money64 RideGetPerceivedValue(const Ride& ride, bool paidParkEntry);
+    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target, RidePriceRounding rounding = RidePriceRounding::cent);
     bool RideUsesTargetPricing(const Ride& ride);
     void RideUpdateTargetPrice(Ride& ride);
 

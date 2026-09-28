@@ -59,6 +59,8 @@
 #include <openrct2/ride/Ride.h>
 #include <openrct2/ride/RideData.h>
 #include <openrct2/ride/RideManager.hpp>
+#include <openrct2/ride/RideRatings.h>
+#include <openrct2/ride/Station.h>
 #include <openrct2/ride/TrackDesign.h>
 #include <openrct2/ride/Vehicle.Station.h>
 #include <openrct2/ride/Vehicle.h>
@@ -1667,6 +1669,178 @@ TEST_F(PlayTests, RideTargetPriceUsesIncomeDebuff)
     ferrisWheel.value = 10.00_GBP;
 
     EXPECT_EQ(RideGetTargetPrice(ferrisWheel, RidePriceTarget::neutral), 6.30_GBP);
+}
+
+TEST_F(PlayTests, RestroomsAcceptAffordableCentPricesAtNeedBoundary)
+{
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    ASSERT_NE(context, nullptr);
+    getGameState().park.flags.unset(ParkFlag::noMoney);
+    Ride toilet{};
+    toilet.id = RideId::FromUnderlying(200);
+    toilet.type = RIDE_TYPE_TOILETS;
+    toilet.status = RideStatus::open;
+    const auto accepts = [&](int need, money64 price, money64 cash = 1.00_GBP) {
+        Guest guest{};
+        guest.previousRide = RideId::GetNull();
+        guest.toilet = need;
+        guest.cashInPocket = cash;
+        toilet.price[0] = price;
+        return guest.shouldGoOnRide(toilet, StationIndex::FromUnderlying(0), false, true);
+    };
+    EXPECT_FALSE(accepts(69, 0));
+    EXPECT_TRUE(accepts(70, 0.17_GBP));
+    EXPECT_FALSE(accepts(70, 0.18_GBP));
+    EXPECT_TRUE(accepts(80, 0.20_GBP));
+    EXPECT_TRUE(accepts(255, 0.63_GBP));
+    EXPECT_FALSE(accepts(255, 0.64_GBP));
+    EXPECT_FALSE(accepts(255, 0.10_GBP, 0.09_GBP));
+    getGameState().cheats.ignorePrice = true;
+    EXPECT_TRUE(accepts(70, 1.00_GBP));
+    EXPECT_FALSE(accepts(70, 1.00_GBP, 0.99_GBP));
+}
+
+TEST_F(PlayTests, RatingValueKeepsFractionalCentsUntilFinalPriceRounding)
+{
+    auto context = localStartGame(TestData::GetParkPath("small_park_with_ferris_wheel.sv6"));
+    ASSERT_NE(context, nullptr);
+    auto& gameState = getGameState();
+    gameState.park.flags.unset(ParkFlag::noMoney);
+    gameState.park.flags.set(ParkFlag::unlockAllPrices);
+    gameState.park.entranceFee = 0;
+    gameState.park.entranceFeeTarget = Park::ParkEntranceFeeTarget::custom;
+    gameState.cheats.disableRideValueAging = true;
+    auto* ride = FindFerrisWheel(gameState);
+    ASSERT_NE(ride, nullptr);
+    ride->ratings = { 500, 100, 100 };
+    RideRating::UpdateValue(*ride);
+    // Combined weights 60/20/10, ten cents per legacy unit, then the new-ride 1.5 multiplier.
+    EXPECT_EQ(ride->value, 483);
+    EXPECT_EQ(ride->valueFraction, 408);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::neutral), 3.05_GBP);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::neutral, RidePriceRounding::nearestTenCents), 3.00_GBP);
+    EXPECT_EQ(RideGetPerceivedValue(*ride, false), 3.38_GBP);
+    EXPECT_EQ(RideGetPerceivedValue(*ride, true), 0.85_GBP);
+    ride->ratings.excitement++;
+    RideRating::UpdateValue(*ride);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::neutral), 3.05_GBP);
+    ride->ratings.excitement++;
+    RideRating::UpdateValue(*ride);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::neutral), 3.06_GBP);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::neutral, RidePriceRounding::nearestTenCents), 3.10_GBP);
+    EXPECT_EQ(RideGetTargetPrice(*ride, RidePriceTarget::free, RidePriceRounding::nearestTenCents), 0);
+}
+
+TEST_F(PlayTests, RaceStartClearsCompletedLapsWithoutRestartingEveryTick)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& gameState = getGameState();
+    Ride* kartRide = nullptr;
+    for (auto& ride : RideManager(gameState))
+        if (ride.type == RIDE_TYPE_GO_KARTS && ride.numTrains > 0)
+            kartRide = &ride;
+    ASSERT_NE(kartRide, nullptr);
+    kartRide->status = RideStatus::open;
+    kartRide->mode = RideMode::race;
+    kartRide->flags.unset(RideFlag::brokenDown, RideFlag::crashed, RideFlag::passStationNoStopping);
+    kartRide->numLaps = 1;
+    for (size_t i = 0; i < kartRide->numTrains; ++i)
+    {
+        auto* kart = gameState.entities.getEntity<Vehicle>(kartRide->vehicles[i]);
+        ASSERT_NE(kart, nullptr);
+        EXPECT_EQ(kart->GetRideEntry()->Cars[kart->vehicle_type].boardingDurationTicks, 80);
+        kart->status = Vehicle::Status::departing;
+        kart->NumLaps = 1;
+    }
+    RideUpdateStation(*kartRide, StationIndex::FromUnderlying(0), 0, false);
+    ASSERT_TRUE(kartRide->flags.has(RideFlag::passStationNoStopping));
+    auto* kart = gameState.entities.getEntity<Vehicle>(kartRide->vehicles[0]);
+    EXPECT_EQ(kart->NumLaps, 0);
+    kart->var_C0 = 0;
+    for (int tick = 0; tick < 50; ++tick)
+    {
+        RideUpdateStation(*kartRide, StationIndex::FromUnderlying(0), tick, false);
+        EXPECT_TRUE(kartRide->flags.has(RideFlag::passStationNoStopping));
+        EXPECT_EQ(kart->var_C0, 0);
+    }
+    kart->status = Vehicle::Status::travelling;
+    kart->NumLaps = 1;
+    RideUpdateStation(*kartRide, StationIndex::FromUnderlying(0), 51, false);
+    EXPECT_FALSE(kartRide->flags.has(RideFlag::passStationNoStopping));
+}
+
+TEST_F(PlayTests, PairedBoardingWaitsForBothIndependentTickTimers)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& gameState = getGameState();
+    const auto target = FindCapturedPlatformTrain(gameState, [](const Ride&, const Vehicle& train, uint8_t, StationIndex) {
+        return (train.num_seats & kVehicleSeatNumMask) >= 2;
+    });
+    ASSERT_NE(target.train, nullptr);
+    ClearTrain(gameState, *target.train);
+    OpenPlatformTestRide(*target.ride);
+    target.train->num_seats = 2 | kVehicleSeatPairFlag;
+    target.train->next_free_seat = 2;
+    Guest* guests[2]{};
+    for (int seat = 0; seat < 2; ++seat)
+    {
+        auto* guest = Guest::generate(target.ride->getStation(target.station).getEntrance().toCoordsXYZ());
+        ASSERT_NE(guest, nullptr);
+        guests[seat] = guest;
+        guest->currentRide = target.ride->id;
+        guest->currentRideStation = target.station;
+        guest->currentTrain = target.trainIndex;
+        guest->currentCar = 0;
+        guest->currentSeat = seat;
+        guest->state = PeepState::enteringRide;
+        guest->rideSubState = PeepRideSubState::enterVehicle;
+        guest->boardingTicksRemaining = seat == 0 ? 32 : 64;
+        guest->energy = seat == 0 ? 32 : 128;
+        target.train->peep[seat] = guest->id;
+    }
+    for (int tick = 1; tick <= 63; ++tick)
+    {
+        for (auto* guest : guests)
+            guest->update();
+        EXPECT_EQ(target.train->num_peeps, 0);
+        EXPECT_EQ(guests[1]->boardingTicksRemaining, 64 - tick);
+    }
+    for (int tick = 0; tick < 32 && target.train->num_peeps == 0; ++tick)
+        for (auto* guest : guests)
+            guest->update();
+    EXPECT_EQ(target.train->num_peeps, 2);
+    EXPECT_EQ(guests[0]->state, PeepState::onRide);
+    EXPECT_EQ(guests[1]->state, PeepState::onRide);
+}
+
+TEST_F(PlayTests, SeatApproachStartsObjectDefinedBoardingTimer)
+{
+    auto context = LoadEverythingPark();
+    ASSERT_NE(context, nullptr);
+    auto& gameState = getGameState();
+    const auto target = FindCapturedPlatformTrain(gameState, [](const Ride&, const Vehicle& train, uint8_t, StationIndex) {
+        return (train.num_seats & kVehicleSeatNumMask) > 0
+            && train.GetRideEntry()->Cars[train.vehicle_type].boardingDurationTicks > 0;
+    });
+    ASSERT_NE(target.train, nullptr);
+    auto* guest = Guest::generate(target.ride->getStation(target.station).getEntrance().toCoordsXYZ());
+    ASSERT_NE(guest, nullptr);
+    guest->currentRide = target.ride->id;
+    guest->currentTrain = target.trainIndex;
+    guest->currentCar = 0;
+    guest->state = PeepState::enteringRide;
+    guest->rideSubState = PeepRideSubState::approachVehicle;
+    guest->setDestination(guest->getLocation(), 2);
+    guest->stepProgress = 255;
+    guest->update();
+    EXPECT_EQ(guest->rideSubState, PeepRideSubState::enterVehicle);
+    const auto duration = target.train->GetRideEntry()->Cars[target.train->vehicle_type].boardingDurationTicks;
+    EXPECT_EQ(guest->boardingTicksRemaining, duration);
+    guest->peepFlags.set(PeepFlag::positionFrozen, PeepFlag::animationFrozen);
+    guest->update();
+    EXPECT_EQ(guest->boardingTicksRemaining, duration);
 }
 
 TEST_F(PlayTests, GuestRideValueThresholdsUseIncomeDebuff)

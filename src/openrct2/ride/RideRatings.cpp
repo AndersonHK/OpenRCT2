@@ -1636,7 +1636,6 @@ namespace OpenRCT2
     static void ride_ratings_update_state_5(RideRating::UpdateState& state);
     static void ride_ratings_begin_proximity_loop(RideRating::UpdateState& state);
     static void RideRatingsCalculate(RideRating::UpdateState& state, Ride& ride);
-    static void RideRatingsCalculateValue(Ride& ride);
     static void ride_ratings_score_close_proximity(RideRating::UpdateState& state, TileElement* inputTileElement);
     static void RideRatingsAdd(RideRating::Tuple& ratings, int32_t excitement, int32_t intensity, int32_t nausea);
     static RideRating::Tuple RideRatingsCalculateAggregated(const Ride& ride, const RideRatingAccumulator& accumulator);
@@ -2122,7 +2121,7 @@ namespace OpenRCT2
         }
 
         RideRatingsCalculate(state, *ride);
-        RideRatingsCalculateValue(*ride);
+        RideRating::UpdateValue(*ride);
 
         state.State = RIDE_RATINGS_STATE_FIND_NEXT_RIDE;
     }
@@ -2803,7 +2802,7 @@ namespace OpenRCT2
 #endif
     }
 
-    static void RideRatingsCalculateValue(Ride& ride)
+    void RideRating::UpdateValue(Ride& ride)
     {
         struct Row
         {
@@ -2829,9 +2828,12 @@ namespace OpenRCT2
 
         // Start with the base ratings, multiplied by the ride type specific weights for excitement, intensity and nausea.
         const auto& ratingsMultipliers = ride.getRideTypeDescriptor().RatingsMultipliers;
-        money32 value = (((ride.ratings.excitement * ratingsMultipliers.excitement) * 32) >> 15)
-            + (((ride.ratings.intensity * ratingsMultipliers.intensity) * 32) >> 15)
-            + (((ride.ratings.nausea * ratingsMultipliers.nausea) * 32) >> 15);
+        // The legacy weights produce tenths after division by 1024. Multiplying the combined
+        // numerator by ten gives 1/1024-cent units without truncating each rating contribution.
+        int64_t value = 10
+            * (static_cast<int64_t>(ride.ratings.excitement) * ratingsMultipliers.excitement
+               + static_cast<int64_t>(ride.ratings.intensity) * ratingsMultipliers.intensity
+               + static_cast<int64_t>(ride.ratings.nausea) * ratingsMultipliers.nausea);
 
         int32_t monthsOld = 0;
         if (!getGameState().cheats.disableRideValueAging)
@@ -2844,7 +2846,7 @@ namespace OpenRCT2
         // Ride is older than oldest age in the table?
         if (monthsOld >= lastRow.months)
         {
-            value = (value * lastRow.multiplier) / lastRow.divisor + lastRow.summand;
+            value = (value * lastRow.multiplier) / lastRow.divisor + lastRow.summand * 10 * kRideValueFractionScale;
         }
         else
         {
@@ -2853,7 +2855,7 @@ namespace OpenRCT2
             {
                 if (monthsOld < curr.months)
                 {
-                    value = (value * curr.multiplier) / curr.divisor + curr.summand;
+                    value = (value * curr.multiplier) / curr.divisor + curr.summand * 10 * kRideValueFractionScale;
                     break;
                 }
             }
@@ -2869,7 +2871,9 @@ namespace OpenRCT2
         if (otherRidesOfSameType > 1)
             value -= value / 4;
 
-        ride.value = ToMoney64(std::max<money32>(0, value));
+        value = std::max<int64_t>(0, value);
+        ride.value = value / kRideValueFractionScale;
+        ride.valueFraction = value % kRideValueFractionScale;
         RideUpdateTargetPrice(ride);
     }
 

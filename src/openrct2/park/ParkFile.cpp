@@ -1996,6 +1996,10 @@ namespace OpenRCT2
                     {
                         ReadWriteParkMoney64(cs, ride.value, version);
                     }
+                    if (version >= kGuestServicesVersion)
+                        cs.readWrite(ride.valueFraction);
+                    else if (cs.getMode() == OrcaStream::Mode::reading)
+                        ride.valueFraction = 0;
 
                     ReadWriteFields(cs, ride.numRiders, ride.buildDate);
 
@@ -2145,6 +2149,13 @@ namespace OpenRCT2
 
             auto state = entity.state;
             auto subState = entity.subState;
+            if (cs.getMode() == OrcaStream::Mode::writing && version < kGuestServicesVersion
+                && state == PeepState::repairingPathAddition)
+            {
+                // An older engine cannot execute the new repair state. Resume ordinary path placement instead.
+                state = PeepState::one;
+                subState = 0;
+            }
             const Ride* platformRide = nullptr;
             if (cs.getMode() == OrcaStream::Mode::writing && guest != nullptr)
             {
@@ -2671,6 +2682,16 @@ namespace OpenRCT2
         cs.readWrite(guest.guestHeadingToRideId);
         cs.readWrite(guest.guestIsLostCountdown);
         cs.readWrite(guest.guestTimeOnRide);
+        if (os.getHeader().targetVersion >= kGuestServicesVersion)
+            ReadWriteFields(
+                cs, guest.boardingTicksRemaining, guest.laneForwardSteps, guest.laneForwardDirection, guest.laneChangeCooldown);
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            guest.boardingTicksRemaining = 0;
+            guest.laneForwardSteps = 0;
+            guest.laneForwardDirection = kInvalidDirection;
+            guest.laneChangeCooldown = 0;
+        }
 
         if (version <= 18)
         {
@@ -2850,6 +2871,16 @@ namespace OpenRCT2
         ReadWriteFields(
             cs, entity.staffOrders, entity.staffMowingTimeout, entity.staffLawnsMown, entity.staffGardensWatered,
             entity.staffLitterSwept, entity.staffBinsEmptied);
+        if (os.getHeader().targetVersion >= kGuestServicesVersion)
+            ReadWriteFields(
+                cs, entity.repairLocation.x, entity.repairLocation.y, entity.repairLocation.z, entity.repairAddition,
+                entity.repairTicksRemaining);
+        else if (cs.getMode() == OrcaStream::Mode::reading)
+        {
+            entity.repairLocation = {};
+            entity.repairAddition = kObjectEntryIndexNull;
+            entity.repairTicksRemaining = 0;
+        }
     }
 
     template<>

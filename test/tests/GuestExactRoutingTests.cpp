@@ -12,7 +12,12 @@
 #include <openrct2/Game.h>
 #include <openrct2/GameState.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/actions/GameActionRunner.h>
+#include <openrct2/actions/peep/StaffHireNewAction.h>
+#include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/Guest.h>
+#include <openrct2/entity/Staff.h>
+#include <openrct2/object/ObjectManager.h>
 #include <openrct2/peep/GuestPathfinding.h>
 #include <openrct2/ride/RideManager.hpp>
 #include <openrct2/scenario/Scenario.h>
@@ -137,6 +142,233 @@ TEST_F(GuestExactRoutingTest, BothLoopArrivalsFollowExactNorthStep)
         Configure(guest, arrival);
         ASSERT_EQ(PathFinding::CalculateNextDestination(guest), 0);
         EXPECT_EQ(guest.peepDirection, 3);
+    }
+}
+
+TEST_F(GuestExactRoutingTest, CrowdedTwoWideCorridorSplitsGuestsThenFinishesAtSingleWidthMerge)
+{
+    MapInit({ 30, 30 });
+    const auto exists = [](int x, int y) { return (x == 10 && y >= 7 && y <= 20) || (x == 11 && y >= 9 && y <= 20); };
+    for (int y = 7; y <= 20; ++y)
+        for (int x = 10; x <= 11; ++x)
+        {
+            if (!exists(x, y))
+                continue;
+            uint8_t edges = 0;
+            for (Direction d : kAllDirections)
+                if (exists(x + TileDirectionDelta[d].x, y + TileDirectionDelta[d].y))
+                    edges |= 1 << d;
+            MapGetSurfaceElementAt(TileCoordsXY{ x, y })->setOwnership({ OwnershipFlag::landOwned });
+            ASSERT_NE(
+                InsertTileElement<PathElement>(
+                    { x * 32, y * 32, 14 * 8 }, 0,
+                    [&](PathElement& p) {
+                        p.setClearanceZ(18 * 8);
+                        p.setEdges(edges);
+                    }),
+                nullptr);
+        }
+    Prepare();
+    const TileCoordsXYZ start{ 10, 17, 14 };
+    std::vector<Guest*> guests;
+    for (int i = 0; i < 16; ++i)
+    {
+        auto* guest = Guest::generate(start.toCoordsXYZ().toTileCentre());
+        ASSERT_NE(guest, nullptr);
+        Configure(*guest, 3, start);
+        guests.push_back(guest);
+    }
+    unsigned changed = 0;
+    getGameState().entities.updateEntitiesSpatialIndex();
+    for (auto* guest : guests)
+    {
+        PathFinding::CalculateNextDestination(*guest);
+        if (guest->laneForwardSteps != 0)
+        {
+            ++changed;
+            EXPECT_EQ(guest->peepDirection, 2);
+        }
+    }
+    EXPECT_GT(changed, 0u);
+    EXPECT_LT(changed, guests.size());
+    for (auto* guest : guests)
+    {
+        unsigned transitions = 0;
+        auto previous = start;
+        for (int action = 0; action < 2048 && TileCoordsXYZ{ guest->nextLoc } != goal; ++action)
+        {
+            guest->performNextAction();
+            const TileCoordsXYZ loc{ guest->nextLoc };
+            if (loc != previous)
+            {
+                EXPECT_LE(loc.y, previous.y); // Never turns back or oscillates at the merge.
+                ++transitions;
+                previous = loc;
+            }
+        }
+        EXPECT_EQ(TileCoordsXYZ{ guest->nextLoc }, goal);
+        EXPECT_LE(transitions, 14u);
+        PeepEntityRemove(guest);
+    }
+}
+
+TEST_F(GuestExactRoutingTest, StaffRepairBinsBenchesAndLampsWithRoleSpecificAnimations)
+{
+    struct Case
+    {
+        const char* object;
+        StaffType type;
+        PeepActionType action;
+        uint16_t ticks;
+    };
+    for (const auto& test : { Case{ "rct2.footpath_item.litter1", StaffType::handyman, PeepActionType::staffEmptyBin, 200 },
+                              Case{ "rct2.footpath_item.bench1", StaffType::mechanic, PeepActionType::staffFixGround, 320 },
+                              Case{ "rct2.footpath_item.lamp1", StaffType::mechanic, PeepActionType::staffFix, 320 } })
+    {
+        SCOPED_TRACE(test.object);
+        auto& objects = context->GetObjectManager();
+        auto* addition = objects.LoadObject(test.object);
+        ASSERT_NE(addition, nullptr);
+        auto* path = MapGetPathElementAt(centre);
+        path->setAdditionEntryIndex(objects.GetLoadedObjectEntryIndex(addition));
+        path->setIsBroken(true);
+        path->setWide(false);
+        path->setEdges(0xA); // Furniture is visible on the west/east edges.
+        auto action = GameActions::StaffHireNewAction(
+            false, test.type, kObjectEntryIndexNull, STAFF_ORDERS_EMPTY_BINS | STAFF_ORDERS_FIX_RIDES);
+        const auto hire = GameActions::ExecuteNested(&action, getGameState());
+        ASSERT_EQ(hire.error, GameActions::Status::ok);
+        auto* worker = getGameState().entities.getEntity<Staff>(
+            hire.getData<GameActions::StaffHireNewActionResult>().StaffEntityId);
+        ASSERT_NE(worker, nullptr);
+        worker->moveTo(centre.toCoordsXYZ().toTileCentre());
+        worker->nextLoc = centre.toCoordsXYZ();
+        worker->setNextFlags(0, false, false);
+        worker->setDestination(worker->getLocation(), 2);
+        worker->state = PeepState::patrolling;
+        worker->stepProgress = 255;
+        PrepareHandymanServiceReservations();
+        worker->update();
+        ASSERT_EQ(worker->state, PeepState::repairingPathAddition);
+        EXPECT_EQ(worker->repairTicksRemaining, test.ticks);
+        bool sawAnimation = false;
+        unsigned workTicks = 0;
+        for (int tick = 0; tick < 1800 && path->isBroken(); ++tick)
+        {
+            PrepareHandymanServiceReservations();
+            if (worker->subState == 1)
+                ++workTicks;
+            worker->update();
+            sawAnimation |= worker->action == test.action;
+        }
+        EXPECT_TRUE(sawAnimation);
+        EXPECT_FALSE(path->isBroken());
+        EXPECT_GE(workTicks, test.ticks);
+        EXPECT_NE(worker->state, PeepState::repairingPathAddition);
+        PeepEntityRemove(worker);
+    }
+}
+
+TEST_F(GuestExactRoutingTest, FurnitureRepairClaimsAreExclusiveAndRemovedFurnitureCancelsWork)
+{
+    auto& objects = context->GetObjectManager();
+    auto* addition = objects.LoadObject("rct2.footpath_item.bench1");
+    ASSERT_NE(addition, nullptr);
+    auto* path = MapGetPathElementAt(centre);
+    path->setAdditionEntryIndex(objects.GetLoadedObjectEntryIndex(addition));
+    path->setIsBroken(true);
+    path->setEdges(0xA);
+    Staff* workers[2]{};
+    for (auto& worker : workers)
+    {
+        auto hire = GameActions::StaffHireNewAction(false, StaffType::mechanic, kObjectEntryIndexNull, STAFF_ORDERS_FIX_RIDES);
+        const auto result = GameActions::ExecuteNested(&hire, getGameState());
+        ASSERT_EQ(result.error, GameActions::Status::ok);
+        worker = getGameState().entities.getEntity<Staff>(
+            result.getData<GameActions::StaffHireNewActionResult>().StaffEntityId);
+        ASSERT_NE(worker, nullptr);
+        worker->moveTo(centre.toCoordsXYZ().toTileCentre());
+        worker->nextLoc = centre.toCoordsXYZ();
+        worker->setNextFlags(0, false, false);
+        worker->setDestination(worker->getLocation(), 2);
+        worker->state = PeepState::patrolling;
+        worker->stepProgress = 255;
+    }
+    PrepareHandymanServiceReservations();
+    workers[0]->update();
+    workers[1]->update();
+    ASSERT_EQ(workers[0]->state, PeepState::repairingPathAddition);
+    EXPECT_NE(workers[1]->state, PeepState::repairingPathAddition);
+    path->setAddition(0);
+    workers[0]->stepProgress = 255;
+    workers[0]->update();
+    EXPECT_NE(workers[0]->state, PeepState::repairingPathAddition);
+    for (auto* worker : workers)
+        PeepEntityRemove(worker);
+}
+
+TEST_F(GuestExactRoutingTest, CrowdedHorizontalLaneCanTurnOntoSingleWidthPathWithoutLooping)
+{
+    MapInit({ 30, 30 });
+    const auto exists = [](int x, int y) {
+        return (x == 10 && y >= 7 && y <= 10) || (x >= 10 && x <= 22 && (y == 9 || y == 10));
+    };
+    for (int y = 7; y <= 10; ++y)
+        for (int x = 10; x <= 22; ++x)
+        {
+            if (!exists(x, y))
+                continue;
+            uint8_t edges = 0;
+            for (Direction d : kAllDirections)
+                if (exists(x + TileDirectionDelta[d].x, y + TileDirectionDelta[d].y))
+                    edges |= 1 << d;
+            MapGetSurfaceElementAt(TileCoordsXY{ x, y })->setOwnership({ OwnershipFlag::landOwned });
+            ASSERT_NE(
+                InsertTileElement<PathElement>(
+                    { x * 32, y * 32, 14 * 8 }, 0,
+                    [&](PathElement& p) {
+                        p.setClearanceZ(18 * 8);
+                        p.setEdges(edges);
+                    }),
+                nullptr);
+        }
+    Prepare();
+    const TileCoordsXYZ start{ 19, 9, 14 };
+    std::vector<Guest*> guests;
+    for (int i = 0; i < 16; ++i)
+    {
+        auto* guest = Guest::generate(start.toCoordsXYZ().toTileCentre());
+        ASSERT_NE(guest, nullptr);
+        Configure(*guest, 0, start);
+        guests.push_back(guest);
+    }
+    getGameState().entities.updateEntitiesSpatialIndex();
+    unsigned changed = 0;
+    for (auto* guest : guests)
+    {
+        PathFinding::CalculateNextDestination(*guest);
+        changed += guest->laneForwardSteps != 0;
+    }
+    EXPECT_GT(changed, 0u);
+    EXPECT_LT(changed, guests.size());
+    for (auto* guest : guests)
+    {
+        unsigned transitions = 0;
+        auto previous = start;
+        for (int action = 0; action < 2048 && TileCoordsXYZ{ guest->nextLoc } != goal; ++action)
+        {
+            guest->performNextAction();
+            const TileCoordsXYZ loc{ guest->nextLoc };
+            if (loc != previous)
+            {
+                EXPECT_LE(loc.x, previous.x);
+                ++transitions;
+                previous = loc;
+            }
+        }
+        EXPECT_EQ(TileCoordsXYZ{ guest->nextLoc }, goal);
+        EXPECT_LE(transitions, 15u);
+        PeepEntityRemove(guest);
     }
 }
 

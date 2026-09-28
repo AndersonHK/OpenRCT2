@@ -1999,7 +1999,7 @@ namespace OpenRCT2
                     if (peep->subState >= 4)
                         continue;
                 }
-                else if (peep->state != PeepState::patrolling)
+                else if (peep->state != PeepState::patrolling && peep->state != PeepState::repairingPathAddition)
                     continue;
 
                 if (!(peep->staffOrders & STAFF_ORDERS_FIX_RIDES))
@@ -2007,7 +2007,8 @@ namespace OpenRCT2
             }
             else
             {
-                if (peep->state != PeepState::patrolling || !(peep->staffOrders & STAFF_ORDERS_INSPECT_RIDES))
+                if ((peep->state != PeepState::patrolling && peep->state != PeepState::repairingPathAddition)
+                    || !(peep->staffOrders & STAFF_ORDERS_INSPECT_RIDES))
                     continue;
             }
 
@@ -5965,7 +5966,7 @@ namespace OpenRCT2
 
         money64 RideGetGuestFacingValue(const Ride& ride)
         {
-            auto value = ride.value;
+            auto value = ride.value * kRideValueFractionScale + ride.valueFraction;
             const auto& park = getGameState().park;
             if ((park.flags.has(ParkFlag::unlockAllPrices)) && Park::GetEntranceFee(park) > 0
                 && !(park.flags.has(ParkFlag::freeEntry)))
@@ -6014,7 +6015,16 @@ namespace OpenRCT2
         return rideEntry->shop_item[0] == ShopItem::none;
     }
 
-    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target)
+    money64 RideGetPerceivedValue(const Ride& ride, bool paidParkEntry)
+    {
+        if (ride.value == kRideValueUndefined)
+            return kRideValueUndefined;
+        const auto value = std::max<int64_t>(0, ride.value * kRideValueFractionScale + ride.valueFraction);
+        const auto divisor = kRideValueFractionScale * 10 * (paidParkEntry ? 4 : 1);
+        return (value * 7 + divisor / 2) / divisor;
+    }
+
+    money64 RideGetTargetPrice(const Ride& ride, RidePriceTarget target, RidePriceRounding rounding)
     {
         if (target == RidePriceTarget::free)
         {
@@ -6030,20 +6040,24 @@ namespace OpenRCT2
         switch (target)
         {
             case RidePriceTarget::goodValue:
-                price = RidePriceBelowBoundary(value / 2, kRidePriceGoodValueMinMargin);
+                price = RidePriceBelowBoundary(value / 2, kRidePriceGoodValueMinMargin * kRideValueFractionScale);
                 break;
             case RidePriceTarget::neutral:
-                price = RidePriceBelowBoundary(value, kRidePriceNeutralMinMargin);
+                price = RidePriceBelowBoundary(value, kRidePriceNeutralMinMargin * kRideValueFractionScale);
                 break;
             case RidePriceTarget::badValue:
-                price = RidePriceBelowBoundary(value * 2, kRidePriceBadValueMinMargin, 20);
+                price = RidePriceBelowBoundary(value * 2, kRidePriceBadValueMinMargin * kRideValueFractionScale, 20);
                 break;
             case RidePriceTarget::free:
                 break;
         }
 
-        return std::clamp(
-            (price * kRideTargetPriceScaleNumerator) / kRideTargetPriceScaleDenominator, kRideMinPrice, kRideMaxPrice);
+        // Keep optional ten-cent rounding here, after every adjustment. Cent precision is the default;
+        // nearestTenCents is deliberately retained as an opt-in seam for a future player setting.
+        const money64 quantum = rounding == RidePriceRounding::nearestTenCents ? 10 : 1;
+        const auto divisor = kRideTargetPriceScaleDenominator * kRideValueFractionScale * quantum;
+        const auto rounded = ((price * kRideTargetPriceScaleNumerator + divisor / 2) / divisor) * quantum;
+        return std::clamp(rounded, kRideMinPrice, kRideMaxPrice);
     }
 
     void RideUpdateTargetPrice(Ride& ride)

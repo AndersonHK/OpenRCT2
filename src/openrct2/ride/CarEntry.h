@@ -232,6 +232,7 @@ struct CarEntry
     uint8_t numVerticalFramesOverride; // A custom number that can be used rather than letting RCT2 determine it.
     // Needs the overrideNumberOfVerticalFrames CarEntryFlag to be set.
     uint8_t guestLoadingWaypointSegments;
+    uint16_t boardingDurationTicks{}; // Optional JSON boardingDuration in simulation seconds.
     uint16_t animationSpeed;
     uint8_t animationFrames;
     struct

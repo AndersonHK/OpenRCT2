@@ -519,17 +519,17 @@ TEST_F(RideRatings, NewRideValueBonusUsesMultiplier)
     const auto currentMonth = static_cast<int32_t>(GetDate().GetMonthsElapsed());
     ferrisWheel.buildDate = currentMonth - 13;
     RideRating::UpdateRide(ferrisWheel);
-    const auto baseValue = ferrisWheel.value;
+    const auto preciseValue = [&] { return ferrisWheel.value * kRideValueFractionScale + ferrisWheel.valueFraction; };
+    const auto baseValue = preciseValue();
     ASSERT_GT(baseValue, 0.00_GBP);
-    const auto legacyBaseValue = static_cast<money32>(baseValue / 10);
 
     ferrisWheel.buildDate = currentMonth;
     RideRating::UpdateRide(ferrisWheel);
-    EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 3 / 2)));
+    EXPECT_EQ(preciseValue(), baseValue * 3 / 2);
 
     ferrisWheel.buildDate = currentMonth - 5;
     RideRating::UpdateRide(ferrisWheel);
-    EXPECT_EQ(ferrisWheel.value, ToMoney64(static_cast<money32>(legacyBaseValue * 6 / 5)));
+    EXPECT_EQ(preciseValue(), baseValue * 6 / 5);
 }
 
 TEST_F(RideRatings, RealTimeConversionsUseFortyTicksPerSecond)

@@ -94,8 +94,6 @@ namespace OpenRCT2
     }
 
     static const uint8_t kTicksToGoUpSpiralSlide = 30;
-    static constexpr int64_t kGuestRideValueIncomeScaleNumerator = 7;
-    static constexpr int64_t kGuestRideValueIncomeScaleDenominator = 10;
     static constexpr uint8_t kGuestSickNauseaThreshold = 128;
     static constexpr uint8_t kGuestVerySickNauseaThreshold = 170;
     static constexpr uint8_t kGuestVeryVerySickNauseaThreshold = 200;
@@ -2363,8 +2361,9 @@ namespace OpenRCT2
             }
 
             // The amount that peeps are willing to pay to use the Toilets scales with their toilet stat.
-            // It effectively has a minimum of $0.10 (due to the check above) and a maximum of $0.60.
-            if ((RideGetPrice(ride) * 40 > guest.toilet) && !getGameState().cheats.ignorePrice)
+            // Runtime money is in cents: each cent requires four points of need. Preserve the legacy
+            // ten-cent price boundaries without discarding precision for manually entered cent prices.
+            if ((RideGetPrice(ride) > guest.toilet / 4) && !getGameState().cheats.ignorePrice)
             {
                 if (peepAtShop)
                 {
@@ -2598,19 +2597,7 @@ namespace OpenRCT2
 
     static money64 GuestGetRideValueForPricePerception(const Guest& guest, const Ride& ride)
     {
-        auto value = ride.value;
-        if (value == kRideValueUndefined)
-        {
-            return value;
-        }
-
-        // Preserve the vanilla paid-entry reduction, then apply the global income/value debuff.
-        if (guest.peepFlags.has(PeepFlag::hasPaidForParkEntry))
-        {
-            value /= 4;
-        }
-
-        return (value * kGuestRideValueIncomeScaleNumerator) / kGuestRideValueIncomeScaleDenominator;
+        return RideGetPerceivedValue(ride, guest.peepFlags.has(PeepFlag::hasPaidForParkEntry));
     }
 
     static money64 GuestGetExpensiveRideThoughtThreshold(money64 value)
@@ -4567,11 +4554,28 @@ namespace OpenRCT2
             moveTo({ loc.value(), z });
             return;
         }
+        beginVehicleBoarding();
+    }
+
+    void Guest::beginVehicleBoarding()
+    {
+        boardingTicksRemaining = 0;
+        if (const auto* ride = GetRide(currentRide); ride != nullptr && currentTrain < ride->numTrains)
+        {
+            const auto* head = getGameState().entities.getEntity<Vehicle>(ride->vehicles[currentTrain]);
+            const auto* car = head == nullptr ? nullptr : head->GetCar(currentCar);
+            const auto* rideEntry = car == nullptr ? nullptr : car->GetRideEntry();
+            const auto* entry = rideEntry == nullptr ? nullptr : &rideEntry->Cars[car->vehicle_type];
+            if (entry != nullptr)
+                boardingTicksRemaining = entry->boardingDurationTicks;
+        }
         rideSubState = PeepRideSubState::enterVehicle;
     }
 
     void Guest::updateRideEnterVehicle()
     {
+        if (boardingTicksRemaining != 0)
+            return;
         auto& gameState = getGameState();
         auto* ride = GetRide(currentRide);
         if (ride != nullptr)
@@ -4597,7 +4601,8 @@ namespace OpenRCT2
                     auto* seatedGuest = pairedSeat < vehicle->next_free_seat
                         ? gameState.entities.getEntity<Guest>(vehicle->peep[pairedSeat])
                         : nullptr;
-                    if (seatedGuest != nullptr && seatedGuest->rideSubState == PeepRideSubState::enterVehicle)
+                    if (seatedGuest != nullptr && seatedGuest->rideSubState == PeepRideSubState::enterVehicle
+                        && seatedGuest->boardingTicksRemaining == 0)
                     {
                         vehicle->num_peeps++;
                         ride->curNumCustomers++;
@@ -4998,7 +5003,7 @@ namespace OpenRCT2
 
         if (waypoint == 2)
         {
-            rideSubState = PeepRideSubState::enterVehicle;
+            beginVehicleBoarding();
             return;
         }
 
@@ -5792,6 +5797,15 @@ namespace OpenRCT2
 
     void Guest::update()
     {
+        // Once per simulation tick, independent of the guest's energy and speed-gated movement updates.
+        if (!peepFlags.has(PeepFlag::positionFrozen) && rideSubState == PeepRideSubState::enterVehicle
+            && state == PeepState::enteringRide && boardingTicksRemaining != 0)
+            boardingTicksRemaining--;
+        if (state != PeepState::walking)
+        {
+            laneForwardSteps = 0;
+            laneChangeCooldown = 0;
+        }
         if (peepFlags.has(PeepFlag::positionFrozen))
         {
             if (!(peepFlags.has(PeepFlag::animationFrozen)))
@@ -8343,6 +8357,10 @@ namespace OpenRCT2
         stream << guestHeadingToRideId;
         stream << guestIsLostCountdown;
         stream << guestTimeOnRide;
+        stream << boardingTicksRemaining;
+        stream << laneForwardSteps;
+        stream << laneForwardDirection;
+        stream << laneChangeCooldown;
         stream << paidToEnter;
         stream << paidOnRides;
         stream << paidOnFood;

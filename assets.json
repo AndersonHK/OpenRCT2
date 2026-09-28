@@ -1,7 +1,7 @@
 {
   "objects": {
     "repository": "https://github.com/AndersonHK/OpenRCT2-objects.git",
-    "revision": "b2a5511cd7ff90646dd40c61f08cb27fa977e8f4",
+    "revision": "ca9bdadce2c1cfae694672abbf5fd86f4dc2c568",
     "checkout": "../OpenRCT2-objects"
   },
   "openmusic": {

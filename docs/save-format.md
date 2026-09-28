@@ -1,5 +1,9 @@
 # File
 
+Fork version 60017 adds `Ride::valueFraction` (1/1024 cent), guest boarding countdown and lane commitment/cooldown,
+and staff furniture-repair location, object index and countdown. See [guest service persistence](guest-services-and-boarding.md#persistence-and-compatibility).
+These additions are version-gated; older parks use inactive/default values. Replays now require version 13.
+
 All strings are null terminated UTF-8.
 
 Array32:

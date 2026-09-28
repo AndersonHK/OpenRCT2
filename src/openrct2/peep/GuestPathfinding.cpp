@@ -14,6 +14,7 @@
 #include "../OpenRCT2.h"
 #include "../core/Guard.hpp"
 #include "../core/UnitConversion.h"
+#include "../entity/EntityList.h"
 #include "../entity/Guest.h"
 #include "../entity/Staff.h"
 #include "../profiling/Profiling.h"
@@ -1762,6 +1763,142 @@ namespace OpenRCT2::PathFinding
      *
      *  rct2: 0x0069A5F0
      */
+    static std::optional<MapPathTopology::PathNode> GetLanePath(const TileCoordsXYZ& loc)
+    {
+        const auto chunk = MapPathTopology::GetChunk(loc);
+        if (!chunk.isExact)
+            return std::nullopt;
+        const auto* path = MapPathTopology::FindPath(chunk, loc);
+        if (path == nullptr || !path->queueRide.IsNull() || DirectionValid(path->slopeDirection))
+            return std::nullopt;
+        // Unowned queues are still queues; never treat them as an ordinary walking lane.
+        for (const auto* element : TileElementsView<PathElement>(loc.toCoordsXYZ()))
+            if (element->getBaseZ() == loc.toCoordsXYZ().z && (element->isQueue() || element->isGhost()))
+                return std::nullopt;
+        return *path;
+    }
+
+    static std::optional<TileCoordsXYZ> LaneNeighbour(const TileCoordsXYZ& loc, Direction direction)
+    {
+        const auto path = GetLanePath(loc);
+        if (!path || !(path->permittedEdges & (1 << direction)))
+            return std::nullopt;
+        const auto connection = path->connections[direction];
+        if (!connection.IsConnected() || connection.targetBaseZ != loc.z)
+            return std::nullopt;
+        const TileCoordsXYZ next{ loc + TileDirectionDelta[direction], loc.z };
+        return GetLanePath(next) ? std::optional<TileCoordsXYZ>{ next } : std::nullopt;
+    }
+
+    static int LaneOccupancy(const TileCoordsXYZ& loc)
+    {
+        int count = 0;
+        // Include guests already committed to enter this tile so sequential decisions don't all choose the empty lane.
+        for (int i = -1; i < 4; ++i)
+        {
+            const TileCoordsXYZ tile = i < 0 ? loc : TileCoordsXYZ{ loc + TileDirectionDelta[i], loc.z };
+            for (const auto* guest : EntityTileList<Guest>(tile.toCoordsXYZ()))
+            {
+                if (guest->state != PeepState::walking || std::abs(guest->z - loc.toCoordsXYZ().z) > 4)
+                    continue;
+                if (TileCoordsXY{ guest->getLocation() } == TileCoordsXY{ loc } || TileCoordsXYZ{ guest->nextLoc } == loc)
+                {
+                    if (++count >= 32)
+                        return count;
+                }
+            }
+        }
+        return count;
+    }
+
+    static Direction ChooseGuestLane(
+        Guest& guest, const TileCoordsXYZ& loc, const MapPathRouteCache::RouteTarget& target, uint8_t permittedEdges,
+        Direction exactDirection)
+    {
+        const auto source = MapPathRouteCache::QueryDistanceToTarget(target, loc);
+        if (!source.isExact || !source.pathTiles || !GetLanePath(loc))
+        {
+            guest.laneForwardSteps = 0;
+            return exactDirection;
+        }
+        auto reducesDistance = [&](Direction direction) {
+            if (!DirectionValid(direction) || !(permittedEdges & (1 << direction)))
+                return false;
+            const auto next = LaneNeighbour(loc, direction);
+            if (!next)
+                return false;
+            const auto distance = MapPathRouteCache::QueryDistanceToTarget(target, *next);
+            return distance.isExact && distance.pathTiles && *distance.pathTiles + 1 == *source.pathTiles;
+        };
+        if (guest.laneForwardSteps != 0)
+        {
+            if (reducesDistance(guest.laneForwardDirection))
+            {
+                --guest.laneForwardSteps;
+                return guest.laneForwardDirection;
+            }
+            guest.laneForwardSteps = 0; // Changed goal/topology: a stale commitment cannot override the exact route.
+        }
+        const auto forward = guest.peepDirection;
+        const auto result = reducesDistance(forward) ? forward : exactDirection;
+        if (guest.laneChangeCooldown != 0)
+        {
+            --guest.laneChangeCooldown;
+            return result;
+        }
+        if (!reducesDistance(forward) || *source.pathTiles < 5
+            || ((guest.id.ToUnderlying() ^ (getGameState().currentTicks / 32)) & 3) != 0)
+            return result;
+        const auto load = LaneOccupancy(loc);
+        if (load < 8)
+            return result;
+        const auto backward = DirectionReverse(forward);
+        // Stable per-guest side order prevents a universal left/right preference.
+        for (int attempt = 0; attempt < 2; ++attempt)
+        {
+            const auto side = static_cast<Direction>((forward + ((guest.id.ToUnderlying() + attempt) % 2 ? 1 : 3)) & 3);
+            auto other = LaneNeighbour(loc, side);
+            if (!other || !(permittedEdges & (1 << side)) || LaneOccupancy(*other) + 3 >= load)
+                continue;
+            auto originalRow = loc;
+            auto otherRow = *other;
+            bool corridor = true;
+            for (int row = 0; row <= 2; ++row)
+            {
+                const auto a = GetLanePath(originalRow);
+                const auto b = GetLanePath(otherRow);
+                const auto aEdges = (1 << forward) | (1 << backward) | (1 << side);
+                const auto bEdges = (1 << forward) | (1 << backward) | (1 << DirectionReverse(side));
+                if (!a || !b || a->edges != aEdges || b->edges != bEdges || a->permittedEdges != a->edges
+                    || b->permittedEdges != b->edges)
+                {
+                    corridor = false;
+                    break;
+                }
+                if (row < 2)
+                {
+                    const auto nextA = LaneNeighbour(originalRow, forward);
+                    const auto nextB = LaneNeighbour(otherRow, forward);
+                    if (!nextA || !nextB)
+                    {
+                        corridor = false;
+                        break;
+                    }
+                    originalRow = *nextA;
+                    otherRow = *nextB;
+                }
+            }
+            const auto end = MapPathRouteCache::QueryDistanceToTarget(target, otherRow);
+            if (!corridor || !end.isExact || !end.pathTiles || *end.pathTiles >= *source.pathTiles)
+                continue;
+            guest.laneForwardDirection = forward;
+            guest.laneForwardSteps = 2;
+            guest.laneChangeCooldown = 4;
+            return side;
+        }
+        return result;
+    }
+
     Direction ChooseDirection(
         const TileCoordsXYZ& loc, const TileCoordsXYZ& goal, Peep& peep, bool ignoreForeignQueues, RideId queueRideIndex)
     {
@@ -1844,11 +1981,15 @@ namespace OpenRCT2::PathFinding
             {
                 if (!DirectionValid(peep.pathfindGoal.direction) || peep.pathfindGoal != goal)
                 {
+                    auto* guest = peep.cast<Guest>();
+                    guest->laneForwardSteps = 0;
+                    guest->laneChangeCooldown = 0;
                     peep.pathfindGoal = { goal, 0 };
                     for (auto& history : peep.pathfindHistory)
                         history.setNull();
                 }
-                return routeStep->direction;
+                return ChooseGuestLane(
+                    *peep.cast<Guest>(), loc, { goal, queueRideIndex }, permittedEdges, routeStep->direction);
             }
         }
 

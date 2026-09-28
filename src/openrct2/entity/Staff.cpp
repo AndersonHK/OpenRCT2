@@ -14,6 +14,7 @@
 #include "../GameState.h"
 #include "../audio/Audio.h"
 #include "../core/DataSerialiser.h"
+#include "../core/GameTime.hpp"
 #include "../core/JobPool.h"
 #include "../entity/EntityList.h"
 #include "../entity/EntityRegistry.h"
@@ -47,8 +48,10 @@
 #include <bit>
 #include <cassert>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
+#include <tuple>
 #include <utility>
 
 namespace OpenRCT2
@@ -212,6 +215,30 @@ namespace OpenRCT2
 
         HandymanServiceReservations gHandymanServiceReservations;
 
+        using RepairKey = std::tuple<int32_t, int32_t, int32_t, ObjectEntryIndex>;
+        std::map<RepairKey, EntityId> gPathRepairReservations;
+        RepairKey GetRepairKey(const Staff& staff)
+        {
+            return { staff.repairLocation.x, staff.repairLocation.y, staff.repairLocation.z, staff.repairAddition };
+        }
+        PathElement* GetRepairPath(const Staff& staff)
+        {
+            auto* element = MapGetFirstElementAt(staff.repairLocation);
+            if (element == nullptr)
+                return nullptr;
+            do
+            {
+                if (element->getType() != TileElementType::path || element->getBaseZ() != staff.repairLocation.z
+                    || element->isGhost())
+                    continue;
+                auto* path = element->asPath();
+                if (path->hasAddition() && path->getAdditionEntryIndex() == staff.repairAddition && path->isBroken()
+                    && !path->additionIsGhost())
+                    return path;
+            } while (!(element++)->isLastForTile());
+            return nullptr;
+        }
+
         std::optional<std::pair<CoordsXY, HandymanService>> GetActiveHandymanService(const Staff& staff)
         {
             switch (staff.state)
@@ -235,6 +262,14 @@ namespace OpenRCT2
     {
         const auto& staff = getGameState().entities.GetEntityExecutionList(EntityType::staff);
         gHandymanServiceReservations.Reset(staff.size());
+        // Reconstruction and new claims run in stable main-thread entity order; include Z and object identity.
+        gPathRepairReservations.clear();
+        for (const auto* entity : staff)
+        {
+            const auto* worker = entity->cast<Staff>();
+            if (worker->state == PeepState::repairingPathAddition)
+                gPathRepairReservations.try_emplace(GetRepairKey(*worker), worker->id);
+        }
         GetContext()->GetJobPool().ParallelFor(
             staff.size(),
             [&staff](size_t index) {
@@ -1730,6 +1765,97 @@ namespace OpenRCT2
      *
      *  rct2: 0x006BF3A1
      */
+    bool Staff::tryRepairPathAddition()
+    {
+        const bool binWorker = assignedStaffType == StaffType::handyman && (staffOrders & STAFF_ORDERS_EMPTY_BINS);
+        const bool mechanic = isMechanic() && (staffOrders & STAFF_ORDERS_FIX_RIDES);
+        if ((!binWorker && !mechanic) || getNextIsSurface() || !isLocationInPatrol(nextLoc))
+            return false;
+        auto* element = MapGetFirstElementAt(nextLoc);
+        if (element == nullptr)
+            return false;
+        do
+        {
+            if (element->getType() != TileElementType::path || element->getBaseZ() != nextLoc.z || element->isGhost())
+                continue;
+            auto* path = element->asPath();
+            const auto* entry = path->getAdditionEntry();
+            if (entry == nullptr || !path->isBroken() || path->additionIsGhost()
+                || !(entry->flags & PATH_ADDITION_FLAG_BREAKABLE))
+                continue;
+            if (!(entry->flags
+                  & (binWorker ? PATH_ADDITION_FLAG_IS_BIN : (PATH_ADDITION_FLAG_IS_BENCH | PATH_ADDITION_FLAG_LAMP))))
+                continue;
+            Direction edge = 0;
+            while (edge < 4 && (path->getEdges() & (1 << edge)))
+                ++edge;
+            if (edge == 4)
+                continue; // No exposed furniture edge to approach.
+            repairLocation = nextLoc;
+            repairAddition = path->getAdditionEntryIndex();
+            if (!gPathRepairReservations.try_emplace(GetRepairKey(*this), id).second)
+                continue;
+            repairTicksRemaining = GameTime::SecondsToTicks(binWorker ? 5 : 8);
+            var37 = edge;
+            subState = 0;
+            setState(PeepState::repairingPathAddition);
+            setDestination(CoordsXY{ repairLocation } + BinUseOffsets[edge], 3);
+            return true;
+        } while (!(element++)->isLastForTile());
+        return false;
+    }
+
+    void Staff::updateRepairPathAddition()
+    {
+        auto* path = GetRepairPath(*this);
+        const auto claim = gPathRepairReservations.find(GetRepairKey(*this));
+        const bool ordersEnabled = assignedStaffType == StaffType::handyman ? (staffOrders & STAFF_ORDERS_EMPTY_BINS)
+                                                                            : (staffOrders & STAFF_ORDERS_FIX_RIDES);
+        if (path == nullptr || claim == gPathRepairReservations.end() || claim->second != id || !ordersEnabled
+            || !isLocationInPatrol(repairLocation))
+        {
+            stateReset();
+            return;
+        }
+        if (subState == 0)
+        {
+            if (!checkForPath())
+                return;
+            const auto [result, ignored] = performNextAction();
+            if (!(result & PATHING_DESTINATION_REACHED))
+                return;
+            orientation = (var37 & 3) << 3;
+            subState = 1;
+        }
+        if (!isActionWalking())
+        {
+            updateAction();
+            invalidate();
+            return;
+        }
+        if (repairTicksRemaining == 0)
+        {
+            path->setIsBroken(false);
+            MapInvalidateTileFull(repairLocation);
+            gPathRepairReservations.erase(claim);
+            stateReset();
+            return;
+        }
+        const bool binWorker = assignedStaffType == StaffType::handyman;
+        const auto* entry = path->getAdditionEntry();
+        const bool lamp = entry != nullptr && (entry->flags & PATH_ADDITION_FLAG_LAMP);
+        const auto anim = binWorker ? PeepAnimationType::staffEmptyBin
+                                    : (lamp ? PeepAnimationType::staffFix : PeepAnimationType::staffFixGround);
+        auto* object = GetContext()->GetObjectManager().GetLoadedObject<PeepAnimationsObject>(animationObjectIndex);
+        if (object == nullptr || object->GetPeepAnimation(animationGroup, anim).frameOffsets.empty())
+            return; // A custom animation set can safely stand still for the timed work period.
+        action = binWorker ? PeepActionType::staffEmptyBin : (lamp ? PeepActionType::staffFix : PeepActionType::staffFixGround);
+        animationFrameNum = 0;
+        animationImageIdOffset = 0;
+        updateCurrentAnimationType();
+        invalidate();
+    }
+
     bool Staff::updatePatrollingFindBin()
     {
         if (!(staffOrders & STAFF_ORDERS_EMPTY_BINS))
@@ -1962,6 +2088,9 @@ namespace OpenRCT2
             peepFlags.unset(PeepFlag::animationFrozen);
         }
 
+        if (state == PeepState::repairingPathAddition && subState == 1 && repairTicksRemaining != 0)
+            --repairTicksRemaining;
+
         // Walking speed logic
         const auto stepsToTake = getStepsToTake();
         const auto carryCheck = stepProgress + stepsToTake;
@@ -2005,6 +2134,9 @@ namespace OpenRCT2
                     break;
                 case PeepState::inspecting:
                     updateFixing(stepsToTake);
+                    break;
+                case PeepState::repairingPathAddition:
+                    updateRepairPathAddition();
                     break;
                 case PeepState::emptyingBin:
                     updateEmptyingBin();
@@ -2058,6 +2190,8 @@ namespace OpenRCT2
             }
         }
 
+        if (tryRepairPathAddition())
+            return;
         if (assignedStaffType != StaffType::handyman)
             return;
 
@@ -2845,6 +2979,8 @@ namespace OpenRCT2
         stream << hireDate;
         stream << staffOrders;
         stream << staffMowingTimeout;
+        stream << repairLocation.x << repairLocation.y << repairLocation.z;
+        stream << repairAddition << repairTicksRemaining;
         stream << staffLawnsMown;      // union with staffRidesFixed, staffGuestsEntertained
         stream << staffGardensWatered; // union with staffRidesInspected
         stream << staffLitterSwept;    // union with staffVandalsStopped

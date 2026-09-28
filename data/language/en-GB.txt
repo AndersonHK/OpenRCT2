@@ -3893,3 +3893,5 @@ STR_8040    :Select admission policy
 STR_8041    :Select how the park entrance fee is calculated
 STR_8042    :Guests walking to platform for {STRINGID}
 STR_8043    :Guests waiting on platform for {STRINGID}
+
+STR_8044    :Repairing path furniture

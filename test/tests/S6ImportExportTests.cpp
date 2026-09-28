@@ -28,6 +28,7 @@
 #include <openrct2/entity/EntityRegistry.h>
 #include <openrct2/entity/EntityTweener.h>
 #include <openrct2/entity/Guest.h>
+#include <openrct2/entity/Staff.h>
 #include <openrct2/object/ObjectManager.h>
 #include <openrct2/park/ParkFile.h>
 #include <openrct2/rct2/RCT2.h>
@@ -672,6 +673,80 @@ TEST(ParkFileMigration, PlatformGuestRoundTripsAndOlderTargetUsesStationExitReco
             guest->getDestination().x, exit.x * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].x * 20);
         EXPECT_EQ(
             guest->getDestination().y, exit.y * kCoordsXYStep + kCoordsXYHalfTile - DirectionOffsets[exit.direction].y * 20);
+    }
+}
+
+TEST(ParkFileMigration, GuestServicesRoundTripAndPreviousVersionDefaults)
+{
+    gOpenRCT2Headless = true;
+    gOpenRCT2NoGraphics = true;
+    MemoryStream currentPark;
+    MemoryStream previousPark;
+    EntityId guestId{};
+    EntityId staffId{};
+    RideId rideId{};
+    {
+        auto context = ImportBigMap();
+        ASSERT_NE(context, nullptr);
+        auto* ride = GetFirstRide();
+        ASSERT_NE(ride, nullptr);
+        rideId = ride->id;
+        ride->value = 123;
+        ride->valueFraction = 987;
+        auto* guest = Guest::generate({ 320, 320, 112 });
+        ASSERT_NE(guest, nullptr);
+        guestId = guest->id;
+        guest->boardingTicksRemaining = 71;
+        guest->laneForwardSteps = 2;
+        guest->laneForwardDirection = 3;
+        guest->laneChangeCooldown = 4;
+        auto* staff = getGameState().entities.createEntity<Staff>();
+        ASSERT_NE(staff, nullptr);
+        staffId = staff->id;
+        staff->name = nullptr;
+        staff->patrolInfo = nullptr;
+        staff->assignedStaffType = StaffType::mechanic;
+        staff->state = PeepState::repairingPathAddition;
+        staff->repairLocation = { 320, 320, 112 };
+        staff->repairAddition = 2;
+        staff->repairTicksRemaining = 299;
+        ASSERT_TRUE(ExportSave(currentPark, context));
+        ASSERT_TRUE(ExportSave(previousPark, context, kGuestServicesVersion - 1));
+        EXPECT_EQ(staff->state, PeepState::repairingPathAddition); // Downgrade must not mutate the live job.
+    }
+    {
+        auto context = ImportParkVersion(currentPark);
+        ASSERT_NE(context, nullptr);
+        EXPECT_EQ(GetRide(rideId)->value, 123);
+        EXPECT_EQ(GetRide(rideId)->valueFraction, 987);
+        const auto* guest = getGameState().entities.getEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_EQ(guest->boardingTicksRemaining, 71);
+        EXPECT_EQ(guest->laneForwardSteps, 2);
+        EXPECT_EQ(guest->laneForwardDirection, 3);
+        EXPECT_EQ(guest->laneChangeCooldown, 4);
+        const auto* staff = getGameState().entities.getEntity<Staff>(staffId);
+        ASSERT_NE(staff, nullptr);
+        EXPECT_EQ(staff->state, PeepState::repairingPathAddition);
+        EXPECT_EQ(staff->repairLocation, (CoordsXYZ{ 320, 320, 112 }));
+        EXPECT_EQ(staff->repairAddition, 2);
+        EXPECT_EQ(staff->repairTicksRemaining, 299);
+    }
+    {
+        auto context = ImportParkVersion(previousPark);
+        ASSERT_NE(context, nullptr);
+        EXPECT_EQ(GetRide(rideId)->value, 123);
+        EXPECT_EQ(GetRide(rideId)->valueFraction, 0);
+        const auto* guest = getGameState().entities.getEntity<Guest>(guestId);
+        ASSERT_NE(guest, nullptr);
+        EXPECT_EQ(guest->boardingTicksRemaining, 0);
+        EXPECT_EQ(guest->laneForwardSteps, 0);
+        EXPECT_EQ(guest->laneChangeCooldown, 0);
+        const auto* staff = getGameState().entities.getEntity<Staff>(staffId);
+        ASSERT_NE(staff, nullptr);
+        EXPECT_EQ(staff->state, PeepState::one);
+        EXPECT_EQ(staff->repairTicksRemaining, 0);
+        EXPECT_EQ(staff->repairAddition, kObjectEntryIndexNull);
     }
 }
 

@@ -180,6 +180,7 @@ namespace OpenRCT2
             case PeepState::emptyingBin:
             case PeepState::usingBin:
             case PeepState::watering:
+            case PeepState::repairingPathAddition:
             case PeepState::headingToInspection:
                 return true;
         }
@@ -1430,6 +1431,8 @@ namespace OpenRCT2
                 return { PeepActionDescriptionType::wateringGardens };
             case PeepState::emptyingBin:
                 return { PeepActionDescriptionType::emptyingBin };
+            case PeepState::repairingPathAddition:
+                return { PeepActionDescriptionType::repairingPathAddition };
             case PeepState::answering:
                 if (subState == 0)
                 {

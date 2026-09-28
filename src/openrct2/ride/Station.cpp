@@ -385,6 +385,10 @@ namespace OpenRCT2
 
             vehicle->flags.unset(VehicleFlag::currentlyColliding);
 
+            // A new race owns a fresh lap count for every kart, including cars already departing. A leftover
+            // completed lap otherwise declares a winner immediately and re-arms everyone's start delay forever.
+            vehicle->NumLaps = 0;
+
             const auto* rideEntry = vehicle->GetRideEntry();
 
             vehicle->speed = (ScenarioRand() & 15) - 8 + rideEntry->Cars[vehicle->vehicle_type].poweredMaxSpeed;

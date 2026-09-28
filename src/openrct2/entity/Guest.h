@@ -301,6 +301,10 @@ namespace OpenRCT2
         RideId guestHeadingToRideId;
         uint8_t guestIsLostCountdown;
         uint8_t guestTimeOnRide;
+        uint16_t boardingTicksRemaining{};
+        uint8_t laneForwardSteps{};
+        Direction laneForwardDirection{ kInvalidDirection };
+        uint8_t laneChangeCooldown{};
         money64 paidToEnter;
         money64 paidOnRides;
         money64 paidOnFood;
@@ -453,6 +457,7 @@ namespace OpenRCT2
         void updateRideApproachPlatformSlot();
         void updateRideWaitingOnPlatform();
         bool tryBoardStationPlatformTrain(Ride& ride);
+        void beginVehicleBoarding();
         void updateRideEnterVehicle();
         void updateRideLeaveVehicle();
         void updateRideApproachExit();

@@ -65,11 +65,17 @@ Nausea is a condition the park can actively manage. Full guests are more vulnera
 
 Historical detail: [OpenRCT2 overhaul changelog](docs/archive/openrct2-overhaul-changelog.md).
 
-### Guests try to recover onto nearby paths
+### Guests make better use of paths
 
-Guests who end up off a footpath try to rejoin a nearby reachable path before wandering at random. Walls, water, ownership, blocked surfaces, and height still constrain where they can recover.
+Guests heading to a destination can spread into quieter lanes on crowded, flat two-wide paths, then continue through junctions and narrower paths. Guests who stray off a footpath try to rejoin a nearby reachable path before wandering at random. Walls, water, ownership, blocked surfaces, and height still constrain where they can recover.
 
-More detail: [Guest surface path rejoin rationale](docs/guest-surface-path-rejoin-rationale.md).
+More detail: [Two-wide path movement](docs/guest-services-and-boarding.md#crowded-two-wide-paths) and [guest surface path recovery](docs/guest-surface-path-rejoin-rationale.md).
+
+### Staff repair vandalized path furniture
+
+Handymen repair broken bins, while mechanics restore vandalized benches and lamps they encounter on patrol. Staff walk over and carry out a short, animated repair, making furniture upkeep part of everyday park maintenance. Repairs follow work orders and patrol areas, and mechanics remain available for ride repairs and inspections.
+
+More detail: [Repairing vandalized furniture](docs/guest-services-and-boarding.md#repairing-vandalized-furniture).
 
 ### Mowed grass matters as decoration
 
@@ -79,17 +85,17 @@ More detail: [Mowed grass decoration rationale](docs/mowed-grass-decoration-rati
 
 ### Money uses cent precision
 
-Money uses one-cent precision, allowing finer prices and more exact economic balancing. Ordinary price buttons still use convenient ten-cent steps, while typed values can use exact cents.
+Money and automatic ride prices use one-cent precision for finer control over the park economy. Price buttons retain convenient ten-cent steps, while typed prices allow exact cents.
 
 More detail: [Money cent precision rationale](docs/money-cent-precision-rationale.md).
 
-### Time measurements use real 40 TPS conversions
+### Time and distance measurements stay consistent
 
 Seconds, minutes, hours, and weeks use consistent real-time conversions across ride duration, queue time, station waits, inspections, marketing, finances, and guest statistics. Ride length also matches the scale implied by park distance and vehicle speed.
 
 More detail: [Time measurement fix ledger](docs/time-measurement-fix-ledger.md).
 
-### Ride admission is target-based and globally toned down
+### Ride prices follow changing ride value
 
 Rides can target discount, fair, or expensive admission bands and automatically follow their changing value. Guest reactions use the same value scale, making pricing easier to manage while reducing effortless high-margin income.
 

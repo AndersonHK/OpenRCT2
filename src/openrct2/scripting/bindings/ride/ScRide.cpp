@@ -594,10 +594,12 @@ namespace OpenRCT2::Scripting
             {
                 JS_UNPACK_MONEY64(valueInt, ctx, value);
                 ride->value = valueInt;
+                ride->valueFraction = 0;
             }
             else
             {
                 ride->value = kRideValueUndefined;
+                ride->valueFraction = 0;
             }
         }
         return JS_UNDEFINED;
