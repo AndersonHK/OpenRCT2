@@ -14,10 +14,19 @@ struct WorldFlatPart {
     int image; int bank; int colour; int child;
     int x; int y; int z;
     int bx; int by; int bz; int sx; int sy; int sz;
-    int depthAnchor; // 0 raster; 1 footprint; 2 fence origin; 3 longitudinal component; 4 tower; 5 front contact.
+    int depthAnchor; // Named contact roles below; legacy 0 raster, 1 footprint, 2 fence, 3 longitudinal, 4 tower.
 };
 const int WORLD_FLAT_PART_CAPACITY=8;
 const int WORLD_FLAT_FOREGROUND_ANCHOR=5;
+const int WORLD_FLAT_SHOP_ANCHOR=6;
+const int WORLD_FLAT_FACILITY_REAR_ANCHOR=7;
+const int WORLD_FLAT_FACILITY_FRONT_ANCHOR=8;
+// Midpoint of the original 2..29 square footprint, summed without rounding
+// each axis separately. Layers within this contact never cross a world unit.
+const int WORLD_SERVICE_CONTACT=31;
+const int WORLD_FACILITY_REAR_LAYER=2;
+const int WORLD_FACILITY_OCCUPANT_LAYER=4;
+const int WORLD_FACILITY_FRONT_LAYER=6;
 struct WorldFlatParts { int count; WorldFlatPart parts[WORLD_FLAT_PART_CAPACITY]; };
 #ifdef __cplusplus
 FLAT_FN void worldFlatAdd(FLAT_REF(WorldFlatParts) r,int image,int bank,int colour,int child,
@@ -80,6 +89,16 @@ FLAT_FN WorldFlatAnchor worldFlatAuthoredContact(WorldFlatPart part)
     result.x=part.bx+(part.sx>0?part.sx-1:0);
     result.y=part.by+(part.sy>0?part.sy-1:0);
     return result;
+}
+// Facility.cpp encloses a guest under the roof, independently of the guest's
+// diagonal within that square. The narrow rear doorway panel retains its own
+// side of the occupant. Return -1 outside the room, preserving normal XYZ depth.
+// Guest bounds are Paint.Peep.h's z+5 .. z+15; facility roof is clearance-3.
+FLAT_FN int worldFacilityOccupantLayer(int x,int y,int z,int clearance,int direction)
+{
+    if(x<2 || x>29 || y<2 || y>29 || z+15<0 || z+5>clearance-3) return -1;
+    bool beforeRear=(direction==1 && x<=9) || (direction==2 && y<=9);
+    return beforeRear && x+y<WORLD_SERVICE_CONTACT+1?0:WORLD_FACILITY_OCCUPANT_LAYER;
 }
 FLAT_FN int worldFlatLongitudinalColumn(int tileScreenX)
 {
@@ -176,6 +195,8 @@ FLAT_FN WorldFlatParts worldFlatParts(int family,int sequence,int direction,bool
             worldFlatAdd(r,image,1,1,0,0,0,0,2,2,top?h:0,direction==1?8:28,direction==1?28:(top?28:8),top?1:h);
             if(direction==1 || direction==2) worldFlatAdd(r,image+(direction==1?2:4),1,1,0,0,0,0,2,2,h,28,28,1);
         }
+        for(int i=0;i<r.count;i++) r.parts[i].depthAnchor=family==18?WORLD_FLAT_SHOP_ANCHOR:
+            (r.parts[i].bz>0?WORLD_FLAT_FACILITY_FRONT_ANCHOR:WORLD_FLAT_FACILITY_REAR_ANCHOR);
         return r;
     }
     if(family==6 || family==7) {

@@ -20,7 +20,9 @@
 #include <openrct2/drawing/Drawing.Sprite.h>
 #include <openrct2/drawing/Palette.h>
 #include <openrct2/drawing/X8DrawingEngine.h>
+#include <openrct2/entity/EntityList.h>
 #include <openrct2/entity/EntityTweener.h>
+#include <openrct2/entity/Guest.h>
 #include <openrct2/interface/Viewport.h>
 #include <openrct2/interface/ViewportFlags.h>
 #include <openrct2/localisation/Language.h>
@@ -1129,6 +1131,113 @@ namespace
                             "Original scrolling text remains in the reference and is not masked.";
     }
 
+    // Original-art ordering oracle: fixed guest positions across a shop/facility
+    // doorway, including the path outside either side. No candidate depth rules.
+    void GuestShops(IContext& context, json_t& manifest)
+    {
+        const auto* laneText = std::getenv("OPENRCT2_GUEST_SHOP_LATERAL");
+        const int lateral = laneText ? std::stoi(laneText) : 0;
+        Require(lateral == -8 || lateral == 0 || lateral == 8, "Guest contact lateral must be -8, 0 or 8");
+        const auto* elevationText = std::getenv("OPENRCT2_GUEST_SHOP_ELEVATION");
+        const int elevation = elevationText ? std::stoi(elevationText) : 0;
+        Require(elevation == 0 || elevation == 32, "Guest contact elevation must be 0 or 32");
+        const bool hat = std::getenv("OPENRCT2_GUEST_SHOP_HAT") != nullptr;
+        manifest["guestLateral"] = lateral;
+        manifest["elevation"] = elevation;
+        manifest["hat"] = hat;
+        auto& state = getGameState();
+        auto& manager = context.GetObjectManager();
+        struct Donor
+        {
+            ride_type_t type;
+            ObjectEntryIndex object;
+            int clearance;
+        };
+        std::vector<Donor> donors;
+        for (auto style : { TrackStyle::shop, TrackStyle::facility })
+            for (const auto& ride : RideManager(state))
+                if (getTrackDrawerEntry(GetRideTypeDescriptor(ride.type)).trackStyle == style)
+                {
+                    donors.push_back({ ride.type, ride.subtype, GetRideTypeDescriptor(ride.type).Heights.ClearanceHeight });
+                    manifest["donors"].push_back({ { "ride", ride.id.ToUnderlying() },
+                                                   { "name", ride.getName() },
+                                                   { "overallView", { ride.overallView.x, ride.overallView.y } } });
+                    break;
+                }
+        const Guest* source = nullptr;
+        for (const auto* guest : EntityList<Guest>())
+            if (guest->state == PeepState::walking && guest->x != kLocationNull
+                && (!hat || guest->animationGroup == PeepAnimationGroup::hat))
+            {
+                source = guest;
+                break;
+            }
+        Require(donors.size() == 2 && source, "Seed lacks shop/facility or walking guest");
+        const Guest pose = *source;
+        const auto grass = manager.GetLoadedObjectEntryIndex("rct2.terrain_surface.grass");
+        const auto rock = manager.GetLoadedObjectEntryIndex("rct2.terrain_edge.rock");
+        gameStateInitAll(state, TileCoordsXY{ 64, 64 });
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x)
+            {
+                auto* s = MapGetSurfaceElementAt(TileCoordsXY{ x, y });
+                s->setBaseZ(64);
+                s->setClearanceZ(64);
+                s->setSlope(0);
+                s->setWaterHeight(0);
+                s->setGrassLength(0);
+                s->setOwnership(kUnowned);
+                s->setParkFences(0);
+                s->setSurfaceObjectIndex(grass);
+                s->setEdgeObjectIndex(rock);
+            }
+        constexpr std::array offsets{ -20, -4, 8, 16, 24, 36, 52 };
+        constexpr std::array<CoordsXY, 4> axes{ CoordsXY{ -1, 0 }, CoordsXY{ 0, 1 }, CoordsXY{ 1, 0 }, CoordsXY{ 0, -1 } };
+        for (uint16_t i = 0; i < 56; ++i)
+        {
+            const int family = i / 28, direction = (i / 7) % 4, phase = i % 7;
+            const int x = 4 + (i % 7) * 8, y = 4 + (i / 7) * 7, z = 64 + elevation;
+            const auto donor = donors[family];
+            auto* ride = RideAllocateAtIndex(RideId::FromUnderlying(i));
+            Require(ride != nullptr, "Guest shop ride allocation failed");
+            ride->type = donor.type;
+            ride->subtype = donor.object;
+            ride->status = RideStatus::closed;
+            ride->customName = "Guest contact " + std::to_string(i);
+            auto* track = TileElementInsert<TrackElement>({ x * 32, y * 32, z }, 15);
+            Require(track != nullptr, "Guest shop tile insertion failed");
+            track->setRideIndex(ride->id);
+            track->setRideType(ride->type);
+            track->setTrackType(TrackElemType::flatTrack1x1A);
+            track->setDirection(direction);
+            track->setSequenceIndex(0);
+            track->setClearanceZ(z + donor.clearance);
+            auto* guest = state.entities.createEntity<Guest>();
+            Require(guest != nullptr, "Guest contact allocation failed");
+            const auto id = guest->id;
+            *guest = pose;
+            guest->id = id;
+            guest->orientation = direction * 8;
+            const CoordsXYZ position{ x * 32 + 16 + axes[direction].x * (offsets[phase] - 16) - axes[direction].y * lateral,
+                                      y * 32 + 16 + axes[direction].y * (offsets[phase] - 16) + axes[direction].x * lateral,
+                                      z };
+            guest->moveTo(position);
+            manifest["objects"].push_back({ { "kind", family == 0 ? "shopGuest" : "facilityGuest" },
+                                            { "ride", i },
+                                            { "x", x },
+                                            { "y", y },
+                                            { "baseZ", z },
+                                            { "direction", direction },
+                                            { "phase", phase },
+                                            { "guestXYZ", { position.x, position.y, position.z } },
+                                            { "clearance", donor.clearance } });
+        }
+        state.ridesEndOfUsedRange = 56;
+        manifest["fixture"] = "original-guest-shop-contacts-v1";
+        manifest["scope"] = "Two original ride families, four directions, seven guest contacts crossing each tile; unchanged "
+                            "upstream painter";
+    }
+
     void StaticBuildings(IContext& context, json_t& manifest)
     {
         struct Specimen
@@ -1292,10 +1401,12 @@ int main(int argc, char** argv)
             && std::string_view(argv[3]) != "--track-regressions-inside" && std::string_view(argv[3]) != "--underground"
             && std::string_view(argv[3]) != "--construction-overlays" && std::string_view(argv[3]) != "--underground-view"
             && std::string_view(argv[3]) != "--underground-view-control" && std::string_view(argv[3]) != "--photo-states"
-            && std::string_view(argv[3]) != "--glass-entrances" && std::string_view(argv[3]) != "--glass-entrances-inside"))
+            && std::string_view(argv[3]) != "--glass-entrances" && std::string_view(argv[3]) != "--glass-entrances-inside"
+            && std::string_view(argv[3]) != "--guest-shops"))
     {
         std::cerr << "Usage: object-fixture <new-output-directory> <seed-park> "
-                     "[--static-buildings|--track-specials|--track-regressions|--track-regressions-opaque|--track-regressions-"
+                     "[--guest-shops|--static-buildings|--track-specials|--track-regressions|--track-regressions-opaque|--"
+                     "track-regressions-"
                      "inside|--underground|--underground-view|--underground-"
                      "view-control|--"
                      "construction-overlays|--photo-states|--glass-entrances|--glass-entrances-inside|--animated-buildings "
@@ -1334,7 +1445,8 @@ int main(int argc, char** argv)
     const bool photos = argc == 4 && std::string_view(argv[3]) == "--photo-states";
     const bool glassInside = argc == 4 && std::string_view(argv[3]) == "--glass-entrances-inside";
     const bool glass = glassInside || (argc == 4 && std::string_view(argv[3]) == "--glass-entrances");
-    const bool largeFixture = buildings || specials || underground || overlays || photos || glass;
+    const bool guestShops = argc == 4 && std::string_view(argv[3]) == "--guest-shops";
+    const bool largeFixture = buildings || specials || underground || overlays || photos || glass || guestShops;
     json_t manifest = {
         { "schema", 1 },
         { "fixture", "original-world-object-art-v1" },
@@ -1377,7 +1489,9 @@ int main(int argc, char** argv)
         auto& manager = context->GetObjectManager();
         auto& state = getGameState();
         manifest["objectSources"] = ObjectSources(*context);
-        if (glass)
+        if (guestShops)
+            GuestShops(*context, manifest);
+        else if (glass)
             GlassEntrances(*context, manifest);
         else if (photos)
             PhotoStates(*context, manifest);

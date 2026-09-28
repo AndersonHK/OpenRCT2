@@ -57,6 +57,7 @@ void worldEmitEntitySprite(ivec3 position,uint spriteIndex,uint palettes,uint ef
 {
     worldEmitEntitySpriteAt(position,position,spriteIndex,palettes,effects,layer,destination,writeRecords,count);
 }
+void worldOrderFacilityOccupant(ivec3 position,uint first,uint end);
 void visitWorldPeep(uint id,uint destination,bool writeRecords,inout uint count)
 {
     if(uScene.zoom>2 || id>=WORLD_ENTITY_CAPACITY) return;
@@ -84,6 +85,7 @@ void visitWorldPeep(uint id,uint destination,bool writeRecords,inout uint count)
     if(selected.error!=0u) return;
     // Source colours are enum values; texture palette row zero is identity.
     uint palettes=(selected.parentPrimary+1u)|((selected.parentSecondary+1u)<<8u)|(selected.parentRemapCount<<24u);
+    uint first=destination+count;
     worldEmitEntitySprite(ivec3(raw.x,raw.y,raw.z),selected.parentImage,palettes,selected.parentRemapCount,0u,destination,writeRecords,count);
     if(selected.childPresent!=0u) {
         uint base=raw.animationGroup==15u?10749u:(raw.animationGroup==5u?10813u:11229u);
@@ -91,6 +93,7 @@ void visitWorldPeep(uint id,uint destination,bool writeRecords,inout uint count)
         worldEmitEntitySprite(ivec3(raw.x,raw.y,raw.z),uPeepCatalog.words[2]+bank+selected.childImage-base,
             (selected.childPrimary+1u)|(1u<<24u),1u,1u,destination,writeRecords,count);
     }
+    if(writeRecords) worldOrderFacilityOccupant(ivec3(raw.x,raw.y,raw.z),first,destination+count);
 }
 void visitWorldBalloon(uint id,uint destination,bool writeRecords,inout uint count)
 {

@@ -64,6 +64,12 @@ void worldSetFlatBodyAnchor(uvec2 tile,WorldObjectRecord object,int family,int d
             worldSetComponentDepthScalar(depth);
             worldComponentRootLayer=uint(order.layer);
         }
+    } else if(part.depthAnchor==WORLD_FLAT_SHOP_ANCHOR || part.depthAnchor==WORLD_FLAT_FACILITY_REAR_ANCHOR
+        || part.depthAnchor==WORLD_FLAT_FACILITY_FRONT_ANCHOR) {
+        worldSetComponentDepthAnchor(tile,ivec3(WORLD_SERVICE_CONTACT,0,object.baseZ));
+        if(part.depthAnchor!=WORLD_FLAT_SHOP_ANCHOR)
+            worldComponentRootLayer=uint(part.depthAnchor==WORLD_FLAT_FACILITY_FRONT_ANCHOR?
+                WORLD_FACILITY_FRONT_LAYER:WORLD_FACILITY_REAR_LAYER);
     } else if(part.depthAnchor==1) {
         WorldFlatAnchor anchor=worldFlatFrontAnchor(family,int(object.sequence),direction);
         worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,object.baseZ+part.bz));
@@ -73,6 +79,35 @@ void worldSetFlatBodyAnchor(uvec2 tile,WorldObjectRecord object,int family,int d
     } else if(part.depthAnchor==3 || part.depthAnchor==WORLD_FLAT_FOREGROUND_ANCHOR) {
         WorldFlatAnchor anchor=worldFlatAuthoredContact(part);
         worldSetComponentDepthAnchor(tile,ivec3(anchor.x,anchor.y,object.baseZ+part.bz));
+    }
+}
+// Only occupants of a facility need its back/inside/front relationship. Resolve
+// against the immutable object records in this ONE tile, on the GPU, once for
+// the whole peep (body and accessory). No CPU sorting or neighbouring-tile walk.
+void worldOrderFacilityOccupant(ivec3 position,uint first,uint end)
+{
+    if(first>=end || any(lessThan(position.xy,ivec2(0))) || uFlatRides.words[0]!=0x57464c54u) return;
+    uvec2 tile=uvec2(position.xy)/32u;
+    if(tile.x>=uScene.width || tile.y>=uScene.height) return;
+    SourceRecord source=uSources.records[tile.y*uScene.width+tile.x];
+    ivec2 origin=terrainRotateXY(terrainPaintTileOrigin(ivec2(tile*32u),uScene.rotation),uScene.rotation);
+    ivec2 local=terrainRotateXY(position.xy,uScene.rotation)-origin;
+    int selectedBase=-2147483647,selectedLayer=-1;
+    for(uint i=0u;i<source.objectCount;i++) {
+        WorldObjectRecord object=uObjects.records[source.objectFirst+i];
+        if(object.kind!=4u || (object.flags&3u)!=0u || object.baseZ<selectedBase) continue;
+        uint id=object.rideIdAndMazeEntry&65535u;
+        if(id>=uFlatRides.words[3]) continue;
+        uint ride=uFlatRides.words[2]+id*20u;
+        if(uFlatRides.words[ride]!=19u) continue;
+        int layer=worldFacilityOccupantLayer(local.x,local.y,position.z-object.baseZ,
+            object.clearanceZ-object.baseZ,int((object.direction+uScene.rotation)&3u));
+        if(layer>=0) { selectedBase=object.baseZ;selectedLayer=layer; }
+    }
+    if(selectedLayer<0) return;
+    for(uint i=first;i<end && i<uScene.outputCapacity;i++) {
+        uOutputs.records[i].reserved.x=origin.x+origin.y+selectedBase+WORLD_SERVICE_CONTACT;
+        uOutputs.records[i].depth=int((uint(selectedLayer)+i-first)<<4u);
     }
 }
 void worldClipFlatLongitudinalComponent(uvec2 tile,uint first,uint end,bool writeRecords)

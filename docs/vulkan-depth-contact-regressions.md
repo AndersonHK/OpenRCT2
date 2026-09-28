@@ -1,5 +1,8 @@
 # Sloped paths and elevated rail contacts
 
+Guest/shop and facility containment is tracked separately in
+[Guest ordering at shops and facilities](vulkan-guest-service-ordering.md).
+
 Reported after deployed build186 (`df6cdf3075`). These are ordering regressions, not missing art. Each authored sprite still has one constant D32 depth; higher priority maps to smaller hardware depth. WorldXY means tile/subtile coordinates, not screen pixels.
 
 ## Reproduction and status

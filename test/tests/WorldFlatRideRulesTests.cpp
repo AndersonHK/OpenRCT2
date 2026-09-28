@@ -15,6 +15,41 @@
 namespace G = OpenRCT2::Ui::Gpu;
 namespace F = G::FlatRideRules;
 
+TEST(WorldFlatRideRulesTest, ServiceBuildingsSeparateCounterRearDoorAndForegroundShell)
+{
+    for (int direction = 0; direction < 4; ++direction)
+    {
+        const auto shop = F::worldFlatParts(18, 0, direction, false, false, 15, 64, 0, 0);
+        ASSERT_EQ(shop.count, 1);
+        EXPECT_EQ(shop.parts[0].depthAnchor, F::WORLD_FLAT_SHOP_ANCHOR);
+        EXPECT_EQ(F::WORLD_SERVICE_CONTACT, (2 + 29 + 2 + 29) / 2);
+        const auto facility = F::worldFlatParts(19, 0, direction, false, false, 15, 32, 0, 0);
+        const bool doorway = direction == 1 || direction == 2;
+        ASSERT_EQ(facility.count, doorway ? 2 : 1);
+        EXPECT_EQ(
+            facility.parts[0].depthAnchor, doorway ? F::WORLD_FLAT_FACILITY_REAR_ANCHOR : F::WORLD_FLAT_FACILITY_FRONT_ANCHOR);
+        EXPECT_EQ(facility.parts[facility.count - 1].depthAnchor, F::WORLD_FLAT_FACILITY_FRONT_ANCHOR);
+        // The entire footprint is enclosed, including its off-centre lanes.
+        // Body/accessory remain together on either side of the rear panel.
+        for (int x = 2; x <= 29; ++x)
+            for (int y = 2; y <= 29; ++y)
+            {
+                const int layer = F::worldFacilityOccupantLayer(x, y, 0, 32, direction);
+                ASSERT_GE(layer, 0);
+                EXPECT_LT(layer + 1, F::WORLD_FACILITY_FRONT_LAYER);
+                if (layer == 0)
+                    EXPECT_LT(layer + 1, F::WORLD_FACILITY_REAR_LAYER);
+                else
+                    EXPECT_GT(layer, F::WORLD_FACILITY_REAR_LAYER);
+            }
+        // Adjacent paths, another floor and guests above the roof retain XYZ order.
+        for (const auto position : { std::array{ 1, 16, 0 }, std::array{ 30, 16, 0 }, std::array{ 16, 1, 0 },
+                                     std::array{ 16, 30, 0 }, std::array{ 16, 16, -16 }, std::array{ 16, 16, 25 } })
+            EXPECT_EQ(F::worldFacilityOccupantLayer(position[0], position[1], position[2], 32, direction), -1);
+        EXPECT_EQ(F::worldFacilityOccupantLayer(16, 16, 0, 32, direction), F::WORLD_FACILITY_OCCUPANT_LAYER);
+    }
+}
+
 TEST(WorldFlatRideRulesTest, SwingingShipComponentsRetainTileLocalBoundsAndAnimationOwnership)
 {
     for (int direction = 0; direction < 4; ++direction)
