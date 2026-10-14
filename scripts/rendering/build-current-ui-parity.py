@@ -15,6 +15,11 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
+import importlib.util
+_retention_spec = importlib.util.spec_from_file_location("artifact_retention", Path(__file__).with_name("artifact-retention.py"))
+retention = importlib.util.module_from_spec(_retention_spec)
+_retention_spec.loader.exec_module(retention)
+
 
 NS = "http://schemas.microsoft.com/developer/msbuild/2003"
 ET.register_namespace("", NS)
@@ -329,6 +334,8 @@ def main():
     parser.add_argument("--serial-driver-only", action="store_true",
                         help="Require exact library reuse and compile only the driver serially; preserve prior library metadata")
     parser.add_argument("--reuse-build", type=Path, help="Receipt or build directory whose matching libraries may be reused")
+    parser.add_argument("--retain-build-intermediates", action="store_true",
+                        help="Keep successful private int directories; failures always retain them")
     args = parser.parse_args()
     if args.serial_driver_only and (args.reuse_build is None or args.serial_compile):
         parser.error("--serial-driver-only requires --reuse-build and cannot be combined with --serial-compile")
@@ -350,6 +357,8 @@ def main():
     if vulkan_only_source(source) and not args.enable_vulkan:
         parser.error("Vulkan-only source requires --enable-vulkan for the UI capture build")
     output = args.output.resolve()
+    if not args.retain_build_intermediates:
+        retention.checked_output(output)
     if output.exists() or workspace not in output.parents:
         raise SystemExit("--output must be a new directory inside the working workspace")
     for path in (source / "src/openrct2/libopenrct2.vcxproj", source / "lib/x64",
@@ -460,6 +469,8 @@ def main():
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: receipt[key] for key in ("status", "exitCode", "sourceChangesDuringBuild", "missingArtifacts")}))
     print("UI capture build receipt:", output / "receipt.json")
+    retention.compact(output, passed=passed, retain=args.retain_build_intermediates,
+                      kind="build", directories=("int",))
     raise SystemExit(0 if passed else 1)
 
 

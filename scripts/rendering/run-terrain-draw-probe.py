@@ -10,6 +10,11 @@ import struct
 import subprocess
 import xml.etree.ElementTree as ET
 
+import importlib.util
+_retention_spec = importlib.util.spec_from_file_location("artifact_retention", Path(__file__).with_name("artifact-retention.py"))
+retention = importlib.util.module_from_spec(_retention_spec)
+_retention_spec.loader.exec_module(retention)
+
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def stable(value):
@@ -28,8 +33,12 @@ def main():
     for name in ('build-receipt','shader-build-receipt','emission-probe-receipt','column-probe-receipt','corpus-summary','output'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--timeout-seconds', type=int, default=300)
+    parser.add_argument("--retain-raw-artifacts", action="store_true",
+                        help="Keep full successful readbacks; failures always retain all evidence")
     args = parser.parse_args()
     output = args.output.resolve()
+    if not args.retain_raw_artifacts:
+        retention.checked_output(output)
     if args.timeout_seconds <= 0: raise SystemExit('Timeout must be positive')
     output.mkdir(parents=True, exist_ok=False)
     summary = {'schema': 1, 'status': 'fail', 'failures': [], 'exitCode': None, 'reports': [],
@@ -52,6 +61,7 @@ def main():
         return path
     try:
         pin(Path(__file__))
+        pin(Path(__file__).with_name("artifact-retention.py"))
         build_path = args.build_receipt.resolve(strict=True)
         build = load(build_path)
         if not stable(build) or build.get('windowedParityQualified') is not False:
@@ -224,6 +234,8 @@ def main():
                 and not summary['validationMessages'] and len(summary['reports']) == 50): summary['status'] = 'pass'
         (output / 'summary.json').write_text(json.dumps(summary,indent=2) + '\n',encoding='utf-8')
         print(json.dumps({'status':summary['status'],'samples':len(summary['reports']),'failures':summary['failures']}))
+    retention.compact(output, passed=summary["status"] == "pass", retain=args.retain_raw_artifacts,
+                      directories=("samples",))
     raise SystemExit(0 if summary['status'] == 'pass' else 1)
 
 

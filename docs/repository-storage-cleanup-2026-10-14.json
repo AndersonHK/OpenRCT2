@@ -1,0 +1,778 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "beforeBytes": 295873659814,
+  "afterBytes": 126331313744,
+  "afterFiles": 793051,
+  "excludedReparsePoints": 2040,
+  "deletionResult": {
+    "note": "Volume free-space delta can include concurrent activity in other repositories. See deletion-plan.json for original paths and preserved evidence.",
+    "freeBytesAfter": 482262568960,
+    "plan": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\obj\\vulkan-parity\\storage-cleanup-2026-10-14-final\\deletion-plan.json",
+    "freeSpaceDelta": 169585483776,
+    "freeBytesBefore": 312677085184,
+    "removedFiles": 20792,
+    "schema": 1,
+    "removedBytes": 169549094712,
+    "status": "complete"
+  },
+  "groups": {
+    "incremental-ui-cache": {
+      "files": 3690,
+      "bytes": 5093392628,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-44": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-45": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-46": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-47": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-48": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-49": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-50": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-51": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-52": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-53": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-54": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-55": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-56": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-57": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-59": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "run-60": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link139": {
+      "files": 6,
+      "bytes": 306059428,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link141": {
+      "files": 6,
+      "bytes": 306093820,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link142": {
+      "files": 6,
+      "bytes": 306139742,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link143": {
+      "files": 6,
+      "bytes": 306139742,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link144": {
+      "files": 6,
+      "bytes": 306131550,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link149": {
+      "files": 6,
+      "bytes": 308827468,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link150": {
+      "files": 6,
+      "bytes": 308841416,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link151": {
+      "files": 6,
+      "bytes": 308841432,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link153": {
+      "files": 6,
+      "bytes": 309061650,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link154": {
+      "files": 6,
+      "bytes": 309070860,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link155": {
+      "files": 6,
+      "bytes": 309070400,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link156": {
+      "files": 6,
+      "bytes": 309093756,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link157": {
+      "files": 6,
+      "bytes": 309118402,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link158": {
+      "files": 6,
+      "bytes": 309132864,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link159": {
+      "files": 6,
+      "bytes": 309143530,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link160": {
+      "files": 6,
+      "bytes": 309135886,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link164": {
+      "files": 6,
+      "bytes": 309306912,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link166": {
+      "files": 6,
+      "bytes": 310250068,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link167": {
+      "files": 6,
+      "bytes": 310250068,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link168": {
+      "files": 6,
+      "bytes": 310302870,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link173": {
+      "files": 6,
+      "bytes": 310402052,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link176": {
+      "files": 6,
+      "bytes": 310365786,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link177": {
+      "files": 6,
+      "bytes": 310410244,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link178": {
+      "files": 6,
+      "bytes": 310405264,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link180": {
+      "files": 6,
+      "bytes": 310619790,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link182": {
+      "files": 6,
+      "bytes": 314107036,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link185": {
+      "files": 6,
+      "bytes": 314110572,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link186": {
+      "files": 6,
+      "bytes": 314113710,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link187": {
+      "files": 6,
+      "bytes": 314113728,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link188": {
+      "files": 6,
+      "bytes": 314113728,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link190": {
+      "files": 6,
+      "bytes": 314547054,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link191": {
+      "files": 6,
+      "bytes": 314538850,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link192": {
+      "files": 6,
+      "bytes": 314547092,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link193": {
+      "files": 6,
+      "bytes": 314555284,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link196": {
+      "files": 6,
+      "bytes": 314624116,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link197": {
+      "files": 6,
+      "bytes": 314632458,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link198": {
+      "files": 6,
+      "bytes": 314631320,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link203": {
+      "files": 6,
+      "bytes": 315210964,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link204": {
+      "files": 6,
+      "bytes": 315355654,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link205": {
+      "files": 6,
+      "bytes": 315380340,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link206": {
+      "files": 6,
+      "bytes": 315389404,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "screenshot-link207": {
+      "files": 2,
+      "bytes": 8271614,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "terrain-draw-probe-01": {
+      "files": 64,
+      "bytes": 2112880640,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "terrain-draw-probe-02": {
+      "files": 64,
+      "bytes": 2112880640,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "terrain-draw-probe-03": {
+      "files": 150,
+      "bytes": 6602856000,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-01": {
+      "files": 634,
+      "bytes": 644893890,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-02": {
+      "files": 1,
+      "bytes": 186624,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-03": {
+      "files": 721,
+      "bytes": 865243663,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-04": {
+      "files": 7,
+      "bytes": 344284680,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-05": {
+      "files": 724,
+      "bytes": 998367486,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-06": {
+      "files": 724,
+      "bytes": 1000099819,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-07": {
+      "files": 7,
+      "bytes": 354673720,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-08": {
+      "files": 7,
+      "bytes": 354748291,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-09": {
+      "files": 7,
+      "bytes": 354845645,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-10": {
+      "files": 725,
+      "bytes": 1001750270,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-11": {
+      "files": 7,
+      "bytes": 355678928,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-12": {
+      "files": 724,
+      "bytes": 878286622,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-13": {
+      "files": 8,
+      "bytes": 356571222,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-14": {
+      "files": 727,
+      "bytes": 1004257760,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-15": {
+      "files": 8,
+      "bytes": 356789740,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-16": {
+      "files": 727,
+      "bytes": 1008133067,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-17": {
+      "files": 727,
+      "bytes": 1010398086,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-18": {
+      "files": 8,
+      "bytes": 359962894,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-19": {
+      "files": 728,
+      "bytes": 1010617177,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-20": {
+      "files": 8,
+      "bytes": 360059898,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-21": {
+      "files": 8,
+      "bytes": 360250733,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-22": {
+      "files": 730,
+      "bytes": 1012186449,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-23": {
+      "files": 730,
+      "bytes": 1013823692,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-24": {
+      "files": 732,
+      "bytes": 1016336449,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-25": {
+      "files": 283,
+      "bytes": 319718739,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-26": {
+      "files": 387,
+      "bytes": 347071414,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-27": {
+      "files": 733,
+      "bytes": 1009827591,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-28": {
+      "files": 733,
+      "bytes": 1009875091,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-29": {
+      "files": 8,
+      "bytes": 361954695,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-30": {
+      "files": 8,
+      "bytes": 362115235,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-31": {
+      "files": 734,
+      "bytes": 1011008771,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-32": {
+      "files": 8,
+      "bytes": 362378513,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-33": {
+      "files": 736,
+      "bytes": 1012962044,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-34": {
+      "files": 8,
+      "bytes": 363329538,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-35": {
+      "files": 8,
+      "bytes": 366256361,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-build-36": {
+      "files": 3,
+      "bytes": 9667902,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-02": {
+      "files": 8,
+      "bytes": 394568762,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-03": {
+      "files": 8,
+      "bytes": 394568762,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-04": {
+      "files": 8,
+      "bytes": 394560570,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-05": {
+      "files": 8,
+      "bytes": 394617656,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-06": {
+      "files": 8,
+      "bytes": 396724542,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-07": {
+      "files": 8,
+      "bytes": 398953978,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-08": {
+      "files": 8,
+      "bytes": 399705200,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-09": {
+      "files": 8,
+      "bytes": 401829138,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-10": {
+      "files": 8,
+      "bytes": 401981018,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-cache-build-11": {
+      "files": 8,
+      "bytes": 402796264,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-01": {
+      "files": 723,
+      "bytes": 986385172,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-02": {
+      "files": 151,
+      "bytes": 586218031,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-03": {
+      "files": 4,
+      "bytes": 226793047,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-04": {
+      "files": 7,
+      "bytes": 347294676,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-05": {
+      "files": 7,
+      "bytes": 347294155,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-06": {
+      "files": 7,
+      "bytes": 347366326,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-07": {
+      "files": 7,
+      "bytes": 347495505,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-08": {
+      "files": 7,
+      "bytes": 347875471,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-09": {
+      "files": 7,
+      "bytes": 347919580,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-10": {
+      "files": 4,
+      "bytes": 226793047,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-11": {
+      "files": 7,
+      "bytes": 348633369,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-12": {
+      "files": 7,
+      "bytes": 348707768,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-13": {
+      "files": 7,
+      "bytes": 349705219,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-14": {
+      "files": 7,
+      "bytes": 349713315,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-15": {
+      "files": 7,
+      "bytes": 349721507,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-16": {
+      "files": 7,
+      "bytes": 349924115,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-17": {
+      "files": 7,
+      "bytes": 350500178,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-18": {
+      "files": 7,
+      "bytes": 351229141,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-19": {
+      "files": 7,
+      "bytes": 350106832,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-20": {
+      "files": 7,
+      "bytes": 350284055,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-21": {
+      "files": 7,
+      "bytes": 350787667,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-22": {
+      "files": 7,
+      "bytes": 353423848,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-23": {
+      "files": 7,
+      "bytes": 353835112,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    },
+    "ui-frozen-build-24": {
+      "files": 3,
+      "bytes": 10005155,
+      "retained": "Metadata, source/patches, shaders, images and all nonselected files stay at original paths"
+    }
+  },
+  "protectedExecutables": [
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\openrct2.exe",
+      "sha256": "19d73783fabcb408a973bcd7a9ed2a2768eadd8b2bdd670c1782602ff261ab36"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\openrct2-cli.exe",
+      "sha256": "07551703318f58a904f2973ab02b632b708b31bf7c111273d9ff7d18d7e0cd2b"
+    },
+    {
+      "path": "D:\\Games\\Independent\\OpenRCT2Mod\\openrct2.exe",
+      "sha256": "19d73783fabcb408a973bcd7a9ed2a2768eadd8b2bdd670c1782602ff261ab36"
+    },
+    {
+      "path": "D:\\Games\\Independent\\OpenRCT2Mod\\openrct2-cli.exe",
+      "sha256": "07551703318f58a904f2973ab02b632b708b31bf7c111273d9ff7d18d7e0cd2b"
+    }
+  ],
+  "preservedMetadataFiles": 694,
+  "preservedMetadataHashesVerified": true,
+  "selectedDeletionFilesAbsent": true,
+  "afterTopLevel": {
+    "[root files]": [
+      65424537,
+      41
+    ],
+    "test": [
+      22015517,
+      193
+    ],
+    "src": [
+      45890826,
+      1671
+    ],
+    "scripts": [
+      1842565,
+      143
+    ],
+    "resources": [
+      27024882,
+      9980
+    ],
+    "obj": [
+      121946022646,
+      756078
+    ],
+    "lib": [
+      702446757,
+      758
+    ],
+    "emscripten": [
+      22498,
+      3
+    ],
+    "docs": [
+      11472637,
+      230
+    ],
+    "distribution": [
+      701786,
+      36
+    ],
+    "debian": [
+      147514,
+      6
+    ],
+    "data": [
+      5275750,
+      263
+    ],
+    "cmake": [
+      17880,
+      8
+    ],
+    "bin": [
+      989451296,
+      477
+    ],
+    "artifacts": [
+      2119900137,
+      18438
+    ],
+    ".vscode": [
+      4169,
+      2
+    ],
+    ".github": [
+      51001,
+      14
+    ],
+    ".git": [
+      393601346,
+      4710
+    ]
+  },
+  "localDetailedManifest": "obj/vulkan-parity/storage-cleanup-2026-10-14-final/deletion-plan.json",
+  "localDetailedResult": "obj/vulkan-parity/storage-cleanup-2026-10-14-final/deletion-result.json"
+}

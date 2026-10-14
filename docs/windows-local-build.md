@@ -55,3 +55,7 @@ msbuild openrct2.proj /m /nr:false /p:Configuration=Release /p:Platform=x64 /p:V
 ```
 
 MSBuild still reports one non-fatal Roslyn `System.Memory` binding warning from `openrct2.proj`.
+
+## Parity scratch retention
+
+Private parity build/run tooling follows [Vulkan artifact retention](vulkan-artifact-retention.md). Successful UI/screenshot builds discard their own compiler intermediates; parity runs discard validated capacity readbacks unless explicitly retained. Failures preserve evidence. This policy does not change the ordinary solution build or deployment output.

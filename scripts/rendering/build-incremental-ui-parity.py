@@ -263,6 +263,12 @@ def execute(args, source, cache, output):
         receipt["incrementalCache"]["outputStateSha256"] = build.sha256(output / "cache-output-state.json")
     write_json(output / "receipt.json", receipt)
     if next_state is not None:
+        active = Path(next_state["privateWorkspace"])
+        obsolete = tuple(path.name for path in cache.iterdir()
+                         if re.fullmatch(r"generation-[0-9a-f]{32}", path.name) and path != active)
+        # Journal before sealing the snapshot manifest, so subsequent reuse still
+        # verifies the complete immutable snapshot, including retention evidence.
+        build.retention.compact(cache, passed=True, kind="cache", directories=obsolete, journal_root=output)
         next_state["publishedSha256"] = manifest(output)
         write_json(state_path, next_state)
     return passed

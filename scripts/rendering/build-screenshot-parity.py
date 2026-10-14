@@ -12,6 +12,10 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
+_retention_spec = importlib.util.spec_from_file_location("artifact_retention", Path(__file__).with_name("artifact-retention.py"))
+retention = importlib.util.module_from_spec(_retention_spec)
+_retention_spec.loader.exec_module(retention)
+
 HELPER = Path(__file__).with_name('build-current-ui-parity.py')
 spec = importlib.util.spec_from_file_location('ui_build', HELPER)
 build = importlib.util.module_from_spec(spec)
@@ -75,9 +79,13 @@ def main():
     parser.add_argument('--msbuild', type=Path)
     parser.add_argument('--toolset-version')
     parser.add_argument('--driver', choices=('screenshot', 'track-preview'), default='screenshot')
+    parser.add_argument("--retain-build-intermediates", action="store_true",
+                        help="Keep successful private int directories; failures always retain them")
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
+    if not args.retain_build_intermediates:
+        retention.checked_output(output)
     if output.exists() or source not in output.parents:
         raise SystemExit('--output must be a new directory inside the workspace')
     output.mkdir(parents=True)
@@ -180,6 +188,8 @@ def main():
                'scope': 'Real Vulkan-only ' + args.driver + ' entrypoint. No main window, no full parity claim.'}
     (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({'status': receipt['status'], 'receipt': str(output / 'receipt.json')}))
+    retention.compact(output, passed=passed, retain=args.retain_build_intermediates,
+                      kind="build", directories=("int",))
     raise SystemExit(0 if passed else 1)
 
 

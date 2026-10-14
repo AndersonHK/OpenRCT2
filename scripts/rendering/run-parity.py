@@ -14,6 +14,11 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
+import importlib.util
+_retention_spec = importlib.util.spec_from_file_location("artifact_retention", Path(__file__).with_name("artifact-retention.py"))
+retention = importlib.util.module_from_spec(_retention_spec)
+_retention_spec.loader.exec_module(retention)
+
 
 def sha256(path):
     result = hashlib.sha256()
@@ -135,9 +140,13 @@ def main():
                         help="Passing build-mixed-emission-probe.py receipt matched to this test binary")
     parser.add_argument("--validation", action="store_true", help="Require Khronos validation and synchronization checks")
     parser.add_argument("--full", action="store_true")
+    parser.add_argument("--retain-raw-artifacts", action="store_true",
+                        help="Keep full successful readbacks; failures always retain all evidence")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
+    if not args.retain_raw_artifacts:
+        retention.checked_output(output)
     fixture_manifest_path = root / "docs/vulkan-parity-fixtures.json"
     fixture_manifest_hash = sha256(fixture_manifest_path)
     fixture_manifest = json.loads(fixture_manifest_path.read_text(encoding="utf-8"))
@@ -173,7 +182,8 @@ def main():
         raise SystemExit("Refusing to overwrite prior parity evidence: " + str(output))
     subprocess.run([os.sys.executable, str(root / "scripts/rendering/verify-software-reference.py")], check=True)
     build_receipt = None
-    pinned_inputs = {fixture_manifest_path: fixture_manifest_hash}
+    retention_path = Path(__file__).with_name("artifact-retention.py")
+    pinned_inputs = {fixture_manifest_path: fixture_manifest_hash, retention_path: sha256(retention_path)}
     if args.build_receipt:
         receipt_path = args.build_receipt.resolve(strict=True)
         receipt_hash = sha256(receipt_path)
@@ -496,6 +506,8 @@ def main():
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: summary[key] for key in ("status", "exitCode", "tests", "parityTests", "failedSkippedOrDisabled")}, indent=2))
     print("Evidence:", output)
+    retention.compact(output, passed=success, retain=args.retain_raw_artifacts,
+                      directories=("terrain-draw-samples",))
     raise SystemExit(0 if success else 1)
 
 
