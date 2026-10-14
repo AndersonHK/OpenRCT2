@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "status": "complete",
+  "scope": "Remaining Vulkan artifacts; no hard size target",
+  "beforeBytes": 126331523838,
+  "afterBytes": 23747841642,
+  "afterFiles": 218249,
+  "excludedReparsePoints": 2040,
+  "vulkanBeforeBytes": 116856636918,
+  "vulkanAfterBytes": 14271258380,
+  "selection": {
+    "captures": {
+      "files": 89004,
+      "bytes": 5367636831
+    },
+    "raw": {
+      "files": 48506,
+      "bytes": 60393357284
+    },
+    "binaries": {
+      "files": 619,
+      "bytes": 14510125306
+    },
+    "runtime": {
+      "files": 435784,
+      "bytes": 10647509036
+    },
+    "discard-compiler": {
+      "files": 2476,
+      "bytes": 17300211162
+    }
+  },
+  "archives": [
+    {
+      "path": "obj/vulkan-parity/evidence-2026-10-14-pass2/raw.zip",
+      "sha256": "011a202ee3582ea4cb047a3e8ff0a91fa8f9b9305cd1198e491f727a8452fe42",
+      "bytes": 795655825,
+      "verifiedUniquePayloads": 7195
+    },
+    {
+      "path": "obj/vulkan-parity/evidence-2026-10-14-pass2/runtime.zip",
+      "sha256": "9f0e4811ad86fd45663adeae2cf887fa1bcbaf5a96f091c5d65a537e4c690825",
+      "bytes": 94045978,
+      "verifiedUniquePayloads": 4808
+    },
+    {
+      "path": "obj/vulkan-parity/evidence-2026-10-14-pass2/captures.zip",
+      "sha256": "cd0a53c8b300d4dc4043cafd59efe7bd4ba6aa74da4611a857184b2da35b78cc",
+      "bytes": 1664744909,
+      "verifiedUniquePayloads": 13134
+    },
+    {
+      "path": "obj/vulkan-parity/evidence-2026-10-14-pass2/binaries.zip",
+      "sha256": "0354df6b57545c23bacbdda1dffcec5349ad452e6a9b59b8d8c0e6301f733859",
+      "bytes": 3049999319,
+      "verifiedUniquePayloads": 376
+    }
+  ],
+  "archiveResult": {
+    "freeBytesBefore": 481974902784,
+    "removedBytes": 108218839619,
+    "freeSpaceDelta": 109454905344,
+    "schema": 1,
+    "archiveBytes": 5604446031.0,
+    "status": "complete",
+    "removedFiles": 576389,
+    "note": "Archives were written before the deletion free-space measurement. Only generated compiler products lack archived payloads.",
+    "freeBytesAfter": 591429808128
+  },
+  "postcleanupChecks": {
+    "archivedOriginalFiles": 573913,
+    "discardedCompilerFiles": 2476,
+    "unselectedInventoriedFilesUnchanged": 166050,
+    "allSelectedOriginalsAbsent": true,
+    "protectedExecutablesUnchanged": true,
+    "gzipIndexVerified": true,
+    "directoryNotices": 1532,
+    "rootFileNotices": 4
+  },
+  "indexRetention": {
+    "schema": 1,
+    "originalPath": "payloads.tsv",
+    "compressedPath": "payloads.tsv.gz",
+    "expandedSha256": "d900a22f69c8e856f9c5deda61ee9c92da521b3e731ea45ec536dc500cceb4dd",
+    "compressedSha256": "bb00b6d10cffbaa8b7ee3ceca69078c941a88c635eb59f115444f4bac3f77601",
+    "originalBytes": 186898216,
+    "compressedBytes": 27945639,
+    "note": "The verified index is preserved losslessly. Restore tooling reads the gzip index; original plan hashes remain historical."
+  },
+  "emptyDirectoryPruning": {
+    "scope": "Only affected historical roots; no links, source directories, protected cases or private cache roots",
+    "removedEmptyDirectories": 103971
+  },
+  "protectedExecutables": [
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\openrct2.exe",
+      "sha256": "19d73783fabcb408a973bcd7a9ed2a2768eadd8b2bdd670c1782602ff261ab36"
+    },
+    {
+      "path": "C:\\Users\\imper\\Documents\\GitHub\\OpenRCT2\\bin\\openrct2-cli.exe",
+      "sha256": "07551703318f58a904f2973ab02b632b708b31bf7c111273d9ff7d18d7e0cd2b"
+    },
+    {
+      "path": "D:\\Games\\Independent\\OpenRCT2Mod\\openrct2.exe",
+      "sha256": "19d73783fabcb408a973bcd7a9ed2a2768eadd8b2bdd670c1782602ff261ab36"
+    },
+    {
+      "path": "D:\\Games\\Independent\\OpenRCT2Mod\\openrct2-cli.exe",
+      "sha256": "07551703318f58a904f2973ab02b632b708b31bf7c111273d9ff7d18d7e0cd2b"
+    }
+  ],
+  "protectedRoots": [
+    "corkscrew190-paired-01",
+    "lift198-paired-01",
+    "lift198-texas-paired-01",
+    "ordering187-fixtures",
+    "reference-9a092745f3",
+    "save-load-crash193-evidence",
+    "slopes191-candidate-01",
+    "slopes191-withdrawn",
+    "trinity190-paired-01"
+  ],
+  "liveBins": [
+    "ui-frozen-build-24/bin",
+    "ui-build-36/bin",
+    "screenshot-link207/bin"
+  ],
+  "afterTopLevel": {
+    "[root-files]": [
+      65426559,
+      41
+    ],
+    "test": [
+      22015517,
+      193
+    ],
+    "src": [
+      45890826,
+      1671
+    ],
+    "scripts": [
+      1881756,
+      147
+    ],
+    "resources": [
+      27024882,
+      9980
+    ],
+    "obj": [
+      19360646429,
+      181233
+    ],
+    "lib": [
+      702446757,
+      758
+    ],
+    "emscripten": [
+      22498,
+      3
+    ],
+    "docs": [
+      11527213,
+      234
+    ],
+    "distribution": [
+      701786,
+      36
+    ],
+    "debian": [
+      147514,
+      6
+    ],
+    "data": [
+      5275750,
+      263
+    ],
+    "cmake": [
+      17880,
+      8
+    ],
+    "bin": [
+      989451296,
+      477
+    ],
+    "artifacts": [
+      2119900137,
+      18438
+    ],
+    ".vscode": [
+      4169,
+      2
+    ],
+    ".github": [
+      51001,
+      14
+    ],
+    ".git": [
+      395409672,
+      4745
+    ]
+  },
+  "localArchivePlan": "obj/vulkan-parity/evidence-2026-10-14-pass2/archive-plan.json",
+  "localIndex": "obj/vulkan-parity/evidence-2026-10-14-pass2/payloads.tsv.gz",
+  "restorationCheck": "Real run62 guard restored twice, including from compressed index; SHA256 matches and all 66,029,600 bytes equal 0xA5; restore scratch removed."
+}

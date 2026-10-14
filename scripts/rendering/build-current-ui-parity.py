@@ -3,6 +3,11 @@
 --source-root selects the current or extracted frozen tree. --harness-root selects
 the identical test/ui-parity driver and SDL present hook. All objects, libraries,
 generated build metadata and evidence stay in a new --output directory.
+
+
+After the task finishes, finalize its remaining scratch with the scoped
+archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
+docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 
 import argparse

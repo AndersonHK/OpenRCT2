@@ -2,6 +2,11 @@
 
 Requires an already successful current Vulkan UI build with byte-identical core
 and renderer inputs. No network, source rebuild, UI library, or ordinary bin mutation.
+
+
+After the task finishes, finalize its remaining scratch with the scoped
+archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
+docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 import argparse
 import importlib.util

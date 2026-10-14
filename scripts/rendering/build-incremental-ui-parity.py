@@ -4,6 +4,11 @@ This is opt-in. Existing isolated/frozen/reuse builders retain their behavior.
 The first build is full. Only unambiguously newer C/C++ content edits may use
 MSBuild's tracked dependencies; stale timestamps and all other input changes
 start an empty generation. No source mtimes or historical evidence are modified.
+
+
+After the task finishes, finalize its remaining scratch with the scoped
+archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
+docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 import argparse
 import importlib.util

@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "status": "planning_only",
+  "currentBytes": 126331523838,
+  "currentFiles": 793077,
+  "excludedReparsePoints": 2040,
+  "topLevel": {
+    "/[files]": [
+      65424537,
+      41
+    ],
+    "test": [
+      22015517,
+      193
+    ],
+    "src": [
+      45890826,
+      1671
+    ],
+    "scripts": [
+      1843251,
+      143
+    ],
+    "resources": [
+      27024882,
+      9980
+    ],
+    "obj": [
+      121946024967,
+      756079
+    ],
+    "lib": [
+      702446757,
+      758
+    ],
+    "emscripten": [
+      22498,
+      3
+    ],
+    "docs": [
+      11505290,
+      231
+    ],
+    "distribution": [
+      701786,
+      36
+    ],
+    "debian": [
+      147514,
+      6
+    ],
+    "data": [
+      5275750,
+      263
+    ],
+    "cmake": [
+      17880,
+      8
+    ],
+    "bin": [
+      989451296,
+      477
+    ],
+    "artifacts": [
+      2119900137,
+      18438
+    ],
+    ".vscode": [
+      4169,
+      2
+    ],
+    ".github": [
+      51001,
+      14
+    ],
+    ".git": [
+      393775780,
+      4734
+    ]
+  },
+  "vulkanBytes": 116856636918,
+  "vulkanDisjointCategories": {
+    "mixed_metadata_sources_inputs": {
+      "bytes": 5021067463,
+      "files": 40241
+    },
+    "other": {
+      "bytes": 1083261502,
+      "files": 12034
+    },
+    "png_outside_runtime_data": {
+      "bytes": 5538868708,
+      "files": 139225
+    },
+    "runtime_object_copies": {
+      "bytes": 11735464939,
+      "files": 498999
+    },
+    "raw_captures": {
+      "bytes": 60605722646,
+      "files": 48700
+    },
+    "private_builds": {
+      "bytes": 32872251660,
+      "files": 3240
+    }
+  },
+  "preservationMeasurements": {
+    "full_run62": {
+      "files": 2109,
+      "originalBytes": 6991190050,
+      "zipBytes": 86263637,
+      "seconds": 18.9
+    },
+    "top_level_metadata": {
+      "files": 5954,
+      "originalBytes": 1299899012,
+      "zipBytes": 262397653,
+      "seconds": 28.4
+    },
+    "park_inputs_patches": {
+      "files": 1929,
+      "originalBytes": 792665621,
+      "uniqueFiles": 125,
+      "uniqueBytes": 21774602
+    }
+  },
+  "measurementMethod": "Read-only ZIP_DEFLATED compression level 1 to a counting stream; no archives created, extracted or verified. Save/track/patch deduplication uses full-file SHA256.",
+  "proposedBudgetGiB": 7.3,
+  "proposedBudgetBytes": 7838315315,
+  "hardLimitBytes": 10000000000
+}

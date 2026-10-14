@@ -42,3 +42,24 @@ Follow `docs/vulkan-artifact-retention.md`; use the retention helpers and record
   reparse points, and never blanket-delete `obj`, `bin`, `.git`, source, shared object checkouts or installed games.
 - Keep a deletion/path-map receipt. Historical output hashes do not imply that discarded raw artifacts remain available.
   Update applicable docs when a historical evidence path loses its raw payloads. Do not accumulate complete backup trees.
+
+## Task finalization for Vulkan evidence (part 2)
+
+At the end of a Vulkan task, review the task's whole artifact directory, not only terrain capacity buffers.
+There is no hard repository size target: preserve useful evidence first, then remove redundant expanded copies.
+
+- Use `archive-vulkan-artifacts.py --scope <this-task-directory> --output <new-evidence-directory>` and
+  `apply-vulkan-archive.ps1 -Plan <archive-plan.json>` for explicit task finalization. Never sweep another active task.
+  Inspect the generated classification/index before applying, and use repeatable `--keep <selected-bin-or-reference>`
+  arguments for task-specific live references that must stay expanded.
+- Losslessly archive raw/indexed/RGBA captures, redundant PNGs, copied runtime/object data and historical executable/PDB
+  pairs with SHA256 deduplication. Keep the original path map and restore helper. Archive verification must precede deletion.
+- Keep source trees, unique source/patch files, original saves, configuration, logs, reports, owner images and selected
+  unresolved-regression/reference cases. Generated project libraries and compiler intermediates may be discarded once
+  their source/configuration is preserved; retain libraries still needed for an active task or selected reusable oracle.
+- During investigation leave failed/interrupted outputs available. At task closure, review and archive their bytes rather
+  than retaining every expanded copied profile indefinitely. Preserve distinct failure evidence, not merely a pass/fail label.
+- Retire per-run data catalogs/profile copies only with verified payload preservation; never infer that an unknown input
+  or a custom object is disposable. Shared link targets and installed packages remain outside cleanup.
+- Record archive verification, selected/discarded bytes, original-path notices and final checkout size in applicable docs.
+  Clean restore scratch before completion. Do not create a full uncompressed backup tree alongside the archives.

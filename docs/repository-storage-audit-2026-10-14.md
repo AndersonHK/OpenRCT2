@@ -2,6 +2,8 @@
 
 The initial read-only audit and proposal below are preserved as the before snapshot. The owner subsequently authorized cleanup, script/agent-rule changes, a detailed commit and push. See the executed cleanup section for the measured result. No game runtime source or installed package was changed.
 
+The follow-up [part 2 plan](repository-storage-cleanup-part2-2026-10-14.md) targets a settled checkout below 10 GB using curated, compressed evidence. It is a proposal, not an additional executed cleanup.
+
 ## Measurement
 
 Scanned `C:\Users\imper\Documents\GitHub\OpenRCT2`, including hidden files and `.git`, without following directory or file reparse points. Regular-file lengths total **295,873,659,814 bytes = 295.87 GB = 275.55 GiB**, across **813,695 files**. Sizes below use GiB (1,073,741,824 bytes). The companion [directory inventory](repository-storage-directory-sizes-2026-10-14.csv) gives directory rollups through depth three, file counts, modification-date ranges and documentation references.

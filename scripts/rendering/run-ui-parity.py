@@ -3,6 +3,11 @@
 The build receipt pins the instrumented executable. Software uses the preserved
 reference assets; Vulkan overlays only receipt-verified compiled shader files.
 Every divergent image still requires an agent's recorded manual inspection.
+
+
+After the task finishes, finalize its remaining scratch with the scoped
+archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
+docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 
 import argparse

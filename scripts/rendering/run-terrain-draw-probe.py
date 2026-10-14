@@ -1,4 +1,9 @@
-"""Qualify actual retained terrain drawing with pinned frozen corpus and Vulkan validation."""
+"""Qualify actual retained terrain drawing with pinned frozen corpus and Vulkan validation.
+
+After the task finishes, finalize its remaining scratch with the scoped
+archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
+docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
+"""
 import argparse
 import ast
 import hashlib

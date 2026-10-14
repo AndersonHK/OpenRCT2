@@ -2,6 +2,8 @@
 
 Parity work must leave bounded scratch storage and an auditable record of the result. Clean the task's own artifacts before reporting completion. Preserve independent frozen references, original failing saves and owner images, source patches, distinct unresolved failures, selected accepted performance controls/candidates, and relevant configuration, build/run/deployment receipts and logs.
 
+The [part 2 cleanup](repository-storage-cleanup-part2-2026-10-14.md) expands finalization to raw captures, historical binaries and copied runtime data. The owner withdrew the strict 10 GB goal: preserve useful evidence while reducing redundant expanded artifacts. The automatic runner/build rules below still apply during a task; the finalization workflow handles its remaining artifacts.
+
 ## Automatic cleanup
 
 `run-parity.py` and `run-terrain-draw-probe.py` now prune `before.bin`, `parents.bin` and `commands.bin` after successful qualification and the final input audit. They retain columns/status, indexed pixels, comparison images, reports, shaders and corpus inputs. A `scratch-retention-terrain.json` journal records each discarded relative path, byte count and SHA256. Hashes in earlier summaries describe the original run; discarded raw files are no longer available for inspection.
@@ -34,3 +36,27 @@ Keep historical metadata and unique inputs at their existing paths where practic
 ## Checks
 
 Run `python scripts/rendering/test-artifact-retention.py` after retention changes. It checks failure/reference preservation, successful payload pruning with hashes, runnable/library preservation, root/traversal rejection and actual Windows junction containment. Validate edited runner/builder command-line help and Python syntax. A tooling-only storage change does not need a game rebuild/deployment or establish new GPU parity/performance results.
+
+## Task finalization and restoration
+
+The scoped archive workflow prepares content-addressed ZIPs for raw captures, PNGs, copied runtime/object data and
+historical executable/PDB/DLL payloads. Every unique archived entry is inflated and checked against its full SHA256
+before the plan becomes applicable. Duplicate original paths map to the same preserved payload. All source/patch/save/log
+files and selected live cases stay in place; only identified generated compiler products are recorded as discarded.
+
+```powershell
+python scripts/rendering/archive-vulkan-artifacts.py --scope obj/vulkan-parity/THIS_TASK --keep obj/vulkan-parity/THIS_TASK/bin --output obj/vulkan-parity/THIS_TASK-evidence
+.\scripts\rendering\apply-vulkan-archive.ps1 -Plan C:\absolute\repo\obj\vulkan-parity\THIS_TASK-evidence\archive-plan.json
+python scripts/rendering/archive-vulkan-artifacts.py --output obj/vulkan-parity/THIS_TASK-evidence --restore obj/vulkan-parity/THIS_TASK/path/to/capture.bin --destination obj/vulkan-parity/restore-scratch/capture.bin
+```
+
+Inspect the index before apply. Use scope to affect only the completed task, and use repeatable `--keep` paths to retain selected reusable bins/reference
+inputs explicitly. Do not finalize another active task or a cache with an exclusive lock. The native PowerShell applier
+verifies archives/index hashes, validates every original size/time and ancestor before removing leaf files, and records
+removed bytes and free space. It does not traverse or delete directory links. Preserved byte identity does not establish
+fresh GPU qualification, and archive restoration may be needed before historical runners can consume old path references.
+
+Keep an `archived-retention.json` notice and catalog for affected roots. The index can be gzip-compressed after apply;
+the restore helper accepts either form. Do not remove the archives/index while their payloads are the only copies. Clean
+only newly created restore scratch after verification. Whole source-tree retirement remains a separate review because
+modified drivers or data may be present only in an extracted tree.
