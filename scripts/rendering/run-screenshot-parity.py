@@ -6,7 +6,7 @@ Divergences require agent visual inspection; this does not qualify presentation.
 
 After the task finishes, finalize its remaining scratch with the scoped
 archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
-docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
+docs/development/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 import argparse
 import hashlib
@@ -264,7 +264,7 @@ def execute(args, root, output, summary, evidence):
                                 stdout=log, stderr=subprocess.STDOUT, timeout=180)
     require(result.returncode == 0, "Frozen reference verification failed")
     summary["referenceVerificationLog"] = pin(verification_log)
-    reference_path = root / "docs/vulkan-software-reference.json"
+    reference_path = root / "docs/rendering/reference/vulkan-software-reference.json"
     reference_receipt = read(reference_path)
     frozen = root / reference_receipt["localReference"]
     park = frozen / "testdata/parks/small_park_with_ferris_wheel.sv6"

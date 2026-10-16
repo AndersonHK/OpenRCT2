@@ -44,7 +44,7 @@ def execute(args, root, output, summary, evidence):
         verified = subprocess.run([sys.executable, str(root/'scripts/rendering/verify-software-reference.py')],
                                   stdout=log, stderr=subprocess.STDOUT, timeout=180)
     require(verified.returncode == 0, 'Frozen reference verification failed')
-    reference_path = root/'docs/vulkan-software-reference.json'
+    reference_path = root/'docs/rendering/reference/vulkan-software-reference.json'
     reference = read(reference_path)
     park, fixture, cameras = giant.verify_fixture(args.fixture_manifest, root, evidence, args.fixture_source_archive)
     require(cameras['r2z0'] == {'viewPosition': [-3008, -3536], 'extent': [6016, 3488]}, 'Explicit diagnostic camera differs from accepted fixture')

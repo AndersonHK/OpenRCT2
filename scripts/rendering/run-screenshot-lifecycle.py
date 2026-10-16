@@ -185,7 +185,7 @@ def preflight(args, root, output, summary, evidence):
         checked = subprocess.run([sys.executable, str(verifier)], stdout=log, stderr=subprocess.STDOUT, timeout=180)
     summary["referenceVerificationLog"] = pin(output / "reference-verification.log")
     require(checked.returncode == 0, "Frozen software reference verification failed")
-    reference_path = root / "docs/vulkan-software-reference.json"
+    reference_path = root / "docs/rendering/reference/vulkan-software-reference.json"
     reference = read(reference_path)
     summary["referenceReceipt"] = evidence.track(reference_path)
     frozen = root / reference["localReference"]

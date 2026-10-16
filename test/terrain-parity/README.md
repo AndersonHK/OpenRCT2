@@ -44,4 +44,4 @@ inventing a measured animation count.
 
 This qualifies input data only. Main-UI native/fallback coverage, all three
 renderer paths, repeatability, pixel comparisons and manual visual review still
-follow [the fixture design](../../docs/vulkan-native-terrain-fixture-design.md).
+follow [the fixture design](../../docs/archive/rendering/designs/vulkan-native-terrain-fixture-design.md).

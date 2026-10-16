@@ -272,8 +272,13 @@ namespace OpenRCT2
         .SpeedGCoupling = 500,
     };
     constexpr SampledRideRatingProfile kGoKartsSampledRideRatingProfile = {
-        .Speed = 3000,
-        .LateralG = 3000,
+        .LocalContext = 900,
+        .Speed = 1500,
+        .LongitudinalG = 1000,
+        .VerticalG = 900,
+        .LateralG = 2700,
+        .Airtime = 900,
+        .SpeedGCoupling = 900,
     };
 
     struct UpkeepCostsDescriptor

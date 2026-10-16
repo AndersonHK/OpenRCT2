@@ -127,7 +127,7 @@ def main():
     try:
         frozen_path, frozen, frozen_exe = read_build(args.frozen_build)
         current_path, current, current_exe = read_build(args.current_build)
-        reference_path = workspace / "docs/vulkan-software-reference.json"
+        reference_path = workspace / "docs/rendering/reference/vulkan-software-reference.json"
         reference = json.loads(reference_path.read_text(encoding="utf-8"))
         proof = frozen.get("frozenReference")
         if not proof or proof["revision"] != reference["revision"] or proof["sourceArchiveSha256"] != reference["sourceArchive"]["sha256"]:

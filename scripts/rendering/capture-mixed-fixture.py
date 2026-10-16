@@ -184,7 +184,7 @@ def main():
         required_sources = {'MixedFixtureMain.cpp', 'MixedFixtureWorld.h', 'MixedFixtureCapture.h', 'MixedFixtureRecipes.h', 'MixedFixture.h'}
         require(required_sources <= {Path(name).name for name in build['sourceSha256'] if name.startswith('harness/test/mixed-parity/')},
                 'Build does not pin complete fixture source')
-        reference_path = workspace / 'docs/vulkan-software-reference.json'
+        reference_path = workspace / 'docs/rendering/reference/vulkan-software-reference.json'
         pin(reference_path)
         reference = json.loads(reference_path.read_text(encoding='utf-8'))
         proof = build['frozenReference']

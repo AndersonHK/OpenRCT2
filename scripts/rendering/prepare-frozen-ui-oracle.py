@@ -36,7 +36,7 @@ def main():
     if not inputs:
         raise SystemExit("Capture driver is empty")
     subprocess.run([sys.executable, str(root / "scripts/rendering/verify-software-reference.py")], check=True)
-    reference = json.loads((root / "docs/vulkan-software-reference.json").read_text(encoding="utf-8"))
+    reference = json.loads((root / "docs/rendering/reference/vulkan-software-reference.json").read_text(encoding="utf-8"))
     archive = root / reference["localReference"] / "source.zip"
     output.mkdir(parents=True)
     originals = {}

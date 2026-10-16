@@ -55,7 +55,7 @@ def main():
         expected_assets = accepted['assetSha256']
         if {name: fixture.tree(path) for name, path in roots.items()} != expected_assets:
             raise RuntimeError('Accepted immutable asset trees changed')
-        reference_path = pin(root / 'docs/vulkan-software-reference.json')
+        reference_path = pin(root / 'docs/rendering/reference/vulkan-software-reference.json')
         reference = json.loads(reference_path.read_text(encoding='utf-8'))
         builds = {}
         for kind, requested in (('frozen', args.frozen_build), ('current', args.current_build)):

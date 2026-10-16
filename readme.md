@@ -26,17 +26,22 @@ The rest of this README still includes the upstream OpenRCT2 project information
 
 ## High-level mod changes
 
+Start with the [documentation library](docs/README.md), [architecture](docs/ARCHITECTURE.md),
+[status and evidence](docs/STATUS.md), and [development workflow](docs/WORKFLOW.md).
+The library groups current contracts by topic and keeps dated migration, experiment and
+acceptance records in an indexed [archive](docs/archive/README.md).
+
 ### Park audio is world-space and surround-aware
 
 Ride music, vehicles, crashes, and crowds are heard from their position in the park. Distance, direction, height, zoom, and movement shape the mix, so nearby coaster sounds stay local while amplified music carries farther. Surround output and Doppler effects make busy parks easier to read by ear without turning every sound into one undifferentiated wall of noise.
 
-More detail, including Logitech GHub setup and the exact channel layout: [Spatial audio overhaul](docs/spatial-audio-overhaul.md).
+More detail, including Logitech GHub setup and the exact channel layout: [Spatial audio overhaul](docs/audio/spatial-audio-overhaul.md).
 
 ### Ride stats are sampled from actual rides
 
 Excitement, intensity, and nausea are built from what vehicles and guests actually experience: speed, G-forces, track, shelter, scenery, nearby paths and rides, and synchronized operation. Longer experiences gather more rating material with diminishing returns, while harsh forces and poor decoration remain meaningful. Multi-station rides show measurements for each station-to-station journey instead of pretending every guest rode the full circuit.
 
-More detail: [Ride rating aggregate rationale](docs/ride-rating-aggregate-rationale.md).
+More detail: [Ride rating aggregate rationale](docs/ratings/ride-rating-aggregate-rationale.md).
 
 ### Transport rides are part of guest routing
 
@@ -44,74 +49,74 @@ Guests use railways, monorails, chairlifts, and lifts as part of a journey to ri
 
 Transport stations visibly stage the next trainload of guests along the platform instead of hiding everyone in the entrance queue. Supported coaster stations can do the same when their entrance and exit geometry gives guests a sensible route across the platform.
 
-More detail: [Transport ride routing rationale](docs/transport-ride-routing-rationale.md).
+More detail: [Transport ride routing rationale](docs/pathfinding/transport-ride-routing-rationale.md).
 
 ### Turbo mode stays smooth and responsive
 
-Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed. Vulkan is the only selectable renderer in this fork; legacy renderer settings are ignored. Replacing CPU world preparation with GPU visual logic is ongoing, with progress and remaining performance gates in the [migration checklist](docs/vulkan-exclusive-migration-plan.md).
+Fast simulation no longer makes presentation and input wait behind long batches of game updates. The park, mouse, windows, and controls remain responsive at Turbo speed. Vulkan is the only selectable renderer in this fork; legacy renderer settings are ignored. Replacing CPU world preparation with GPU visual logic is ongoing, with progress and remaining performance gates in the [migration checklist](docs/rendering/vulkan-exclusive-migration-plan.md).
 
-More detail: [Vulkan renderer architecture](docs/vulkan-renderer-migration.md) and the archived
-[EverythingPark performance history](docs/archive/performance-320-tps-refactor-history.md).
+More detail: [Vulkan renderer architecture](docs/rendering/vulkan-renderer-migration.md) and the archived
+[EverythingPark performance history](docs/archive/performance/performance-320-tps-refactor-history.md).
 
 ### Guest growth is regulated by happiness instead of a soft cap
 
 Guest arrivals respond to park value and the happiness the park actually sustains instead of slowing down at an arbitrary population limit. Successful parks can grow quickly, while crowding, long queues, litter, poor pricing, and unmet needs naturally reduce demand.
 
-More detail: [Guest generation and park rating rationale](docs/guest-generation-rating-rationale.md).
+More detail: [Guest generation and park rating rationale](docs/gameplay/guest-generation-rating-rationale.md).
 
 ### Nausea is treated as an active guest need
 
 Nausea is a condition the park can actively manage. Full guests are more vulnerable to sickening rides, increasingly ill guests will travel farther for first aid, and guests already seeking treatment remain committed to reaching it.
 
-Historical detail: [OpenRCT2 overhaul changelog](docs/archive/openrct2-overhaul-changelog.md).
+Historical detail: [OpenRCT2 overhaul changelog](docs/archive/gameplay/openrct2-overhaul-changelog.md).
 
 ### Guests make better use of paths
 
 Guests heading to a destination can spread into quieter lanes on crowded, flat two-wide paths, then continue through junctions and narrower paths. Guests who stray off a footpath try to rejoin a nearby reachable path before wandering at random. Walls, water, ownership, blocked surfaces, and height still constrain where they can recover.
 
-More detail: [Two-wide path movement](docs/guest-services-and-boarding.md#crowded-two-wide-paths) and [guest surface path recovery](docs/guest-surface-path-rejoin-rationale.md).
+More detail: [Two-wide path movement](docs/gameplay/guest-services-and-boarding.md#crowded-two-wide-paths) and [guest surface path recovery](docs/pathfinding/guest-surface-path-rejoin-rationale.md).
 
 ### Staff repair vandalized path furniture
 
 Handymen repair broken bins, while mechanics restore vandalized benches and lamps they encounter on patrol. Staff walk over and carry out a short, animated repair, making furniture upkeep part of everyday park maintenance. Repairs follow work orders and patrol areas, and mechanics remain available for ride repairs and inspections.
 
-More detail: [Repairing vandalized furniture](docs/guest-services-and-boarding.md#repairing-vandalized-furniture).
+More detail: [Repairing vandalized furniture](docs/gameplay/guest-services-and-boarding.md#repairing-vandalized-furniture).
 
 ### Mowed grass matters as decoration
 
 Mowed grass counts as light decoration for rides, mazes, and guest scenery impressions. Groundskeeper mowing therefore has a real gameplay purpose: a tidy lawn beside a ride or path makes the area feel more cared for.
 
-More detail: [Mowed grass decoration rationale](docs/mowed-grass-decoration-rationale.md).
+More detail: [Mowed grass decoration rationale](docs/gameplay/mowed-grass-decoration-rationale.md).
 
 ### Money uses cent precision
 
 Money and automatic ride prices use one-cent precision for finer control over the park economy. Price buttons retain convenient ten-cent steps, while typed prices allow exact cents.
 
-More detail: [Money cent precision rationale](docs/money-cent-precision-rationale.md).
+More detail: [Money cent precision rationale](docs/economy/money-cent-precision-rationale.md).
 
 ### Time and distance measurements stay consistent
 
 Seconds, minutes, hours, and weeks use consistent real-time conversions across ride duration, queue time, station waits, inspections, marketing, finances, and guest statistics. Ride length also matches the scale implied by park distance and vehicle speed.
 
-More detail: [Time measurement fix ledger](docs/time-measurement-fix-ledger.md).
+More detail: [Time measurement fix ledger](docs/reference/time-measurement-fix-ledger.md).
 
 ### Ride prices follow changing ride value
 
 Rides can target discount, fair, or expensive admission bands and automatically follow their changing value. Guest reactions use the same value scale, making pricing easier to manage while reducing effortless high-margin income.
 
-More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
+More detail: [Ride pricing target rationale](docs/economy/ride-pricing-target-rationale.md).
 
 ### New ride ticket-price bonus is proportional again
 
 New rides receive a proportional early-life value bonus rather than a flat addition. The freshness bonus therefore remains meaningful for both modest and high-value rides without disproportionately rewarding weak attractions.
 
-More detail: [Ride pricing target rationale](docs/ride-pricing-target-rationale.md).
+More detail: [Ride pricing target rationale](docs/economy/ride-pricing-target-rationale.md).
 
 ### Park entrance pricing is policy-based
 
 Park entrance admission has three clear policies: maximize income per admitted guest, maximize total gate profit, or remain affordable to every arriving guest. This turns the entrance fee into a visible strategic choice rather than a single magic number.
 
-More detail: [Park entrance pricing target rationale](docs/park-entrance-pricing-target-rationale.md).
+More detail: [Park entrance pricing target rationale](docs/economy/park-entrance-pricing-target-rationale.md).
 
 ---
 
@@ -194,7 +199,7 @@ Some \*BSD operating systems offer native packages:
 
 # 3. Building the game
 
-This fork requires Vulkan (or MoltenVK) and compiled shaders for graphical builds. Missing Vulkan support is a build/startup error; there is no Software renderer fallback. CMake `DISABLE_GUI=ON` remains available for headless tools. Remaining auxiliary CPU rendering dependencies are tracked in the [retirement inventory](docs/vulkan-cpu-rendering-retirement-inventory.md).
+This fork requires Vulkan (or MoltenVK) and compiled shaders for graphical builds. Missing Vulkan support is a build/startup error; there is no Software renderer fallback. CMake `DISABLE_GUI=ON` remains available for headless tools. Remaining auxiliary CPU rendering dependencies are tracked in the [retirement inventory](docs/rendering/vulkan-cpu-rendering-retirement-inventory.md).
 
 - [Building OpenRCT2 on Linux](https://github.com/OpenRCT2/OpenRCT2/wiki/Building-OpenRCT2-on-Linux)
 - [Building OpenRCT2 on macOS using CMake](https://github.com/OpenRCT2/OpenRCT2/wiki/Building-OpenRCT2-on-macOS-using-CMake)

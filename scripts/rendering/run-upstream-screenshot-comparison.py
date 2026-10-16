@@ -65,7 +65,7 @@ def qualify_build(path, upstream, evidence):
 
 
 def install_assets(output, shader_path, current, evidence):
-    reference_path = ROOT / "docs/vulkan-software-reference.json"
+    reference_path = ROOT / "docs/rendering/reference/vulkan-software-reference.json"
     evidence.track(reference_path)
     reference = read(reference_path)
     frozen = child(ROOT, reference["localReference"])

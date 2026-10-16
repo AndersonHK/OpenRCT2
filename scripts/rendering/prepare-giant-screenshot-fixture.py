@@ -184,7 +184,7 @@ def main():
                 evidence.track(base.child(receipt_path.parent, name), digest)
             for name, digest in build_receipt["builderSha256"].items():
                 evidence.track(Path(name), digest)
-        reference_path = workspace / "docs/vulkan-software-reference.json"
+        reference_path = workspace / "docs/rendering/reference/vulkan-software-reference.json"
         evidence.track(reference_path)
         reference = json.loads(reference_path.read_text(encoding="utf-8"))
         proof = frozen.get("frozenReference")

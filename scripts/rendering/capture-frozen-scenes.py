@@ -40,7 +40,7 @@ def main():
             expected = provenance["instrumentedSha256"]
         if sha256(source / relative) != expected:
             raise SystemExit("Frozen-source oracle changed after extraction: " + relative)
-    reference_receipt = json.loads((root / "docs/vulkan-software-reference.json").read_text(encoding="utf-8"))
+    reference_receipt = json.loads((root / "docs/rendering/reference/vulkan-software-reference.json").read_text(encoding="utf-8"))
     reference = root / reference_receipt["localReference"]
     output.mkdir(parents=True)
     executable = source / "bin/openrct2-cli.exe"

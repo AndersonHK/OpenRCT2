@@ -1,7 +1,15 @@
 # Documentation archive
 
-These files preserve benchmark evidence and chronological implementation notes. They are not current architecture contracts and
-may describe code that has since been replaced.
+These collections retain historical decisions, completed investigations, superseded designs and bounded acceptance evidence. Old instructions and open checkboxes apply to the recorded checkpoint, not to a new assignment. Start at [status](../STATUS.md) or the relevant current topic before resuming work. Archiving does not close an unresolved defect. JSON/CSV payloads retain their original bytes; the [relocation map](../development/document-relocations.json) resolves old documentation paths.
 
-Canonical subsystem documentation remains directly under `docs/`. When code and an archived note disagree, follow the code and
-update the relevant canonical document.
+[Library](../README.md) · [Parent collection](../README.md)
+
+## Collections
+
+- [Audio investigation history](audio/README.md)
+- [Gameplay investigations and implementation history](gameplay/README.md)
+- [Performance history](performance/README.md)
+- [Ride-rating calibration evidence](ratings/README.md)
+- [Rendering history and evidence](rendering/README.md)
+- [Storage audit and cleanup history](storage/README.md)
+- [Upstream integration history](upstream/README.md)

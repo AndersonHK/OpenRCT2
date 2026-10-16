@@ -1,0 +1,1436 @@
+{
+  "date": "2026-10-16",
+  "purpose": "Resolve historical documentation paths without rewriting hash-bound JSON/CSV evidence. Markdown links and navigation were updated; original_sha256 records the pre-move working-tree bytes.",
+  "files": [
+    {
+      "old_path": "docs/archive/openrct2-overhaul-changelog.md",
+      "path": "docs/archive/gameplay/openrct2-overhaul-changelog.md",
+      "original_sha256": "cc4443519b8f7acf864c9b11fab3bd7dbe7e61dc0c426603b5a6cc1b36e706b4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/archive/performance-320-tps-refactor-history.md",
+      "path": "docs/archive/performance/performance-320-tps-refactor-history.md",
+      "original_sha256": "cf925a5690e4958cef77ee93c05853138b032b795813be5b1a7eacaec778a873",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/archive/repository-storage-part2-original-proposal-2026-10-14.md",
+      "path": "docs/archive/storage/repository-storage-part2-original-proposal-2026-10-14.md",
+      "original_sha256": "1a847479c69e3e5e99fc8093df6edf6ac7fe13254e92f218a170c8f751f43b18",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/audio-regression-audit-2026-09-14.md",
+      "path": "docs/archive/audio/audio-regression-audit-2026-09-14.md",
+      "original_sha256": "89895d4d16c641efc51a1cf52cbc26491af071809e3af52f8b0c51c2d314d6f2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/boat-hire-return-rationale.md",
+      "path": "docs/gameplay/boat-hire-return-rationale.md",
+      "original_sha256": "1f2740887abc6d30aeaad49655884b10d07ddbf1ffa96c9189ae59475d9444fb",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/current_rollercoaster_prices.csv",
+      "path": "docs/economy/current_rollercoaster_prices.csv",
+      "original_sha256": "f60cf05fbaccc3d81769dcb6badd302f7a8a949f9c97fb6d5d037bf963336089",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/gameplay-improvements-plan-2026-09-27.md",
+      "path": "docs/archive/gameplay/gameplay-improvements-plan-2026-09-27.md",
+      "original_sha256": "f6492d4433ab5e8ded2830e4ab13273d90c33208a4a1f2ed6383c31e8fe60777",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/go-kart-calibration-results.csv",
+      "path": "docs/archive/ratings/go-kart-calibration-results.csv",
+      "original_sha256": "aa01d51209df811d7483d0fa0345785203e16be8c03cb371e08aa565d6f97be5",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/go-kart-experience-calibration.md",
+      "path": "docs/archive/ratings/go-kart-experience-calibration.md",
+      "original_sha256": "77ad791f24171fa54bee8d4ed17e96c43464e43bcd2c3a847d30dbcee6b3f998",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/go-kart-length-calibration-results.csv",
+      "path": "docs/archive/ratings/go-kart-length-calibration-results.csv",
+      "original_sha256": "a4c920dd3dc302c01b804c6078d89949f2ca4f4a154fe09f1527f0f0e80d4a5f",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/go-kart-multiplier-recommendation.md",
+      "path": "docs/archive/ratings/go-kart-multiplier-recommendation.md",
+      "original_sha256": "7eb6011c3e6c05ca5f2844bcd3b06caa09a9cd53bf71c9138bb7fd0bce0efb8d",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/guest-generation-rating-rationale.md",
+      "path": "docs/gameplay/guest-generation-rating-rationale.md",
+      "original_sha256": "efb7a5a13c4fa773d2511745c22714225ad94d125f4a9854233aedf465e2ad3c",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/guest-services-and-boarding.md",
+      "path": "docs/gameplay/guest-services-and-boarding.md",
+      "original_sha256": "abb94a4c15f8a86d99b793e8fead5fb5119f9056a986b417825fdaf38b24fa16",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/guest-surface-path-rejoin-rationale.md",
+      "path": "docs/pathfinding/guest-surface-path-rejoin-rationale.md",
+      "original_sha256": "87a4aba4317abcec42cd629645e3a5c48dbfff8d4bb99270034f49ba343be856",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/historical_rollercoaster_prices.csv",
+      "path": "docs/economy/historical_rollercoaster_prices.csv",
+      "original_sha256": "66f32855fb2148a3743c655e707b158b133f1458aa3c3c267abd002396bef549",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/map-topology-generation.md",
+      "path": "docs/pathfinding/map-topology-generation.md",
+      "original_sha256": "2dccecae896fbbad0d13255fcbd5835a36798eafbe889ac8ce8de8fff6e55d08",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/money-cent-precision-rationale.md",
+      "path": "docs/economy/money-cent-precision-rationale.md",
+      "original_sha256": "5b398e20b9d4949075b8bb96502a8324539eca128d6787cc777eca5077903607",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/mowed-grass-decoration-rationale.md",
+      "path": "docs/gameplay/mowed-grass-decoration-rationale.md",
+      "original_sha256": "c68a1a64fe519f128425cd0e5dc7e957e8763557784d81ed6b0ac2d035d2e969",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/park-entrance-pricing-target-rationale.md",
+      "path": "docs/economy/park-entrance-pricing-target-rationale.md",
+      "original_sha256": "6764dda10f49ed079a9e96242f1a5121e003e042d7338e485be1a81aa3abf509",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/path-topology-cache.md",
+      "path": "docs/pathfinding/path-topology-cache.md",
+      "original_sha256": "6f9e569e17cb8f26380f5f4ae89d490bbe6d66c0f9be528d68ec0d7506fedafb",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/real-park-seasonality-research.md",
+      "path": "docs/economy/real-park-seasonality-research.md",
+      "original_sha256": "0e7755fb7b1efbd7e444316a02882b0d3d8acb4f2f9b39e58b51843292c6b3a8",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/repository-storage-audit-2026-10-14.md",
+      "path": "docs/archive/storage/repository-storage-audit-2026-10-14.md",
+      "original_sha256": "ef628f3cb3db3fbb045a1be3ab670e8d3b9bf0c8b7db9da48e166711f6784170",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/repository-storage-cleanup-2026-10-14.json",
+      "path": "docs/archive/storage/repository-storage-cleanup-2026-10-14.json",
+      "original_sha256": "5b2f2b221d379b72916da3ae2549a9b4a5d693599ea75d0f5ccda171fd6022d5",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/repository-storage-cleanup-part2-2026-10-14.md",
+      "path": "docs/archive/storage/repository-storage-cleanup-part2-2026-10-14.md",
+      "original_sha256": "3c69353b90835783c856a550f956174fcdbf0d40c33ffa064698c484b8aa6c2e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/repository-storage-directory-sizes-2026-10-14.csv",
+      "path": "docs/archive/storage/repository-storage-directory-sizes-2026-10-14.csv",
+      "original_sha256": "64f2a5c7ab279b0aacfc67ee6261d55a3a77b606e4d9b165554fbb28fabf585a",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/repository-storage-part2-cleanup-2026-10-14.json",
+      "path": "docs/archive/storage/repository-storage-part2-cleanup-2026-10-14.json",
+      "original_sha256": "36a9801489eeebc1f44b92f1dd439bbe82aa7ea064a9149bfd04a4aefc4db49b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/repository-storage-part2-measurements-2026-10-14.json",
+      "path": "docs/archive/storage/repository-storage-part2-measurements-2026-10-14.json",
+      "original_sha256": "26c7ca63ecfe659493459134b1d3df625000e3c6b301da559c916877d84579d5",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/ride-audio-loudness-research.md",
+      "path": "docs/audio/ride-audio-loudness-research.md",
+      "original_sha256": "6fa31678d90f6f35328c4fa9320c47550ccda6f9eeed08dcd02025d3ecb828e5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/ride-pricing-target-rationale.md",
+      "path": "docs/economy/ride-pricing-target-rationale.md",
+      "original_sha256": "a544bae0eb8690a0044d50e631ed79b3e26c4211b94728fa8fd5c1689088d7e3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/ride-rating-aggregate-rationale.md",
+      "path": "docs/ratings/ride-rating-aggregate-rationale.md",
+      "original_sha256": "3c66f72b741df92d02d856146e25e44950401c583cc65de32b48782f365a80d5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/ride-rating-local-context-plan.md",
+      "path": "docs/ratings/ride-rating-local-context-plan.md",
+      "original_sha256": "fcd73af7d3d9589fdfc5c6340a083fe26af24c1560502602da21a8e02bd52630",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/ride-rating-stat-source-manifest.md",
+      "path": "docs/ratings/ride-rating-stat-source-manifest.md",
+      "original_sha256": "4292a31e90bcebf8d282d0ef36f45fc13c90df64b3235d6870b8919802d68382",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/save-format.md",
+      "path": "docs/reference/save-format.md",
+      "original_sha256": "67b75c2574041fd90ba26769f42dd4abb605c031334362ac1cb0034edfb86111",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/shared-route-fields.md",
+      "path": "docs/pathfinding/shared-route-fields.md",
+      "original_sha256": "2adcfdb0ddba0a3c668ce716907e0fff28993ddcf7833f656b3d0d3e2a27dd29",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/spatial-audio-camera-depth-plan.md",
+      "path": "docs/audio/spatial-audio-camera-depth-plan.md",
+      "original_sha256": "863aa746aeab5cbf8f5167c996b37d9047c28fce908406a709da627d2f6c4495",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/spatial-audio-overhaul.md",
+      "path": "docs/audio/spatial-audio-overhaul.md",
+      "original_sha256": "8b296c54867eadbf35f4baf08acadf084c8d2f5293977c8cc0a3c26245f8067e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/texas-giant-pathfinding-investigation.md",
+      "path": "docs/archive/gameplay/texas-giant-pathfinding-investigation.md",
+      "original_sha256": "c1f73b8fe9c3869ac5c1417c180557999fb77bf68de7d670f33c166cad063864",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/time-measurement-fix-ledger.md",
+      "path": "docs/reference/time-measurement-fix-ledger.md",
+      "original_sha256": "a6c45686132c82e5b3c0722ccd8571e30d6fb5e42031085c882aa400e8c4b4c6",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/transport-ride-routing-rationale.md",
+      "path": "docs/pathfinding/transport-ride-routing-rationale.md",
+      "original_sha256": "e50e0ab5778885ddfeaee747d773be74a24a091f9076ceaf893e294e4185ae81",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-commit-ledger-2026-09-13.json",
+      "path": "docs/archive/upstream/upstream-commit-ledger-2026-09-13.json",
+      "original_sha256": "08511427cd8b7ca14de9d8553ace4bcb9a82c97697f69b98f6bd49f36e516919",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/upstream-commit-ledger-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-commit-ledger-2026-09-13.md",
+      "original_sha256": "dfeeed0ec9617a99ef1efca02a71e8860a715cd9035e78b55609559300892b4e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-deployment-2026-09-14.md",
+      "path": "docs/archive/upstream/upstream-deployment-2026-09-14.md",
+      "original_sha256": "0a53bd41ffae5f19c3bee9ace9bed7bf4fc07e18f98f290bc4d4deb0355bcb28",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-fork-string-map-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-fork-string-map-2026-09-13.md",
+      "original_sha256": "2995b9f53f6add9507b38d68bacecf79356705f0bf4c6a1dfda4d4246b0f5822",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-gameplay-review-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-gameplay-review-2026-09-13.md",
+      "original_sha256": "5cc76c2208788e1a20230c919a4b514e08626ab3854e9e1cebc37b8cb19e1eb9",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-merge-manifest.md",
+      "path": "docs/archive/upstream/upstream-merge-manifest.md",
+      "original_sha256": "eb2fea269003854db25c63ab44346987df48cdea1986baa20abaa8902d899ef3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-migration-2026-09-13.md",
+      "original_sha256": "d8ff1fd95fcbf95b9131fe9074d94931e37b918f851e9e37c40b8d776652e1d1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-cohesion-review-2026-09-14.md",
+      "path": "docs/archive/upstream/upstream-migration-cohesion-review-2026-09-14.md",
+      "original_sha256": "c5a682e55c2310750c62abcec4ef669fcbfd6720f73115798639ed96f3e8c99f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-decision-u185.md",
+      "path": "docs/archive/upstream/upstream-migration-decision-u185.md",
+      "original_sha256": "b41d471d0b13a386c352610c624247272411f4dfb4fbfaa5e601db389377eabc",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-handoff-2026-09-14.md",
+      "path": "docs/archive/upstream/upstream-migration-handoff-2026-09-14.md",
+      "original_sha256": "1c19e5ba023af4a5ea09a8efae950768768a24790c74852a5b7226d5ffa6a34f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-oversight-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-migration-oversight-2026-09-13.md",
+      "original_sha256": "b9d491f6d95ef35021cddf8d545602dc6f7fb199c8d3a05a9ae2bdc033d07c4f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-migration-validation-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-migration-validation-2026-09-13.md",
+      "original_sha256": "32810b497fc3b563f94314635ba97d531e8dfd22a984534e1ee6325a44ad1998",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-objects-migration-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-objects-migration-2026-09-13.md",
+      "original_sha256": "501a0632fd0b8e78473a331639140937ead9015bd0044eee1fb264ac43050de8",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-port-manifest-2026-08-01.md",
+      "path": "docs/archive/upstream/upstream-port-manifest-2026-08-01.md",
+      "original_sha256": "779885aa7607f4610a7917afc54899ca43dcf4b56ab002efd659f624dc77eaa2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/upstream-port-plan-2026-09-13.md",
+      "path": "docs/archive/upstream/upstream-port-plan-2026-09-13.md",
+      "original_sha256": "4325f8418754889c77e7b6724cfeeb52e5a5774e41ea13a481641fb81b325460",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vehicle-boarding-duration-rationale.md",
+      "path": "docs/gameplay/vehicle-boarding-duration-rationale.md",
+      "original_sha256": "10e44c9f67c11f0f1ebd63b5d44545acd6434fd13a784b40da5f86d7e24e159a",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-air-powered-track-regression.md",
+      "path": "docs/rendering/vulkan-air-powered-track-regression.md",
+      "original_sha256": "2516202c2101c3bc76b70e05fe02d696055d4a87c56ebb7e344a7ccf8fb98217",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-animation-state-contract.md",
+      "path": "docs/archive/rendering/designs/vulkan-animation-state-contract.md",
+      "original_sha256": "42206e4d804dfa4924e98bb469b2c436a3152c7bcbbf1f33ebc3192991a486a7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-comparison-2026-09-20.md",
+      "path": "docs/archive/rendering/designs/vulkan-architecture-comparison-2026-09-20.md",
+      "original_sha256": "9abfa2769766061c102e2d2bba48d7e31a516bad3deab43f7ef5069868f93eb5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/historical-benchmark-method.md",
+      "path": "docs/archive/rendering/architecture-reviews/historical-benchmark-method.md",
+      "original_sha256": "5a6f34546399bd358486e3ffca7dd46b6a9c286b5e1d680e20ca5cea0f16f2f0",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-one-history-addendum.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-one-history-addendum.md",
+      "original_sha256": "4ce5fd6ef1f0555ee80f144563236124d2be7f741676ecb94415e7c84707d5bc",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-one.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-one.md",
+      "original_sha256": "4fb640dee7d0cdfcb60109b7b43f9e388fa415938b2c6dad5b9fd4c12e5fa8b9",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-three-history-addendum.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-three-history-addendum.md",
+      "original_sha256": "b609742206eb72ae3f56834f943414615473cc699701f156ce8b305081e32868",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-three.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-three.md",
+      "original_sha256": "da2b861b3e30324643ce16a5c560eb36114d19d05a690a51e4790ccf9df866d2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-two-history-addendum.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-two-history-addendum.md",
+      "original_sha256": "dab6ed51d2f3c98ff55c1d95b6bce555e73c7fa0dbee3e2b281b158fff226688",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-reviews/reviewer-two.md",
+      "path": "docs/archive/rendering/architecture-reviews/reviewer-two.md",
+      "original_sha256": "961f960694f037d7bde3f3024144236179b48fb43cfb4ffac0dab51464ec5e17",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-architecture-votes-2026-09-20.json",
+      "path": "docs/archive/rendering/receipts/vulkan-architecture-votes-2026-09-20.json",
+      "original_sha256": "2cf54c4078250a30da9d838dd896d0d2bb265e506edf6101fa1ace87ad545967",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-artifact-retention.md",
+      "path": "docs/development/vulkan-artifact-retention.md",
+      "original_sha256": "f86092b0230347b984510ec5fb0730fb0362bb87df45f46749d0074a802567c7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-asset-metadata-corpus.md",
+      "path": "docs/rendering/reference/vulkan-asset-metadata-corpus.md",
+      "original_sha256": "a9a929a58c2f5f73fb682560911f967198e8049fe77179ec59f58620d0e535d4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-auxiliary-capture-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-auxiliary-capture-visual-review.md",
+      "original_sha256": "f9edc0cf54acd009023b228fdf581d5eedca0c1ab5f4257668aa5c51c1eca317",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-auxiliary-migration-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-auxiliary-migration-checkpoint.md",
+      "original_sha256": "fd98e7ff67891067c20668aa5d2053afea405de0a1a8d312740510f444561e38",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-balloon-fallback-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-balloon-fallback-visual-review.json",
+      "original_sha256": "24a3fb545ff36e4715f71b0cee13fe937914f3a512536b8a299864575406a37a",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-balloon-fallback-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-balloon-fallback-visual-review.md",
+      "original_sha256": "7dfb1d9bad3dc5e5e8ade49af1c4db50d6bf3c359d918dceff2c3d4a61e8c11d",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-balloon-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-balloon-visual-review.json",
+      "original_sha256": "9d824d639ec2f350330e0ad19852bbcd6b1e55377682a9296ffedaee661caa7a",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-balloon-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-balloon-visual-review.md",
+      "original_sha256": "8f9d7eb5b96838f841df47b0aed2fe7640ddb3635dcfb7ed23b68918d52a0ed1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-checkpoint-52.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-checkpoint-52.json",
+      "original_sha256": "04f043301b3046cb4827aa28ac586dc5ec758e81e79450b7e611bb83d0b49d9d",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-checkpoint-52.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-checkpoint-52.md",
+      "original_sha256": "a4f8c4d03dd6765571d288a2d638cc24c13236480822bc143974c8d3b9cbf792",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-checkpoint-56.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-checkpoint-56.json",
+      "original_sha256": "00a53c00002cfac4f8d162dc9176b3efd1f0de1d1d2bb04e6631f92acaf8e51c",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-cli-screenshot-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-cli-screenshot-visual-review.json",
+      "original_sha256": "742616e738c4177bc5861808412a75d1d5ae470ecfbe3b1a7dc57c6e3dffaaaf",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-cli-screenshot-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-cli-screenshot-visual-review.md",
+      "original_sha256": "904b6f453f0291f07d519b6ebac97691b74c268800e240e8d1648772effe067c",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-constant-component-depth-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-constant-component-depth-review.md",
+      "original_sha256": "02e51e5793273317e81f2df762b0a8c8a6e4f4bce6cf8440116aedc6f7558e2f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-constant-component-depth.md",
+      "path": "docs/rendering/vulkan-constant-component-depth.md",
+      "original_sha256": "0ce9f34d29833269d855445d431506620edf48953446e1d918176f572f018c91",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-construction-track-regression-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-construction-track-regression-review.md",
+      "original_sha256": "a68e6e9486c08026643e0214400f402daf604ddcede8eb60c0172f1c7c2bcbc3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-cpu-attribution-build35.json",
+      "path": "docs/archive/performance/vulkan-cpu-attribution-build35.json",
+      "original_sha256": "5bc7a1965cdaf022b3db935f53e7d856b77b6d89ae5ab8888e4afecd355a523f",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-cpu-rendering-retirement-inventory.md",
+      "path": "docs/rendering/vulkan-cpu-rendering-retirement-inventory.md",
+      "original_sha256": "1493d72c91459b2bcf5ad39fb1d8e5b38270b804400a86187c930203e1cc65fa",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-crash-investigation-2026-09-19.md",
+      "path": "docs/archive/rendering/designs/vulkan-crash-investigation-2026-09-19.md",
+      "original_sha256": "50570446280cb7448cbee02d35806035d3ead4b066717987161fd4f206beb5bd",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-custom-image-alias-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-custom-image-alias-visual-review.md",
+      "original_sha256": "000818bf5d8781947119e1b9b9eb289dd27677aab04834ec1a324ce412241321",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-custom-image-migration-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-custom-image-migration-review.md",
+      "original_sha256": "7f15b2264b83b382aa2e1002393dc6b096e3a3ba39433df4621651d000de1914",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-depth-constraint-fitting.md",
+      "path": "docs/rendering/proposals/vulkan-depth-constraint-fitting.md",
+      "original_sha256": "abd26030c6af1eb57a2ad37bd17a09269d104b85932347160e6580aba3749051",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-depth-contact-regressions.md",
+      "path": "docs/rendering/vulkan-depth-contact-regressions.md",
+      "original_sha256": "aefd6c510c69a1112bb4d0f0c7e8f1169c6629a1c6771049a00d42e23b1c82d5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-e1-frozen-reference-renewal.json",
+      "path": "docs/archive/rendering/receipts/vulkan-e1-frozen-reference-renewal.json",
+      "original_sha256": "c28265121bede5a1153f82c32874b6f04b0f543f874439cdafabc0a9987c3af1",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-e2a-ui-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-e2a-ui-qualification.json",
+      "original_sha256": "a151724e91013b81a0374861cd050282a82f6705b7d7c6d9c38fddb93aa3ea0e",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-e5-screenshot-caller-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-e5-screenshot-caller-qualification.json",
+      "original_sha256": "e826850150ad2724c6cc728f8e911f177ef1a1717f616e87ecfa04ad34b80311",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-exclusive-migration-plan.md",
+      "path": "docs/rendering/vulkan-exclusive-migration-plan.md",
+      "original_sha256": "e159b0d6b344c82ebc5dc0f1e8db1dda5a84e4c696856d0eac7172f9ba18f33f",
+      "payload_unchanged": false,
+      "historical_path": "docs/archive/rendering/checkpoints/vulkan-migration-history.md"
+    },
+    {
+      "old_path": "docs/vulkan-finite-building-depth.md",
+      "path": "docs/archive/rendering/designs/vulkan-finite-building-depth.md",
+      "original_sha256": "84f9f7d081e592e2b0f404ca5a8f1e030b5a5b5263999024cec7a4971df4610e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-flat-animation-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-flat-animation-visual-review.md",
+      "original_sha256": "b3617a216553d1fcc62495af185f44f7dae44f99c091b216ff46bd41d19f98c3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-frozen-oracle-receipt.json",
+      "path": "docs/rendering/reference/vulkan-frozen-oracle-receipt.json",
+      "original_sha256": "14d0294a93156764deea77f923880ea40cfd0f80d974b84a2992620edd62f469",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-giant-cli-qualification.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-giant-cli-qualification.json",
+      "original_sha256": "10c822108be68978c909e131aa9737c393f24a47af24a99bc709846caa9e0b02",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-giant-cli-qualification.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-giant-cli-qualification.md",
+      "original_sha256": "c56877b32a9142c51fee5f0df509dc2efc975ad6a80a3b275325252169e4ae80",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-giant-cli-tiling-plan.md",
+      "path": "docs/archive/rendering/designs/vulkan-giant-cli-tiling-plan.md",
+      "original_sha256": "7da0e2b5ef68ca3f690840a065b5d21f020f71be84be79f48e26c168b77543e1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-giant-cli-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-giant-cli-visual-review.json",
+      "original_sha256": "8285bf4c37c5d07e4d098c2f7ca26efeaed62c84f56fd2252a8e21197148f8db",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-giant-cli-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-giant-cli-visual-review.md",
+      "original_sha256": "c401f71cc5c9e5e68f0b7364a33294f44d690fa6b9279c6ea6c9d1878e5c6692",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-gpu-only-terrain-experiment.md",
+      "path": "docs/archive/rendering/designs/vulkan-gpu-only-terrain-experiment.md",
+      "original_sha256": "21e91862467f3a274979e12ebdea2891de363517b2f0a75f3a75537aa54948ea",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-gpu-only-terrain-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-gpu-only-terrain-visual-review.md",
+      "original_sha256": "79d8e4a5fb5b78c53a0414baa4a8550244fef1dc0d179d19224c8147e2395b62",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-gpu-state-update-strategy.md",
+      "path": "docs/rendering/proposals/vulkan-gpu-state-update-strategy.md",
+      "original_sha256": "55415855c3ad76df418e360861890f1065abc62834c585d752a582de426af601",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-guest-service-ordering.md",
+      "path": "docs/rendering/vulkan-guest-service-ordering.md",
+      "original_sha256": "d05eb639944c7fffa116f30a5c66b3f7943680d50f90e5312840ce6dec8f18f3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-historical-software-evidence.md",
+      "path": "docs/archive/performance/vulkan-historical-software-evidence.md",
+      "original_sha256": "a4cd9a529507b81fbbe2f6921b2dc17a1873cb2fa6813d36a6d436e90e72a9c7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-large-custom-image-design.md",
+      "path": "docs/rendering/proposals/vulkan-large-custom-image-design.md",
+      "original_sha256": "0f1287495ee44eff4770a34b8dd005077de74c7372151cb9e51ec6a544548be2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-large-park-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-large-park-visual-review.json",
+      "original_sha256": "0ddea96f21610ea78947075c836b1da8bffb0b27008ef28fa2b5f470e33d7022",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-large-park-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-large-park-visual-review.md",
+      "original_sha256": "71f2e39cb69a2523227c6b69fd2bc116d51000c64543237af3993fb2d81ef152",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-lift-cabin-regression.md",
+      "path": "docs/rendering/vulkan-lift-cabin-regression.md",
+      "original_sha256": "7c07e7eff8289bd9ad69891ce965869b10715dd063deb6785e97711c0c7acedb",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-fixture-expansion.md",
+      "path": "docs/archive/rendering/designs/vulkan-main-ui-fixture-expansion.md",
+      "original_sha256": "871933e49a808350abfc22b7c775f276dc230125642c59e425424727da920fb5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-font-expanded-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-font-expanded-review.json",
+      "original_sha256": "0fc27ee69dba3557c9051e75dfdb1a2e9b980b40024e539cc760bd4013a5c611",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-font-expanded-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-font-expanded-visual-review.md",
+      "original_sha256": "135fe912c478f1874a5ca4be164b412064a98b369718d88f153b525ccc289bc7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-font-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-font-review.json",
+      "original_sha256": "7cf753467e429f59b1eed6c9c902f95203eb5ceb04a85887ed641047e79e60d3",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-font-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-font-visual-review.md",
+      "original_sha256": "7822fe5979eaed923b64fb0b0cdd152e5c12ba01d9c54ec8d443e70b270764a6",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-harness-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-main-ui-harness-design.md",
+      "original_sha256": "7b5de41c882591e6afb62dea17dca2979e205740fb596b7c0086753fcc721d0f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-light-repeat-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-light-repeat-review.json",
+      "original_sha256": "02597423988ff5b2ebb5d25744c5d34c8651819fc9ec7b5097bf9a77ce1a0b89",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-light-v2-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-light-v2-review.json",
+      "original_sha256": "fcb66004886404cf9b1c855ecd2de79b918da9f7053caa185ad8bd902c7a205e",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-light-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-light-visual-review.md",
+      "original_sha256": "6a70c9d72c0f9e4e1d50d1b9a0c81003cd8489ff8c2d5123a1bf878b8b19b1b4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-loaded-assets-audit.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-loaded-assets-audit.json",
+      "original_sha256": "3f72681e1877b3c9dd063d283d5530c9a4a7edb8777a687513dac4650692a5b5",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-loaded-assets-audit.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-loaded-assets-audit.md",
+      "original_sha256": "4d294deb5f7c95d9b6c6f83cbf61f65c1700379a226c12ac015c99d4237b8abc",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-scale-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-scale-review.json",
+      "original_sha256": "9aed263cd7a43213d929e6a59b4758cd0d06b23a233463e78d1a1772ab751eac",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-scale-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-scale-visual-review.md",
+      "original_sha256": "fe78c585aab0740f16600a6a1144d1a5316697b5e1000da1b335b40a891c111e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-visual-review.md",
+      "original_sha256": "84a27808b9f886db7acafe96d566e058e309adb9c1fd440933d49095e3b6e5f1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-weather-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-weather-review.json",
+      "original_sha256": "08a4064e113ca06b560624c832ee12b9d841414f2b4c7fbf08e5780be05e7f9b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-main-ui-weather-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-main-ui-weather-visual-review.md",
+      "original_sha256": "c3a7589375d317f08f345428b800297a6fecc95a7aceade15c3ea299b3a602d4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-migrated-layer-regressions.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-migrated-layer-regressions.md",
+      "original_sha256": "a2642ea7fd6524033e1c49c254925566b0ee942cc2ed5f0381cd925f8c6340b9",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-category-corrected-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-native-category-corrected-review.json",
+      "original_sha256": "b0afc331a215b7dff3f3d2b1e419b41281b8d17b94a421e97b40104eecd50e74",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-category-corrected-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-category-corrected-review.md",
+      "original_sha256": "b2d0be0779d28c1802dd3b08210ef6d97c28ac8593c04b8e7a2de72f526be01f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-category-failure-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-native-category-failure-review.json",
+      "original_sha256": "c6085de0f66200eedc66bc61a01dd2c466eee7b84eb8853c9393b8bf0ac28e3d",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-entities-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-entities-checkpoint.md",
+      "original_sha256": "5bc1a16811b96a85f59d753b1d72f2ae104ce8bf228b24367cd00648079b12f0",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-entities-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-entities-visual-review.md",
+      "original_sha256": "b0b4995bcc79c4333218e9590881d1955e82b955a14e4f340d4c6f530512e4a7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-entrance-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-entrance-visual-review.md",
+      "original_sha256": "f099956bf283df666d99ec80ba9853aef3903485a6137178a867cf8e570a8ea8",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-flat-rides-plan.md",
+      "path": "docs/archive/rendering/designs/vulkan-native-flat-rides-plan.md",
+      "original_sha256": "1871297be56676f7ad7dacf7f7a4dfd24f43560ec00022740b53c6613ea308c4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-object-checkpoint.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-object-checkpoint.json",
+      "original_sha256": "a169dd45316c08a8da133b6033ecaa8ecfb97c7ad3c52f44cfbcbb815c793146",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-object-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-object-checkpoint.md",
+      "original_sha256": "d1b1eb76d5e17a520124fbbfdd15923c2802660a08229f1e725370d2a312713c",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-object-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-object-visual-review.md",
+      "original_sha256": "70e92a342f32d6a7da79ddf99166bf9dd1d43e1359f43365c89ed5949e68049c",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-path-checkpoint.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-path-checkpoint.json",
+      "original_sha256": "e29b0f72cd4540a74b501bf4bd05415cde978dcd7033ef458f9d8b4c2c6df885",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-path-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-path-checkpoint.md",
+      "original_sha256": "6832653335bfb2c43a8b441ba4059a1f497be91f5d85d38aac734631e40e560d",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-path-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-path-visual-review.md",
+      "original_sha256": "b73c207273010d157afcea2b1c68da3721c827fda8691f3ab447b54dd8e72d13",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-peep-world-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-peep-world-checkpoint.md",
+      "original_sha256": "ffa5bf32a40c0994ed3aad165cef20915d87f3b23df9e01e21f2dbf9cf8ff373",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-static-buildings-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-native-static-buildings-checkpoint.md",
+      "original_sha256": "b4a2fea8e20d1231a3da9da47576616fe35bb18deea6554eacea06560d45de86",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-terrain-border-baseline-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-native-terrain-border-baseline-review.json",
+      "original_sha256": "8dd5dffa9af0ce5b95d130738a7295f1b345b086e567c8747e37860cb5d4634b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-terrain-corrected-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-native-terrain-corrected-review.json",
+      "original_sha256": "e4ea8187b89c7748d310d30aec887ec9d4fb2018bd9a56be7b9c30d6f2f08695",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-terrain-fixture-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-native-terrain-fixture-design.md",
+      "original_sha256": "d5f9c467b88f8e7698ddb85d63a5417f1a7c2dbd17c75b661d0d6cd3850cf614",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-terrain-input.json",
+      "path": "docs/archive/rendering/receipts/vulkan-native-terrain-input.json",
+      "original_sha256": "2e3fe6723e27f6ffb7dff1586b8d52bb6f62ec5e23d853a6bc0026ffdbb31a7d",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-native-terrain-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-native-terrain-visual-review.md",
+      "original_sha256": "f6d60c91e3e396858f984d311d5d2663ac0e00c363f1d0e10851146e23f605d1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-native-track-coverage.md",
+      "path": "docs/rendering/vulkan-native-track-coverage.md",
+      "original_sha256": "99c829fedc94d9afec7d47532811f71fab98c68d78e7d57e3b0ec4896fc59898",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-nonuniform-terrain-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-nonuniform-terrain-design.md",
+      "original_sha256": "ebc982727531ca7554220b39a2cf8ea759549ab1b788114834a16f49bdada257",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-offscreen-service-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-offscreen-service-design.md",
+      "original_sha256": "4d10a53a087009b5cdd083dcc37c9630df48ac3d2c224cb2da64fc917c09ee75",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-offscreen-service-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-offscreen-service-qualification.json",
+      "original_sha256": "952baab0c0b718c69b86d8cb10c85b7c71f4a6103a7f44971c57cdd74b99789b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-offscreen-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-offscreen-visual-review.json",
+      "original_sha256": "af13923c103dbe7b69ee480fefabd4ddbcdf9092cd34620f4d21e9bc3dcec9d3",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-offscreen-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-offscreen-visual-review.md",
+      "original_sha256": "753d1a17fa8b4b2bc3b19867037b0f0e11f0e7cb16582fdb8d43251bdbbf4762",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-only-selection-checkpoint-2026-09-23.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-only-selection-checkpoint-2026-09-23.md",
+      "original_sha256": "d6bcffd7466ea82bccecc509fb5c8c1cbbfed7dd7c3d9f9cd09b1801f9fd0ab4",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-only-selection-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-only-selection-visual-review.md",
+      "original_sha256": "2d5f8ad09868aebc6fd4d3404d6b9459ded8d8540be0c12ffe36d16a9fa2504b",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-onride-photo-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-onride-photo-visual-review.md",
+      "original_sha256": "989331e9f83944981a527e269adfc41cfe025cd444c7379ca8deca1c3ceb60e3",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-orthographic-renderer-proposal.md",
+      "path": "docs/archive/rendering/designs/vulkan-orthographic-renderer-proposal.md",
+      "original_sha256": "380786db4d4def1da9b0b2e73be515f3d89078477cec67be2a381a0cf4863273",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-parity-exceptions.json",
+      "path": "docs/rendering/reference/vulkan-parity-exceptions.json",
+      "original_sha256": "1452e398a9fae0d54fb1c39bead3d1e1ac97df0358120927ba66b17f58fc0589",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-parity-fixtures.json",
+      "path": "docs/rendering/reference/vulkan-parity-fixtures.json",
+      "original_sha256": "da9985f44ccb52d4bdbab86dd3842e8691aa3d1ee2807c53a8a59b60f22d29d7",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-park-preview-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-park-preview-visual-review.md",
+      "original_sha256": "10e79ef48494581c41f3a9e962c80143627338bfc6397341afa60635080d3bcd",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-peep-field-producer-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-peep-field-producer-checkpoint.md",
+      "original_sha256": "1ad2fa62081642e607cbe73d795d35d13782467b485e1f20d480a15723be840f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-performance-smoke-baseline.json",
+      "path": "docs/archive/performance/vulkan-performance-smoke-baseline.json",
+      "original_sha256": "5b2ca78113d90823e68b7cd032a2568ada42fbe0bc6e45855bac1761f49a78a2",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-performance-vsync0-smoke.json",
+      "path": "docs/archive/performance/vulkan-performance-vsync0-smoke.json",
+      "original_sha256": "16769abef2c06650e20c5896bd6be5d2f0dcf6ccdebade8d6751fadb5cb3a37f",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-physical-depth-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-physical-depth-checkpoint.md",
+      "original_sha256": "a02a9b9a54188c6b946066d57d2171e1ce20f5fb7d1ba5c06394a00b0a2b8bb1",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-physical-depth129-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-physical-depth129-visual-review.md",
+      "original_sha256": "f33ce9ad103ed2e9ef96e9f41381f032576571d9aaa6a248c804d3ccd3696418",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-plan-a-geometric-world.md",
+      "path": "docs/archive/rendering/designs/vulkan-plan-a-geometric-world.md",
+      "original_sha256": "da0e33136d6848a14df69b12c40f29bcc26bb66db4ddf6d6cf4bf1515caca268",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-plan-b-checkpoint-2026-09-23.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-plan-b-checkpoint-2026-09-23.md",
+      "original_sha256": "9fcd8ad9175f685e372896aa2d970e77af3861f160e66094ca604b09419cbff0",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-plan-b-execution-2026-09-23.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-plan-b-execution-2026-09-23.md",
+      "original_sha256": "39c1edceea84808a3ffe625d2a45c7fe3bba90816beedef43ed43c6cec9af7e5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-plan-b-plane-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-plan-b-plane-visual-review.md",
+      "original_sha256": "ec761ac2c2d417eec898b4a2c10eccfa077aa0f5b7a36de1f13b43dc29b38875",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-plan-b-retained-sprites.md",
+      "path": "docs/archive/rendering/designs/vulkan-plan-b-retained-sprites.md",
+      "original_sha256": "00fbbc634225ef186fafee57ab75301aa53143b1a690007c28451a9dd811bf15",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-post-checkpoint-feedback.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-post-checkpoint-feedback.md",
+      "original_sha256": "33c035be2ef867511f36d5c5ef513d0a675ed2cf946afe11436a5e734458f116",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-precatchup-software-benchmark-2026-09-20.json",
+      "path": "docs/archive/performance/vulkan-precatchup-software-benchmark-2026-09-20.json",
+      "original_sha256": "d2c1a139fc4b0eab8e2c61e521b3a97ab4d53391156cf081417c5b95c47b53bc",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-precatchup-software-benchmark-2026-09-20.md",
+      "path": "docs/archive/performance/vulkan-precatchup-software-benchmark-2026-09-20.md",
+      "original_sha256": "ba81cef1070aee436789826433e7f717328ff389716f762846aca4c135dd7f19",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-primitive-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-primitive-visual-review.md",
+      "original_sha256": "2d125b79ec9c58d554520da5599e0da6ee369a511558163a7c44f87ceb706c89",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-production-cli-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-production-cli-visual-review.json",
+      "original_sha256": "2ca79685d2f782d21468e7a2b7526cdd0049de8bae6fb0b84e856736084796fe",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-production-cli-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-production-cli-visual-review.md",
+      "original_sha256": "521c23f8db91c9284502b31c9b1fd3985935328f4cc6f4c766132480e27b327f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-production-service-lifecycle-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-production-service-lifecycle-review.json",
+      "original_sha256": "51f30f3275a585476d9251716647397a85effdc621b7c7542f143eeb08cced9f",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-production-service-lifecycle-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-production-service-lifecycle-review.md",
+      "original_sha256": "939fbc4b2ddd6fb081813280e235d1004e39e44ab2a7056ecf0df50c0566c70f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-production-service-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-production-service-qualification.json",
+      "original_sha256": "dd373cdfddf6f0fdecf3a0640e084be35727a5dafaef7686d577833c2ad7952d",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-publication-audit.md",
+      "path": "docs/archive/rendering/reviews/vulkan-publication-audit.md",
+      "original_sha256": "b1c24ab0fce17d450e48d05e063600f9007d228c35ec2e17544beb1ee645ed1b",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-publication-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-publication-visual-review.md",
+      "original_sha256": "2d58ff9f987cd2705c77db843795f0b699429862d4f1104c8d388dcf22d9280d",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-render-telemetry-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-render-telemetry-design.md",
+      "original_sha256": "d31d55839609ef1841ba90ba0e4bdb3ab648a1540d852ead8283d7c3a76edbbc",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-renderer-migration.md",
+      "path": "docs/rendering/vulkan-renderer-migration.md",
+      "original_sha256": "09b74433314d427040df0ba6dd76115ffcc2788e596635681c3e72ba4a454f5e",
+      "payload_unchanged": false,
+      "historical_path": "docs/archive/rendering/designs/vulkan-renderer-migration-earlier-contract.md"
+    },
+    {
+      "old_path": "docs/vulkan-renderer-service-extraction-steps.md",
+      "path": "docs/archive/rendering/designs/vulkan-renderer-service-extraction-steps.md",
+      "original_sha256": "f8ba479cfbc8552dcafaf647a035b858fd18eb49b9d89aa66cfe707d6a215bda",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-retained-balloon-first-family.md",
+      "path": "docs/archive/rendering/designs/vulkan-retained-balloon-first-family.md",
+      "original_sha256": "325dc0f42d1fae2acaa7b2c67044d8d561eaad8b862df53494e37232cdc8381a",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-drawing-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-retained-terrain-drawing-design.md",
+      "original_sha256": "f2c69414091964e3758f6809f7357715d53bf46cee8788419148cacdd8dab76d",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-drawing-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-retained-terrain-drawing-qualification.json",
+      "original_sha256": "becd46dc5844fdb482b84d4637244530a3a40c3f9fb06fd218325fcc4f98960e",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-drawing-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-retained-terrain-drawing-review.json",
+      "original_sha256": "c0a6728db25214d28b1ce84f832148d2e0b865bcd2b0ed6c43c1ebea15e4c378",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-drawing-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-retained-terrain-drawing-review.md",
+      "original_sha256": "889dc6b921fb0b3f1bec263c427566c29133bfc5e97abf8969e2179ade77b7b9",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-emission.md",
+      "path": "docs/archive/rendering/designs/vulkan-retained-terrain-emission.md",
+      "original_sha256": "1acccc59039ba513ecf7de99883ebbf07f4f4b0d8791a1f833b74d7032c7e2ab",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-retained-terrain-ui-checkpoint.json",
+      "path": "docs/archive/rendering/checkpoints/vulkan-retained-terrain-ui-checkpoint.json",
+      "original_sha256": "f89a1ae9374c37d2b9290fcd5a933ab7ccdfdc540aaf0c789b2c32c3994f64b8",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-save-loading-regression.md",
+      "path": "docs/rendering/vulkan-save-loading-regression.md",
+      "original_sha256": "d0a9f320194376a42ff35a4949176c119997970219371501230dae85fb41bb3a",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-scaling-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-scaling-visual-review.md",
+      "original_sha256": "b0b2758cd7b3840c9f2e6189b48dc9560d04107dad44df413c4bf5a782c41ac6",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-scene-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-scene-visual-review.md",
+      "original_sha256": "70807fcf4b0f770eba90f1e3212e254e4a0bd0b394fdb62750a9265fc1f69b10",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-sdl-free-renderer-compile-e3b.json",
+      "path": "docs/archive/rendering/receipts/vulkan-sdl-free-renderer-compile-e3b.json",
+      "original_sha256": "d6aa2ba870afddf6ef8e85252a768c424ba781a2d531714af071f3d7da532237",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-sdl-free-renderer-compile-e4.json",
+      "path": "docs/archive/rendering/receipts/vulkan-sdl-free-renderer-compile-e4.json",
+      "original_sha256": "c12dd34167faa542fc803e9e2a0ff74d019a4cd2bbcdbb562542639a640099d2",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-sdl-free-renderer-compile.json",
+      "path": "docs/archive/rendering/receipts/vulkan-sdl-free-renderer-compile.json",
+      "original_sha256": "cdbb630d4391effc5c23de6118e9fbf1dce4df4384af745292bdaac9a253d0ec",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-shared-device-qualification.json",
+      "path": "docs/archive/rendering/receipts/vulkan-shared-device-qualification.json",
+      "original_sha256": "77907323898c727aa4bb22742d240312fbbdf7b4a0c10b4599494a1bac3d6fb0",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-simulation-wait-attribution.md",
+      "path": "docs/archive/performance/vulkan-simulation-wait-attribution.md",
+      "original_sha256": "bdca5e5492488f2e7adec3d4b611d2905457ac776e1c8aa41991039b34505af0",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-snapshot-terrain-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-snapshot-terrain-checkpoint.md",
+      "original_sha256": "596479236fe2c3f6fc8fa1887d715f198f0171ce78322108ccb4437776be6bc5",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-snapshot-terrain-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-snapshot-terrain-visual-review.md",
+      "original_sha256": "1f8072e84d90bf4466e6714e9ce1f1a5257e9abfd76cbfa85cdd68d40e50612a",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-software-reference.json",
+      "path": "docs/rendering/reference/vulkan-software-reference.json",
+      "original_sha256": "b2c501ecc4fb2399efab29dc70848c8c669c77ba419dc6299f85d6199de066ad",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-spatial-light-fixture-design.md",
+      "path": "docs/archive/rendering/designs/vulkan-spatial-light-fixture-design.md",
+      "original_sha256": "487ff6ddaebc1236698d6fd8ffc327f1377676a5add6da5d60d80cdf8dbd01a2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-spatial-light-run21-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-spatial-light-run21-review.json",
+      "original_sha256": "32be74da679c53503c422017360bd06daae41c91b0bd97e78e0f60018f5e6c47",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-spatial-light-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-spatial-light-visual-review.md",
+      "original_sha256": "367d87dc20c9990766d37062fcf7aa4ae97036dfad17e3292d293940237ff669",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-state-ownership-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-state-ownership-checkpoint.md",
+      "original_sha256": "7a2882076fada6bad912325356eac7d3742e7d98a3ec16436eef40d5891d8653",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-static-ride-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-static-ride-visual-review.md",
+      "original_sha256": "0d09806d2d789250e7f19451042c7e57755827beb52f2c6ce0069842f8dea226",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-support-inventory.md",
+      "path": "docs/rendering/reference/vulkan-support-inventory.md",
+      "original_sha256": "9d204ea76bffcfa401f5f5a12ecfed9931162c77291feeee1647868f7e5fe69f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-supports-text-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-supports-text-checkpoint.md",
+      "original_sha256": "57eff4b37f2eb9d7afac6c2d51347e4918e2da8e777554f9e1bb0d7e4e4f20fc",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-terrain-camera-corrected-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-terrain-camera-corrected-review.json",
+      "original_sha256": "e678b484ef1d9f2343ca179debd10b9f7f5e01c30b57339bb2af01dfaaf9de96",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-terrain-camera-corrected-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-terrain-camera-corrected-review.md",
+      "original_sha256": "8a48e5865121fae1ad7e39e3777f00f6ef60a7f55e8fdc3f7226806f67c1ec66",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-terrain-depth-corrected-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-terrain-depth-corrected-review.json",
+      "original_sha256": "91b377b518e8b838e1cd8e824fd1cb16cb0434f2f769ca143e02a0556bec99a4",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-terrain-depth-corrected-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-terrain-depth-corrected-review.md",
+      "original_sha256": "2d9a53239ba5a2bba871a05885ef6e256edf3fe4686a59700c5a465dd38422a7",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-terrain-rule-emission.md",
+      "path": "docs/archive/rendering/designs/vulkan-terrain-rule-emission.md",
+      "original_sha256": "c64f73815087df48e05a0e80979f57fe5049cb946620bf9e752844a87edd4611",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-tower-occlusion-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-tower-occlusion-review.md",
+      "original_sha256": "0ad334baf4120c42cba4662bdc8e4f6da55206d5e9945a9520faf0f6dd35120e",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-track-ghost-performance.md",
+      "path": "docs/rendering/vulkan-track-ghost-performance.md",
+      "original_sha256": "56f359dfa9935513516008127baac38385a2059119c04082450481869ad5980f",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-track-preview-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-track-preview-visual-review.md",
+      "original_sha256": "375bcad45256f51ffbe0d223e15398a94dfedf55013870b813b05e09f2d98794",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-track-regressions128-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-track-regressions128-visual-review.md",
+      "original_sha256": "c7a21008f26774415212cc8b3fd69f1d05c163f77b4b79876bd897dbf9d0a6ae",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-track-regressions131-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-track-regressions131-visual-review.md",
+      "original_sha256": "cf8d0cd7597d8cf53e815e48164818424cd6f55b54ac28f788c31172cb005935",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-track-regressions136-137-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-track-regressions136-137-visual-review.md",
+      "original_sha256": "cda6af3abe4bee2859ca1e8de3d385be1b627bd5db20390bb519a22144d8e07b",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-transparent-depth-visual-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-transparent-depth-visual-review.json",
+      "original_sha256": "d4492aeabdfd12e22a95ff9c40107801a1a92c27e3e94a328e093cc4f4dd2d97",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-transparent-depth-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-transparent-depth-visual-review.md",
+      "original_sha256": "7321b6a7bc757371c56fa6f469c94be51d3fb8cbaad3c928b4626fa6cec73a98",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-transport-coverage.md",
+      "path": "docs/rendering/vulkan-transport-coverage.md",
+      "original_sha256": "4b283d287731d2cf14c54acc31b03634c39502c0fd38f16d3b8342b6e72b4c03",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-transport-depth-checkpoint.md",
+      "path": "docs/archive/rendering/checkpoints/vulkan-transport-depth-checkpoint.md",
+      "original_sha256": "ee224b2e89620efaee8afaffff70d1a36e4abd9bbb608de288f07e20cb1a3e67",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-ttf-run11-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-ttf-run11-review.json",
+      "original_sha256": "9af1826da56fc58cb4967ef3a90cde395b115354386870a371a1ec21d2708951",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-ttf-run12-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-ttf-run12-review.json",
+      "original_sha256": "49c962ff5c1a665f061e4ee25650c9459e3a6e3f70a4ea7bd8d8854ead637330",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-ttf-run13-zero-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-ttf-run13-zero-review.json",
+      "original_sha256": "982ab3e0a57b51fd2bb55489b27f3e8d8ad6fc1c59ae240654a9ff4e167f052f",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-ttf-run14-review.json",
+      "path": "docs/archive/rendering/reviews/vulkan-ttf-run14-review.json",
+      "original_sha256": "d59bbef5745aa97428913a00d593c720b84eb748c227c64be5ed00d90f22bf2b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-ttf-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-ttf-visual-review.md",
+      "original_sha256": "3e2d12cb7e5f265aeadd847bcec474f52802a9e5cbb56cb4ccce9f29edf722c2",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-ui-first-startup.md",
+      "path": "docs/rendering/vulkan-ui-first-startup.md",
+      "original_sha256": "eb5e1e9a2a48cd445224b835b973bd67339b46b6e048a28edd5a901c18c8f929",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-underground-rendering-audit.md",
+      "path": "docs/archive/rendering/reviews/vulkan-underground-rendering-audit.md",
+      "original_sha256": "fda5c15387c49052e8f4d0ecdf60e5591fa44dcf5a7564a743436d17576c7264",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-upload-telemetry-smoke.json",
+      "path": "docs/archive/performance/vulkan-upload-telemetry-smoke.json",
+      "original_sha256": "75eb0f6379e87388620c0b6e4f1e1405b60a4800255595164e8cb6db9efb0e5b",
+      "payload_unchanged": true
+    },
+    {
+      "old_path": "docs/vulkan-upstream-reference.md",
+      "path": "docs/rendering/reference/vulkan-upstream-reference.md",
+      "original_sha256": "9b2263f142f31e818384c9a7f65c695310e5134f840bf7590e0dc0b45dd62531",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-upstream-static-visual-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-upstream-static-visual-review.md",
+      "original_sha256": "77fce67193829ebaf090a8c44ed70448633f56bd3468c17996710a45d8888cde",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-vram-state-rendering-evaluation.md",
+      "path": "docs/archive/rendering/designs/vulkan-vram-state-rendering-evaluation.md",
+      "original_sha256": "5937c64313d36d6b7e351326c6dd395b32e899f79549aae63ba89e03f118fde0",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-world-filter-composition.md",
+      "path": "docs/rendering/proposals/vulkan-world-filter-composition.md",
+      "original_sha256": "671daefde6b7cf965d6aa572d017c5d917a73177d2ba5a2e6c7a8b682348bb22",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/vulkan-world-text-review.md",
+      "path": "docs/archive/rendering/reviews/vulkan-world-text-review.md",
+      "original_sha256": "93108ba14c8d95f11c456449413d56caba798c14c11797f043115d6c70a64140",
+      "payload_unchanged": false
+    },
+    {
+      "old_path": "docs/windows-local-build.md",
+      "path": "docs/development/windows-local-build.md",
+      "original_sha256": "07959c33c03c64b02c5e687fd87cf904e4b217852a97eefe7f23348191eb28b5",
+      "payload_unchanged": false
+    }
+  ]
+}

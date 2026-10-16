@@ -6,7 +6,7 @@ also fails; a binary without the new parity fixtures cannot report success.
 
 After the task finishes, finalize its remaining scratch with the scoped
 archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
-docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
+docs/development/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 
 import argparse
@@ -152,7 +152,7 @@ def main():
     output = args.output.resolve()
     if not args.retain_raw_artifacts:
         retention.checked_output(output)
-    fixture_manifest_path = root / "docs/vulkan-parity-fixtures.json"
+    fixture_manifest_path = root / "docs/rendering/reference/vulkan-parity-fixtures.json"
     fixture_manifest_hash = sha256(fixture_manifest_path)
     fixture_manifest = json.loads(fixture_manifest_path.read_text(encoding="utf-8"))
     if args.mixed_corpus_summary or args.mixed_emission_probe_receipt:

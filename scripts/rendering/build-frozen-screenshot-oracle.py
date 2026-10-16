@@ -48,7 +48,7 @@ def file_manifest(paths):
 
 
 def check_frozen_inputs(workspace, source, plumbing_path):
-    reference_path = workspace / "docs/vulkan-software-reference.json"
+    reference_path = workspace / "docs/rendering/reference/vulkan-software-reference.json"
     reference = json.loads(reference_path.read_text(encoding="utf-8"))
     package = (workspace / reference["localReference"]).resolve(strict=True)
     archive = package / "source.zip"

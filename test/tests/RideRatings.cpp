@@ -1635,14 +1635,20 @@ TEST_F(RideRatings, SampledRatingProfilesApplyInitialRideTypeMultipliers)
     EXPECT_EQ(woodenProfile.LateralG, 500);
     EXPECT_EQ(woodenProfile.Speed, 300);
     EXPECT_EQ(woodenProfile.SpeedGCoupling, 500);
-    EXPECT_EQ(goKartsProfile.Speed, 3000);
-    EXPECT_EQ(goKartsProfile.LateralG, 3000);
+    EXPECT_EQ(goKartsProfile.LocalContext, 900);
+    EXPECT_EQ(goKartsProfile.Speed, 1500);
+    EXPECT_EQ(goKartsProfile.LongitudinalG, 1000);
+    EXPECT_EQ(goKartsProfile.VerticalG, 900);
+    EXPECT_EQ(goKartsProfile.LateralG, 2700);
+    EXPECT_EQ(goKartsProfile.Airtime, 900);
+    EXPECT_EQ(goKartsProfile.SpeedGCoupling, 900);
     EXPECT_TRUE(goKartsRtd.flags.has(RtdFlag::hasGForces));
     EXPECT_TRUE(goKartsRtd.flags.has(RtdFlag::hasDataLogging));
 
     const auto defaultSpeed = RideRating::ScoreVehicleSpeedForTick(90, kSampledRideRatingProfileScale);
     const auto kartSpeed = RideRating::ScoreVehicleSpeedForTick(90, goKartsProfile.Speed);
-    ExpectTickScore(kartSpeed, { defaultSpeed.excitement * 3, defaultSpeed.intensity * 3, defaultSpeed.nausea * 3 });
+    ExpectTickScore(kartSpeed, { defaultSpeed.excitement * 3 / 2, defaultSpeed.intensity * 3 / 2,
+                               defaultSpeed.nausea * 3 / 2 });
 }
 
 TEST_F(RideRatings, SampledRatingProfileScalesEveryNonSpeedChannel)

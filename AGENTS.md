@@ -2,6 +2,25 @@
 
 Repository agent instructions, including the local Windows development/deployment defaults.
 
+## Documentation library
+
+- Start at `docs/README.md` and follow the topic indexes. Keep the top of `docs/` for general architecture, status,
+  workflow and navigation; put subsystem contracts, procedures and reference data in the appropriate topic folder.
+- Improve the existing canonical page before adding another. Every retained page and data file must be linked from its
+  collection index. Link relevant source, related contracts and bounded evidence rather than duplicating mutable status.
+- Lead with durable behavior and its status. Distinguish implemented contracts, proposals, rejected experiments, static
+  inference and runtime evidence. Avoid one document per function, build or chat and long chronological diaries in current guides.
+- Archive unique superseded reasoning, completed handoffs and dated acceptance evidence under `docs/archive/`, explicitly
+  marked historical and linked to the current topic owner. Remove redundant prose after consolidation; avoid redirect stubs
+  and repeated backups. Archiving a failure does not make it resolved.
+- Personal saves, inspections, raw traces and generated task reports belong in an ignored task directory such as `.tmp/`
+  or `obj/`, or the requested external destination. Retain only narrowly scoped benchmark/regression evidence needed for
+  durable knowledge. Verify a destination is ignored before using it for ephemeral output.
+- When moving pages, update incoming links, collection indexes and script producer/consumer paths. Preserve hash-bound
+  historical JSON/CSV bytes and resolve their old documentation paths through `docs/development/document-relocations.json`.
+  Do not rewrite immutable run/source snapshots. Run `python scripts/check_docs.py --check-indexes` before delivery;
+  this checks file links and navigation, not heading anchors, factual freshness or runtime acceptance.
+
 ## Required deployment
 
 For runnable game updates, completion includes building, validating and deploying the resulting version to
@@ -17,7 +36,7 @@ For runnable game updates, completion includes building, validating and deployin
 
 ## This machine's development build
 
-The local toolchain is Visual Studio 2022, MSVC `14.44.35207`, Release x64. See `docs/windows-local-build.md`.
+The local toolchain is Visual Studio 2022, MSVC `14.44.35207`, Release x64. See `docs/development/windows-local-build.md`.
 The development `bin/data/object` directories may link to the sibling object checkout. Its uncommitted changes cause the
 pinned packaging installer to refuse installation. With dependencies already present, build the linked development setup
 using `openrct2.sln` with `/p:IsSolutionBuild=true`, then deploy the validated output with `-SkipBuild`.
@@ -25,7 +44,7 @@ using `openrct2.sln` with `/p:IsSolutionBuild=true`, then deploy the validated o
 ## Vulkan parity artifact retention
 
 After every Vulkan parity task, clean up the scratch artifacts created by that task before calling it complete.
-Follow `docs/vulkan-artifact-retention.md`; use the retention helpers and record reclaimed bytes and retained evidence.
+Follow `docs/development/vulkan-artifact-retention.md`; use the retention helpers and record reclaimed bytes and retained evidence.
 
 - Preserve frozen references, original saves/owner images, source patches, distinct unresolved failures,
   selected accepted performance controls/candidates, build/run/deployment receipts, hashes, configuration and relevant logs.

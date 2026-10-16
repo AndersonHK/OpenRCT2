@@ -67,7 +67,7 @@ def file_inventory(directory):
 
 
 def qualify_reference():
-    receipt_path = ROOT / "docs/vulkan-software-reference.json"
+    receipt_path = ROOT / "docs/rendering/reference/vulkan-software-reference.json"
     receipt = read_json(receipt_path)
     frozen = (ROOT / receipt["localReference"]).resolve(strict=True)
     manifest_path = checked_file(frozen, "manifest.json", receipt["manifest"]["sha256"])

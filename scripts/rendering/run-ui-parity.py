@@ -7,7 +7,7 @@ Every divergent image still requires an agent's recorded manual inspection.
 
 After the task finishes, finalize its remaining scratch with the scoped
 archive-vulkan-artifacts.py / apply-vulkan-archive.ps1 workflow described in
-docs/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
+docs/development/vulkan-artifact-retention.md. Keep selected live bins/references explicitly.
 """
 
 import argparse
@@ -757,7 +757,7 @@ def main():
         if previous["renderer"] != args.renderer or previous["buildReceipt"]["sha256"] != sha256(receipt_path):
             raise SystemExit("Fresh repeat requires the identical renderer build receipt")
     subprocess.run([sys.executable, str(root / "scripts/rendering/verify-software-reference.py")], check=True)
-    reference = json.loads((root / "docs/vulkan-software-reference.json").read_text(encoding="utf-8"))
+    reference = json.loads((root / "docs/rendering/reference/vulkan-software-reference.json").read_text(encoding="utf-8"))
     frozen = root / reference["localReference"]
     licensed_assets = {}
     for installation, names in ((args.rct2_path, ("g1.dat",)), (args.rct1_path, ("csg1.dat", "csg1i.dat"))):
@@ -1427,7 +1427,7 @@ def main():
                "oracleSourceReceipt": oracle_receipt, "shaderBuildReceipt": shader_receipt,
                "shaderSha256": shader_hashes, "parkSha256": sha256(park),
                "licensedAssets": licensed_assets,
-               "referenceReceiptSha256": sha256(root / "docs/vulkan-software-reference.json"),
+               "referenceReceiptSha256": sha256(root / "docs/rendering/reference/vulkan-software-reference.json"),
                "samples": samples, "comparisons": comparisons}
     if args.window_scale != 1:
         summary["scalingChecks"] = scaling_checks

@@ -167,7 +167,7 @@ def verify_fixture(path, root, evidence, source_archive=None, language_proof=Non
             and manifest.get("inputAuditFailures") == [], "Accepted, stable giant fixture required")
     require(set(manifest.get("censusDifferences", {})) == {"frozen-verify","frozen-verify-repeat","current-verify"}
             and all(v == [] for v in manifest["censusDifferences"].values()), "Giant reload/fresh-repeat census missing")
-    reference = read(root / "docs/vulkan-software-reference.json")
+    reference = read(root / "docs/rendering/reference/vulkan-software-reference.json")
     require(manifest["frozenReference"]["revision"] == reference["revision"]
             and manifest["frozenReference"]["sourceArchiveSha256"] == reference["sourceArchive"]["sha256"],
             "Giant preparer frozen revision differs")
@@ -323,7 +323,7 @@ def execute(args, root, output, summary, evidence):
                                 stdout=log, stderr=subprocess.STDOUT, timeout=180)
     require(result.returncode == 0, "Frozen reference verification failed")
     summary["referenceVerificationLog"] = pin(verification_log)
-    reference_path = root / "docs/vulkan-software-reference.json"
+    reference_path = root / "docs/rendering/reference/vulkan-software-reference.json"
     reference_receipt = read(reference_path)
     frozen = root / reference_receipt["localReference"]
     language_proof = {}

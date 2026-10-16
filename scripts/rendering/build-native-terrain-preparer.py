@@ -37,7 +37,7 @@ def inputs(source, harness):
 
 
 def frozen_proof(workspace, source):
-    reference_path = workspace / "docs/vulkan-software-reference.json"
+    reference_path = workspace / "docs/rendering/reference/vulkan-software-reference.json"
     reference = json.loads(reference_path.read_text(encoding="utf-8"))
     archive = workspace / reference["localReference"] / "source.zip"
     if build.sha256(archive) != reference["sourceArchive"]["sha256"]:

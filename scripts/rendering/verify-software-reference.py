@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--package", action="store_true", help="Verify every frozen file, not just manifest/archive")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
-    receipt = json.loads((root / "docs/vulkan-software-reference.json").read_text(encoding="utf-8"))
+    receipt = json.loads((root / "docs/rendering/reference/vulkan-software-reference.json").read_text(encoding="utf-8"))
     reference = root / receipt["localReference"]
     failures = []
     for relative, expected in (("manifest.json", receipt["manifest"]), ("source.zip", receipt["sourceArchive"])):
